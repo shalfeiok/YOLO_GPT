@@ -33,6 +33,8 @@
 
 - [x] 18) Monolith split governance: добавлен quality-gate на Tk stubs (`tests/test_tk_ui_stubs.py`) и синхронизирована документация библиотек.
 
+- [x] 19) KFoldConfig bool parsing: `enabled` теперь парсится через `_as_bool`, поэтому строка `"false"` больше не превращается в `True`.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение
@@ -134,3 +136,5 @@ Toggle «включено/выключено» в UI будет сбрасыва
 
 Результат:
 - Найден и закрыт edge-case: `store.load()` может вернуть не-`list` (например `None`), что раньше приводило бы к `TypeError` при `for rec in records`.
+- Закрыт новый edge-case сериализации KFold: `KFoldConfig.from_dict({"enabled": "false"})` теперь корректно даёт `enabled=False`; добавлен регрессионный тест.
+
