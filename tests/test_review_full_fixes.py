@@ -76,3 +76,46 @@ def test_job_registry_tracks_training_cancelled() -> None:
     bus.publish(TrainingStarted(model_name="m", epochs=1, project=Path("runs")))
     bus.publish(TrainingCancelled(message="cancel"))
     assert reg.list()[0].status == "cancelled"
+
+
+def test_job_registry_training_events_are_persisted() -> None:
+    class _Store:
+        def __init__(self) -> None:
+            self.events = []
+
+        def load(self):
+            return []
+
+        def append(self, event):
+            self.events.append(event)
+
+        def clear(self):
+            self.events.clear()
+
+    bus = EventBus()
+    store = _Store()
+    reg = JobRegistry(bus, store=store)
+
+    bus.publish(TrainingStarted(model_name="yolo11n.pt", epochs=2, project=Path("runs")))
+    bus.publish(TrainingProgress(fraction=0.5, message="mid"))
+    bus.publish(TrainingFinished(best_weights_path=None))
+
+    assert reg.list()[0].status == "finished"
+    types = [e["type"] for e in store.events]
+    assert "JobStarted" in types
+    assert "JobProgress" in types
+    assert "JobFinished" in types
+
+
+def test_job_registry_training_ids_are_unique_for_quick_starts() -> None:
+    bus = EventBus()
+    reg = JobRegistry(bus)
+
+    bus.publish(TrainingStarted(model_name="m1", epochs=1, project=Path("runs")))
+    bus.publish(TrainingCancelled(message="stop"))
+    bus.publish(TrainingStarted(model_name="m2", epochs=1, project=Path("runs")))
+
+    job_ids = [j.job_id for j in reg.list()]
+    assert len(job_ids) == 2
+    assert len(set(job_ids)) == 2
+

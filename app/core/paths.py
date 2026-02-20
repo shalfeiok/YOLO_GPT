@@ -12,7 +12,7 @@ def get_app_state_dir(app_folder_name: str = ".app_state") -> Path:
 
     Preference order:
     1) <PROJECT_ROOT>/.app_state if writable (good for dev / tests)
-    2) OS user data dir (~/.local/share/<app>, %APPDATA%\<app>, etc)
+    2) OS user data dir (~/.local/share/<app>, %APPDATA%\\<app>, etc)
     """
     # 1) Project-local state folder (dev-friendly)
     proj_dir = PROJECT_ROOT / app_folder_name

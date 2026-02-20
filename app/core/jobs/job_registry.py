@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from itertools import count
 from typing import Any, Callable
 
 from app.core.events import EventBus
@@ -56,6 +57,7 @@ class JobRegistry:
         self._jobs: dict[str, JobRecord] = {}
         self._store = store
         self._training_job_id: str | None = None
+        self._training_id_seq = count(1)
 
         # Subscribe to live events.
         self._bus.subscribe(JobStarted, self._on_started)
@@ -229,12 +231,14 @@ class JobRegistry:
         self._persist(e)
 
     def _on_training_started(self, e: TrainingStarted) -> None:
-        job_id = f"training:{int(datetime.utcnow().timestamp() * 1000)}"
+        job_id = f"training:{int(datetime.utcnow().timestamp() * 1000)}:{next(self._training_id_seq)}"
         self._training_job_id = job_id
         name = f"Training: {e.model_name}"
         self._jobs[job_id] = JobRecord(job_id=job_id, name=name)
         self._jobs[job_id].message = f"epochs={e.epochs}"
         self._purge_if_needed()
+        self._persist(JobStarted(job_id=job_id, name=name))
+        self._persist(JobProgress(job_id=job_id, name=name, progress=0.0, message=f"epochs={e.epochs}"))
 
     def _on_training_progress(self, e: TrainingProgress) -> None:
         if not self._training_job_id:
@@ -242,6 +246,7 @@ class JobRegistry:
         rec = self._ensure(self._training_job_id, "Training")
         rec.progress = max(0.0, min(1.0, float(e.fraction)))
         rec.message = e.message
+        self._persist(JobProgress(job_id=rec.job_id, name=rec.name, progress=rec.progress, message=e.message))
 
     def _on_training_finished(self, _e: TrainingFinished) -> None:
         if not self._training_job_id:
@@ -250,6 +255,7 @@ class JobRegistry:
         rec.status = "finished"
         rec.progress = 1.0
         rec.finished_at = datetime.utcnow()
+        self._persist(JobFinished(job_id=rec.job_id, name=rec.name, result=None))
         self._training_job_id = None
 
     def _on_training_failed(self, e: TrainingFailed) -> None:
@@ -259,6 +265,7 @@ class JobRegistry:
         rec.status = "failed"
         rec.error = str(e.error)
         rec.finished_at = datetime.utcnow()
+        self._persist(JobFailed(job_id=rec.job_id, name=rec.name, error=rec.error))
         self._training_job_id = None
 
     def _on_training_cancelled(self, e: TrainingCancelled) -> None:
@@ -268,4 +275,5 @@ class JobRegistry:
         rec.status = "cancelled"
         rec.message = e.message
         rec.finished_at = datetime.utcnow()
+        self._persist(JobCancelled(job_id=rec.job_id, name=rec.name))
         self._training_job_id = None
