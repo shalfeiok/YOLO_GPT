@@ -20,3 +20,10 @@ def test_container_can_be_constructed_headless() -> None:
     from app.ui.infrastructure.di import Container
 
     assert Container() is not None
+
+
+def test_infrastructure_package_import_is_lazy() -> None:
+    # Importing package-level module should stay headless-safe and not require QtGui.
+    import app.ui.infrastructure as infra
+
+    assert infra.Container is not None

@@ -9,37 +9,40 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.config import PROJECT_ROOT
-from app.interfaces import IDetector, IDatasetConfigBuilder, ITrainer, IWindowCapture
-from app.application.use_cases.train_model import TrainModelUseCase
-from app.application.use_cases.export_model import ExportModelUseCase, DefaultModelExporter
-from app.application.use_cases.validate_model import ValidateModelUseCase, DefaultModelValidator
+from app.application.ports.capture import CapturePort, FrameSource, FrameSourceSpec
+from app.application.ports.detection import DetectionPort, DetectorSpec
+from app.application.ports.integrations import IntegrationsPort
+from app.application.ports.metrics import MetricsPort
+from app.application.use_cases.export_model import DefaultModelExporter, ExportModelUseCase
 from app.application.use_cases.integrations_config import (
+    DefaultIntegrationsConfigRepository,
     ExportIntegrationsConfigUseCase,
     ImportIntegrationsConfigUseCase,
-    DefaultIntegrationsConfigRepository,
 )
 from app.application.use_cases.start_detection import StartDetectionUseCase
 from app.application.use_cases.stop_detection import StopDetectionUseCase
-from app.application.use_cases.stop_detection import StopDetectionUseCase
+from app.application.use_cases.train_model import TrainModelUseCase
+from app.application.use_cases.validate_model import DefaultModelValidator, ValidateModelUseCase
+from app.config import PROJECT_ROOT
 from app.core.events import EventBus
+from app.core.jobs import JobRegistry, JobRunner, JsonlJobEventStore, ProcessJobRunner
 from app.core.paths import get_app_state_dir
-from app.core.jobs import JobRunner, JobRegistry, ProcessJobRunner, JsonlJobEventStore
+from app.interfaces import IDatasetConfigBuilder, IDetector, ITrainer, IWindowCapture
 from app.services import (
     DatasetConfigBuilder,
-    DetectionService,
     TrainingService,
     WindowCaptureService,
 )
-from app.application.ports.capture import CapturePort, FrameSource, FrameSourceSpec
-from app.application.ports.detection import DetectionPort, DetectorSpec
-from app.application.ports.metrics import MetricsPort
-from app.application.ports.integrations import IntegrationsPort
-from app.services.adapters import CaptureAdapter, DetectionAdapter, MetricsAdapter, IntegrationsAdapter
+from app.services.adapters import (
+    CaptureAdapter,
+    DetectionAdapter,
+    IntegrationsAdapter,
+    MetricsAdapter,
+)
 
 if TYPE_CHECKING:
-    from app.ui.theme.manager import ThemeManager
     from app.ui.infrastructure.notifications import NotificationCenter
+    from app.ui.theme.manager import ThemeManager
 
 
 class Container:
