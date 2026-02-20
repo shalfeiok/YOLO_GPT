@@ -87,10 +87,14 @@ __all__ = [
 
 def load_jobs_policy() -> JobsPolicyConfig:
     cfg = load_integrations_config_dict()
+    if isinstance(cfg, dict) and "jobs" not in cfg and "jobs_policy" in cfg:
+        cfg = dict(cfg)
+        cfg["jobs"] = cfg.get("jobs_policy")
     return IntegrationsConfig.from_dict(cfg).jobs
 
 
 def save_jobs_policy(policy: JobsPolicyConfig) -> None:
     cfg = load_integrations_config_dict()
     cfg["jobs"] = asdict(policy)
+    cfg.pop("jobs_policy", None)
     save_integrations_config_dict(cfg)

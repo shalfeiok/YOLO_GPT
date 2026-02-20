@@ -23,6 +23,8 @@ class JobsPolicyConfig:
     default_timeout_sec: int = 0
     retries: int = 0
     retry_backoff_sec: float = 0.0
+    retry_jitter: float = 0.3
+    retry_deadline_sec: int = 0
 
     @classmethod
     def from_dict(cls, d: dict) -> "JobsPolicyConfig":
@@ -30,6 +32,8 @@ class JobsPolicyConfig:
             default_timeout_sec=int(d.get("default_timeout_sec", 0)),
             retries=int(d.get("retries", 0)),
             retry_backoff_sec=float(d.get("retry_backoff_sec", 0.0)),
+            retry_jitter=float(d.get("retry_jitter", 0.3)),
+            retry_deadline_sec=int(d.get("retry_deadline_sec", 0)),
         )
 
     def to_dict(self) -> dict:
@@ -37,6 +41,8 @@ class JobsPolicyConfig:
             "default_timeout_sec": int(self.default_timeout_sec),
             "retries": int(self.retries),
             "retry_backoff_sec": float(self.retry_backoff_sec),
+            "retry_jitter": float(self.retry_jitter),
+            "retry_deadline_sec": int(self.retry_deadline_sec),
         }
 
 

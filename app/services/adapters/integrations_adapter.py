@@ -55,16 +55,22 @@ class IntegrationsAdapter(IntegrationsPort):
 
     def load_jobs_policy(self) -> JobsPolicyConfig:
         cfg = load_config()
-        raw = cfg.get("jobs_policy", {}) if isinstance(cfg, dict) else {}
+        raw = {}
+        if isinstance(cfg, dict):
+            raw = cfg.get("jobs", {})
+            if not isinstance(raw, dict) or not raw:
+                raw = cfg.get("jobs_policy", {})
         try:
             return JobsPolicyConfig.from_dict(raw if isinstance(raw, dict) else {})
         except Exception:
-            log.debug("Failed to parse jobs_policy from integrations config", exc_info=True)
+            log.debug("Failed to parse jobs policy from integrations config", exc_info=True)
             return JobsPolicyConfig()
 
     def save_jobs_policy(self, policy: JobsPolicyConfig) -> None:
         cfg = load_config()
         if not isinstance(cfg, dict):
             cfg = {}
-        cfg["jobs_policy"] = policy.to_dict()
+        cfg["jobs"] = policy.to_dict()
+        # Clean up legacy key after successful write.
+        cfg.pop("jobs_policy", None)
         save_config(cfg)

@@ -183,7 +183,7 @@ class IntegrationsViewModel(QObject):
         self._update_state(tuning=cfg)
 
     def save_export(self, cfg: ModelExportConfig) -> None:
-        self._update_state(export=cfg)
+        self._update_state(model_export=cfg)
 
     def save_sahi(self, cfg: SahiConfig) -> None:
         self._update_state(sahi=cfg)
@@ -192,7 +192,48 @@ class IntegrationsViewModel(QObject):
         self._update_state(seg_isolation=cfg)
 
     def save_validation(self, cfg: ModelValidationConfig) -> None:
-        self._update_state(validation=cfg)
+        self._update_state(model_validation=cfg)
+
+    def reset_kfold(self) -> KFoldConfig:
+        cfg = KFoldConfig()
+        self._update_state(kfold=cfg)
+        return cfg
+
+    def reset_tuning(self) -> TuningConfig:
+        cfg = TuningConfig()
+        self._update_state(tuning=cfg)
+        return cfg
+
+    def reset_export(self) -> ModelExportConfig:
+        cfg = ModelExportConfig()
+        self._update_state(model_export=cfg)
+        return cfg
+
+    def reset_sahi(self) -> SahiConfig:
+        cfg = SahiConfig()
+        self._update_state(sahi=cfg)
+        return cfg
+
+    def save_seg(self, cfg: SegIsolationConfig) -> None:
+        self.save_seg_isolation(cfg)
+
+    def reset_seg(self) -> SegIsolationConfig:
+        cfg = SegIsolationConfig()
+        self._update_state(seg_isolation=cfg)
+        return cfg
+
+    def reset_validation(self) -> ModelValidationConfig:
+        cfg = ModelValidationConfig()
+        self._update_state(model_validation=cfg)
+        return cfg
+
+    def run_export(self, *, model_path: str, export_format: str, output_dir: str) -> str:
+        cfg = ModelExportConfig(weights_path=model_path, format=export_format, output_dir=output_dir)
+        return self.export_model_async(cfg)
+
+    def run_validation(self, *, model_path: str, data_yaml: str) -> str:
+        cfg = ModelValidationConfig(weights_path=model_path, data_yaml=data_yaml)
+        return self.validate_model_async(cfg)
 
     # ---- Actions ----
     def export_model(self, cfg: ModelExportConfig) -> Path | None:

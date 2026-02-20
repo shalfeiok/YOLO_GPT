@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes.util
 import logging
 
 
@@ -17,6 +18,9 @@ def test_container_can_be_constructed_headless() -> None:
     import pytest
 
     pytest.importorskip("PySide6")
+    if ctypes.util.find_library("GL") is None:
+        pytest.skip("PySide6 runtime is not fully available in this environment: libGL is missing")
+
     from app.ui.infrastructure.di import Container
 
     assert Container() is not None

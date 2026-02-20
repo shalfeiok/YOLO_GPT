@@ -39,6 +39,7 @@ from app.core.events.job_events import (
     JobStarted,
     JobTimedOut,
 )
+from app.core.events.events import TrainingCancelled, TrainingFailed, TrainingFinished, TrainingProgress, TrainingStarted
 
 
 class JobsView(QWidget):
@@ -158,6 +159,11 @@ class JobsView(QWidget):
         self._subs.append(self._bus.subscribe_weak(JobCancelled, self._on_job_event))
         self._subs.append(self._bus.subscribe_weak(JobRetrying, self._on_job_event))
         self._subs.append(self._bus.subscribe_weak(JobTimedOut, self._on_job_event))
+        self._subs.append(self._bus.subscribe_weak(TrainingStarted, self._on_job_event))
+        self._subs.append(self._bus.subscribe_weak(TrainingProgress, self._on_job_event))
+        self._subs.append(self._bus.subscribe_weak(TrainingFinished, self._on_job_event))
+        self._subs.append(self._bus.subscribe_weak(TrainingFailed, self._on_job_event))
+        self._subs.append(self._bus.subscribe_weak(TrainingCancelled, self._on_job_event))
 
         self._refresh()
 

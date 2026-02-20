@@ -78,6 +78,7 @@ if TYPE_CHECKING:
 from app.application.facades.capture import FrameSource
 from app.application.use_cases.start_detection import StartDetectionError, StartDetectionRequest
 from app.application.use_cases.stop_detection import StopDetectionRequest
+from app.core.events.job_events import JobCancelled, JobFailed, JobFinished, JobStarted
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +158,9 @@ class DetectionView(QWidget):
         # Double-buffer preview: no numpy.copy(), producer/consumer use different slots (Part 1.1)
         self._preview_buffer: PreviewBuffer = PreviewBuffer()
         self._run_id = 0
+        self._detection_job_id: str | None = None
+        self._detection_stop_reason: str = "finished"
+        self._detection_error: str | None = None
         self._visualization_backend = None
         self._active_detector = None  # устанавливается при Старт: detector или detector_onnx
         self._metrics = DetectionMetrics()
@@ -166,7 +170,8 @@ class DetectionView(QWidget):
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
         self._build_ui()
-        self._refresh_windows()
+        # Defer potentially expensive window enumeration to keep tab opening responsive.
+        QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:
         t = Tokens
@@ -649,13 +654,18 @@ class DetectionView(QWidget):
         dlg.exec()
 
     def _refresh_windows(self) -> None:
-        self._window_list = self._capture.list_windows()
+        current = self._source_combo.currentText().strip()
+        try:
+            self._window_list = self._capture.list_windows()
+        except Exception:
+            self._window_list = []
         titles = ["Весь экран"] + [t for _, t in self._window_list] + ["Камера", "Видеофайл"]
         self._source_combo.clear()
         self._source_combo.addItems(titles)
-
-    def _update_window_list_only(self) -> None:
-        self._window_list = self._capture.list_windows()
+        if current:
+            idx = self._source_combo.findText(current)
+            if idx >= 0:
+                self._source_combo.setCurrentIndex(idx)
 
     def _on_source_changed(self, choice: str) -> None:
         self._use_full_screen = choice == "Весь экран"
@@ -674,6 +684,8 @@ class DetectionView(QWidget):
             return
 
         self._run_event.clear()
+        self._detection_stop_reason = "finished"
+        self._detection_error = None
         if self._opencv_source is not None:
             try:
                 self._opencv_source.release()
@@ -687,8 +699,6 @@ class DetectionView(QWidget):
         self._capture_thread = None
         self._screen_capture_thread = None
         self._inference_thread = None
-        self._update_window_list_only()
-
         source_choice = self._source_combo.currentText()
         if source_choice == "Весь экран":
             self._current_hwnd = None
@@ -804,6 +814,8 @@ class DetectionView(QWidget):
         self._preview_buffer.clear()
         self._start_btn.setEnabled(False)
         self._stop_btn.setEnabled(True)
+        self._detection_job_id = f"detection:{this_run_id}"
+        self._container.event_bus.publish(JobStarted(job_id=self._detection_job_id, name="Detection"))
 
         self._visualization_backend = get_backend(backend_id)
         section = get_config_section(backend_id)
@@ -879,8 +891,11 @@ class DetectionView(QWidget):
                     if frame is not None:
                         self._frame_slot.put_nowait(frame)
                     time.sleep(0.03)
-            except Exception:
+            except Exception as ex:
                 log.exception("capture_loop")
+                if self._run_event.is_set():
+                    self._detection_stop_reason = "failed"
+                    self._detection_error = str(ex)
 
         def inference_loop() -> None:
             import numpy as np
@@ -988,8 +1003,11 @@ class DetectionView(QWidget):
                             logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
                         frame_count = 0
                         fps_t0 = time.perf_counter()
-            except Exception:
+            except Exception as ex:
                 log.exception("inference_loop")
+                if self._run_event.is_set():
+                    self._detection_stop_reason = "failed"
+                    self._detection_error = str(ex)
             finally:
                 QTimer.singleShot(0, lambda: self._on_detection_stopped(this_run_id))
 
@@ -1094,6 +1112,16 @@ class DetectionView(QWidget):
         self._frame_slot.clear()
         self._preview_buffer.clear()
         self._container.stop_detection_use_case.execute(StopDetectionRequest(detector=self._active_detector, release_cuda_cache=True))
+        if self._detection_job_id is not None:
+            if self._detection_stop_reason == "cancelled":
+                self._container.event_bus.publish(JobCancelled(job_id=self._detection_job_id, name="Detection"))
+            elif self._detection_stop_reason == "failed":
+                self._container.event_bus.publish(JobFailed(job_id=self._detection_job_id, name="Detection", error=self._detection_error or "Detection failed"))
+            else:
+                self._container.event_bus.publish(JobFinished(job_id=self._detection_job_id, name="Detection", result=None))
+            self._detection_job_id = None
+            self._detection_error = None
+            self._detection_stop_reason = "finished"
         self._detection_status_label.setText("Загрузите модель и нажмите «Старт». Превью откроется в отдельном окне «YOLO Detection».")
         self._start_btn.setEnabled(True)
         self._stop_btn.setEnabled(False)
@@ -1103,6 +1131,8 @@ class DetectionView(QWidget):
         return self._metrics.get_metrics()
 
     def _stop_detection(self) -> None:
+        if self._run_event.is_set() and self._detection_stop_reason != "failed":
+            self._detection_stop_reason = "cancelled"
         self._run_event.clear()
         if self._opencv_source is not None:
             try:
