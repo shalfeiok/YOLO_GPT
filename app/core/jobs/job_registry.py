@@ -204,7 +204,11 @@ class JobRegistry:
 
     def _on_progress(self, e: JobProgress, *, persist: bool = True) -> None:
         rec = self._ensure(e.job_id, e.name)
-        rec.progress = e.progress
+        try:
+            progress = float(e.progress)
+        except Exception:
+            progress = 0.0
+        rec.progress = max(0.0, min(1.0, progress))
         rec.message = e.message
         if persist:
             self._persist(e)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 from app.core.events import EventBus
-from app.core.events.job_events import JobRetrying, JobStarted, JobTimedOut
+from app.core.events.job_events import JobProgress, JobRetrying, JobStarted, JobTimedOut
 from app.core.jobs import JobRegistry
 
 
@@ -32,3 +32,19 @@ def test_job_registry_marks_timed_out() -> None:
     assert rec.status == "timed_out"
     assert rec.error is not None
     assert "timeout" in rec.error
+
+def test_job_registry_clamps_progress_bounds() -> None:
+    bus = EventBus()
+    reg = JobRegistry(bus)
+
+    bus.publish(JobStarted(job_id="3", name="task"))
+    bus.publish(JobProgress(job_id="3", name="task", progress=1.7, message="too high"))
+    rec = reg.get("3")
+    assert rec is not None
+    assert rec.progress == 1.0
+
+    bus.publish(JobProgress(job_id="3", name="task", progress=-0.5, message="too low"))
+    rec2 = reg.get("3")
+    assert rec2 is not None
+    assert rec2.progress == 0.0
+

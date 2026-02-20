@@ -27,6 +27,8 @@
 
 - [x] 15) Detection job-id uniqueness: id детекции теперь включает timestamp + run_id, чтобы избежать коллизий history между сессиями.
 
+- [x] 16) Progress normalization: `JobProgress` теперь нормализуется в диапазон [0..1], чтобы UI не ломался от некорректных progress значений.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение
