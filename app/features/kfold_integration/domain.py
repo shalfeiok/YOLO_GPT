@@ -46,7 +46,7 @@ class KFoldConfig:
         if not d:
             return cls()
         return cls(
-            enabled=bool(m.get("enabled", False)),
+            enabled=bool(d.get("enabled", False)),
             dataset_path=str(d.get("dataset_path", "")),
             data_yaml_path=str(d.get("data_yaml_path", "")),
             k_folds=int(d.get("k_folds", 5)),
@@ -57,3 +57,12 @@ class KFoldConfig:
             train_batch=int(d.get("train_batch", 16)),
             train_project=str(d.get("train_project", "kfold_demo")),
         )
+
+    @property
+    def k(self) -> int:
+        return int(self.k_folds)
+
+    @k.setter
+    def k(self, value: int) -> None:
+        self.k_folds = int(value)
+

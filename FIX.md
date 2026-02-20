@@ -25,3 +25,14 @@ This file records runtime/compatibility fixes applied while executing the rework
 - Fix: `TrainingView` crash: add missing import `SecondaryButton` in `app/ui/views/training/sections.py`.
 - Fix: `IntegrationsView` crash: add `enabled: bool` to `KFoldConfig` models (`app/features/integrations_schema.py`, `app/features/kfold_integration/domain.py`) and parse/serialize it.
 - Fix: `DetectionView` stop crash: initialize and lazy-create `Container._stop_detection_uc` and `stop_detection_use_case`.
+
+
+## Hotfix 2026-02-20 (runtime follow-up)
+- Fixed NameError: `SecondaryButton`/`PrimaryButton`/`NoWheelSpinBox` missing imports in `app/ui/views/training/sections.py`.
+- Fixed NameError in `KFoldConfig.from_dict`: used undefined `m` variable; corrected to `d` in `app/features/kfold_integration/domain.py`.
+- Added `enabled` field parsing/serialization to schema `KFoldConfig` in `app/features/integrations_schema.py` for consistency.
+
+## Hotfix 2026-02-20 - runtime (training/integrations)
+- Fixed NameError: missing `import os` in `app/ui/views/training/sections.py`.
+- Fixed KFoldConfig.from_dict bug (`m` -> `d`) and added alias property `k` -> `k_folds`.
+- Updated Integrations KFold UI to use `k_folds` (backward compatible) and preserve full config via `replace(cfg, ...)`.

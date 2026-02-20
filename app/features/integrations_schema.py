@@ -1,4 +1,12 @@
 """Typed schema + light validation for integrations_config.
+    @property
+    def k(self) -> int:
+        return int(self.k_folds)
+
+    @k.setter
+    def k(self, value: int) -> None:
+        self.k_folds = int(value)
+
 
 The config is stored as JSON and historically treated as a loose
 ``dict[str, Any]`` across the codebase.
@@ -187,6 +195,7 @@ class KFoldConfig:
     def from_dict(cls, data: Mapping[str, Any]) -> "KFoldConfig":
         m = _mapping(data)
         return cls(
+            enabled=bool(m.get('enabled', False))),
             dataset_path=_as_str(m.get("dataset_path"), ""),
             data_yaml_path=_as_str(m.get("data_yaml_path"), ""),
             k_folds=max(2, _as_int(m.get("k_folds"), 5)),

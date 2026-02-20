@@ -7,7 +7,7 @@ Each function returns a fully wired :class:`~PySide6.QtWidgets.QGroupBox`.
 from __future__ import annotations
 
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
 
@@ -246,7 +246,7 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
     cb.setChecked(cfg.enabled)
     lay.addWidget(cb)
     lay.addWidget(QLabel("Количество фолдов:"))
-    le_k = QLineEdit(); le_k.setText(str(cfg.k)); le_k.setStyleSheet(_edit_style())
+    le_k = QLineEdit(); le_k.setText(str(getattr(cfg, 'k_folds', getattr(cfg, 'k', 5)))); le_k.setStyleSheet(_edit_style())
     lay.addWidget(le_k)
 
     def _save() -> None:
@@ -255,7 +255,7 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
         except ValueError:
             ctx.toast_err("Ошибка", "Количество фолдов должно быть числом")
             return
-        c = KFoldConfig(enabled=cb.isChecked(), k=k)
+        c = replace(cfg, enabled=cb.isChecked(), k_folds=k)
         ctx.vm.save_kfold(c)
         ctx.state.kfold = c
         ctx.toast_ok("Сохранено", "Настройки K-Fold сохранены.")
@@ -264,7 +264,7 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
         c = ctx.vm.reset_kfold()
         ctx.state.kfold = c
         cb.setChecked(c.enabled)
-        le_k.setText(str(c.k))
+        le_k.setText(str(getattr(c, 'k_folds', getattr(c, 'k', 5))))
         ctx.toast_ok("Сброс", "Настройки K-Fold сброшены.")
 
     row = QHBoxLayout()
