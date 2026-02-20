@@ -19,6 +19,11 @@ from app.features.detection_visualization.repository import (
     load_visualization_config,
     save_visualization_config,
 )
+
+
+def reset_visualization_config_to_default() -> None:
+    """Reset visualization config to defaults and persist it."""
+    save_visualization_config(default_visualization_config())
 """Detection visualization integration (headless-safe).
 
 UI helpers are intentionally not imported here because they may depend on
@@ -38,4 +43,5 @@ __all__ = [
     "use_gpu_tensor_for_preview",
     "load_visualization_config",
     "save_visualization_config",
+    "reset_visualization_config_to_default",
 ]

@@ -154,7 +154,8 @@ class Container:
     @property
     def job_registry(self) -> JobRegistry:
         if self._job_registry is None:
-            self._job_registry = JobRegistry()
+            store = JsonlJobEventStore(get_app_state_dir() / "jobs" / "registry.jsonl")
+            self._job_registry = JobRegistry(self.event_bus, store=store)
         return self._job_registry
 
     @property

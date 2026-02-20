@@ -1,0 +1,26 @@
+{
+  "backend_id": "d3dshot_pytorch",
+  "opencv": {
+    "preview_max_w": 0,
+    "preview_max_h": 0,
+    "use_cuda_resize": true,
+    "capture_method": "gdi"
+  },
+  "d3dshot_pytorch": {
+    "preview_max_w": 0,
+    "preview_max_h": 0,
+    "use_d3dshot_capture": true,
+    "force_cpu": false,
+    "use_fp16": false,
+    "use_torchscript": false
+  },
+  "onnx": {
+    "preview_max_w": 0,
+    "preview_max_h": 0,
+    "use_cuda_resize": true,
+    "execution_provider": "auto",
+    "use_directml": false,
+    "use_tensorrt": false
+  },
+  "presets": []
+}
