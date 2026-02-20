@@ -9,6 +9,7 @@
 - [x] 4) Единый ключ policy: канонический ключ `jobs`, чтение legacy `jobs_policy` оставлено как fallback + очистка legacy при сохранении.
 - [x] 5) Детекция: убран синхронный refresh списка окон из `_start_detection()`.
 - [~] 6) Consolidation review-файлов: `REVIEW_NOTES.md` оставлен как исторический; текущий статус ведется в этом файле.
+- [x] 7) Detection Jobs status parity: пользовательская остановка теперь публикуется как `cancelled`, а аварии pipeline — как `failed` (вместо безусловного `finished`).
 
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
