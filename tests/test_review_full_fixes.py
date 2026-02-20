@@ -119,3 +119,20 @@ def test_job_registry_training_ids_are_unique_for_quick_starts() -> None:
     assert len(job_ids) == 2
     assert len(set(job_ids)) == 2
 
+def test_job_registry_supersedes_previous_running_training() -> None:
+    bus = EventBus()
+    reg = JobRegistry(bus)
+
+    bus.publish(TrainingStarted(model_name="m1", epochs=5, project=Path("runs")))
+    first_id = reg.list()[0].job_id
+    bus.publish(TrainingStarted(model_name="m2", epochs=3, project=Path("runs")))
+
+    first = reg.get(first_id)
+    assert first is not None
+    assert first.status == "cancelled"
+    assert first.message == "superseded by a new training run"
+
+    jobs = reg.list()
+    assert jobs[0].name == "Training: m2"
+    assert jobs[0].status == "running"
+

@@ -11,6 +11,8 @@
 - [~] 6) Consolidation review-файлов: `REVIEW_NOTES.md` оставлен как исторический; текущий статус ведется в этом файле.
 - [x] 7) Detection Jobs status parity: пользовательская остановка теперь публикуется как `cancelled`, а аварии pipeline — как `failed` (вместо безусловного `finished`).
 
+- [x] 8) Training bridge resilience: при старте нового обучения незавершённый предыдущий training-job корректно закрывается как `cancelled` (без «вечного running").
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

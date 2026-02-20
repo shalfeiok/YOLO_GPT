@@ -231,6 +231,14 @@ class JobRegistry:
         self._persist(e)
 
     def _on_training_started(self, e: TrainingStarted) -> None:
+        if self._training_job_id is not None:
+            prev = self._ensure(self._training_job_id, "Training")
+            prev.status = "cancelled"
+            prev.message = "superseded by a new training run"
+            prev.finished_at = datetime.utcnow()
+            self._persist(JobCancelled(job_id=prev.job_id, name=prev.name))
+            self._training_job_id = None
+
         job_id = f"training:{int(datetime.utcnow().timestamp() * 1000)}:{next(self._training_id_seq)}"
         self._training_job_id = job_id
         name = f"Training: {e.model_name}"
