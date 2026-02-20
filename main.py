@@ -36,6 +36,9 @@ def main() -> None:
     theme_manager.set_theme(settings.get_theme())
 
     container = Container()
+    # Ensure job tracking is attached before any UI action can submit background work.
+    # Without this eager init, jobs started before opening the Jobs tab are not tracked.
+    _ = container.job_registry
     container.theme_manager = theme_manager
     training_signals = TrainingSignals()
 

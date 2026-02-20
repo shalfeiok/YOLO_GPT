@@ -28,6 +28,7 @@ class SahiConfig:
             "slice_width": self.slice_width,
             "overlap_height_ratio": self.overlap_height_ratio,
             "overlap_width_ratio": self.overlap_width_ratio,
+            "confidence_threshold": self.confidence_threshold,
         }
 
     @classmethod

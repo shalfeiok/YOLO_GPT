@@ -22,6 +22,7 @@ class TuningConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "enabled": self.enabled,
             "data_yaml": self.data_yaml,
             "model_path": self.model_path,
             "epochs": self.epochs,
@@ -35,6 +36,7 @@ class TuningConfig:
         if not d:
             return cls()
         return cls(
+            enabled=bool(d.get("enabled", False)),
             data_yaml=str(d.get("data_yaml", "")),
             model_path=str(d.get("model_path", "")),
             epochs=int(d.get("epochs", 30)),

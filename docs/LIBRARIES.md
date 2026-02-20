@@ -17,7 +17,7 @@
 | Библиотека | Назначение | Где используется (окно/модуль) |
 |------------|------------|----------------------------------|
 | **PySide6** | Основной GUI: окна, виджеты, темы, навигация | Главное окно, сайдбар, все вкладки (Датасеты, Обучение, Детекция, Интеграции), диалоги, кнопки, карточки, тосты, палитра команд |
-| **customtkinter** | Альтернативный GUI для части фич | Модули настроек: `detection_visualization/ui.py`, `kfold_integration/ui.py`, `ultralytics_solutions/ui.py`, `hyperparameter_tuning/ui.py`, `albumentations_integration/ui.py`, `dvc_integration/ui.py`, `model_export/ui.py` (используются при наличии CTk-лаунчера или из фич) |
+| **customtkinter** | Legacy GUI (архив примеров) | В production-коде не используется; legacy-реализации вынесены в `examples/tk_ui/*`, а `app/features/*/ui.py` содержат безопасные stubs |
 | **opencv-python (cv2)** | Захват/видео, ресайз, отрисовка, превью детекции | **Детекция**: превью (imshow), ресайз; бэкенды отрисовки (opencv_backend, d3dshot_pytorch_backend); **Датасеты**: чтение/превью изображений; **ONNX-детектор**: препроцессинг, NMS, рисование боксов; **Capture**: камера/видео (OpenCVFrameSource) |
 | **numpy** | Массивы, тензоры, обмен с OpenCV/PyTorch/ONNX | Детекция (кадры, аннотации), бэкенды визуализации, ONNX-детектор, датасеты (изображения), сервисы датасетов |
 | **Pillow (PIL)** | Работа с изображениями (открытие, конвертация) | **Датасеты**: превью и галерея фото (Image.fromarray, BGR→RGB) |
@@ -53,4 +53,4 @@
 | **Детекция** | PySide6, OpenCV, numpy, ultralytics, onnxruntime, pywin32, mss, d3dshot (опционально) |
 | **Интеграции** | PySide6, ultralytics, PyYAML (и зависимости конкретных интеграций) |
 
-Точка входа: `main.py` — создаётся Qt-приложение (PySide6), главное окно с вкладками `datasets`, `training`, `detection`, `integrations`. CustomTkinter используется только в модулях фич (настройки визуализации, K-Fold, Solutions, Tuning, Albumentations, DVC, Export и т.д.) и рассчитан на вызов из CTk-интерфейса или из кода фич, а не из основного Qt-окна.
+Точка входа: `main.py` — создаётся Qt-приложение (PySide6), главное окно с вкладками `datasets`, `training`, `detection`, `integrations`. `customtkinter` не участвует в production runtime: legacy Tk UI вынесен в `examples/tk_ui`, а модули `app/features/*/ui.py` оставлены как stubs с явным сообщением о переносе.
