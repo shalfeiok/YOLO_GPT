@@ -236,6 +236,7 @@ class JobRegistry:
             prev.status = "cancelled"
             prev.message = "superseded by a new training run"
             prev.finished_at = datetime.utcnow()
+            self._persist(JobProgress(job_id=prev.job_id, name=prev.name, progress=prev.progress, message=prev.message))
             self._persist(JobCancelled(job_id=prev.job_id, name=prev.name))
             self._training_job_id = None
 
@@ -283,5 +284,6 @@ class JobRegistry:
         rec.status = "cancelled"
         rec.message = e.message
         rec.finished_at = datetime.utcnow()
+        self._persist(JobProgress(job_id=rec.job_id, name=rec.name, progress=rec.progress, message=rec.message))
         self._persist(JobCancelled(job_id=rec.job_id, name=rec.name))
         self._training_job_id = None

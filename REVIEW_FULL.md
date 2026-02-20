@@ -13,6 +13,8 @@
 
 - [x] 8) Training bridge resilience: при старте нового обучения незавершённый предыдущий training-job корректно закрывается как `cancelled` (без «вечного running").
 
+- [x] 9) Training cancel reason durability: причина отмены обучения теперь сохраняется в event-store через `JobProgress` перед `JobCancelled` и не теряется в истории.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

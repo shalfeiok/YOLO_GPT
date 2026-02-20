@@ -136,3 +136,29 @@ def test_job_registry_supersedes_previous_running_training() -> None:
     assert jobs[0].name == "Training: m2"
     assert jobs[0].status == "running"
 
+def test_job_registry_persists_training_cancel_reason_message() -> None:
+    class _Store:
+        def __init__(self) -> None:
+            self.events = []
+
+        def load(self):
+            return []
+
+        def append(self, event):
+            self.events.append(event)
+
+        def clear(self):
+            self.events.clear()
+
+    bus = EventBus()
+    store = _Store()
+    reg = JobRegistry(bus, store=store)
+
+    bus.publish(TrainingStarted(model_name="m", epochs=1, project=Path("runs")))
+    bus.publish(TrainingProgress(fraction=0.25, message="warmup"))
+    bus.publish(TrainingCancelled(message="user stop"))
+
+    assert reg.list()[0].status == "cancelled"
+    progress_messages = [e["data"].get("message") for e in store.events if e["type"] == "JobProgress"]
+    assert "user stop" in progress_messages
+
