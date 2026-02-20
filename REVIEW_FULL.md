@@ -17,6 +17,8 @@
 
 - [x] 10) Replay backward-compat: восстановление Job history теперь толерантно к legacy/event-строкам без `name` (берется существующее имя job или fallback `Job`).
 
+- [x] 11) Replay idempotency: восстановление history больше не дописывает повторно те же `Job*` события в store во время replay.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

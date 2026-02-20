@@ -195,3 +195,26 @@ def test_job_registry_replay_restores_cancel_message_and_tolerates_missing_name(
     assert rec.message == "user stop"
     assert rec.name == "Replay Train"
 
+def test_job_registry_replay_does_not_reappend_events() -> None:
+    class _Store:
+        def __init__(self) -> None:
+            self.append_calls = 0
+
+        def load(self):
+            return [
+                {"type": "JobStarted", "data": {"job_id": "j1", "name": "Task"}},
+                {"type": "JobProgress", "data": {"job_id": "j1", "name": "Task", "progress": 0.2, "message": "ok"}},
+            ]
+
+        def append(self, event):
+            self.append_calls += 1
+
+        def clear(self):
+            pass
+
+    store = _Store()
+    reg = JobRegistry(EventBus(), store=store, replay_on_start=True)
+
+    assert reg.get("j1") is not None
+    assert store.append_calls == 0
+
