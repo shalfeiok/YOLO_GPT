@@ -2,7 +2,7 @@
 Entry point for Qt-based YOLO Desktop Studio UI.
 
 Run: python main.py
-Requires: pip install -r requirements.txt -r requirements-ui.txt
+Requires: pip install -r requirements.txt -r requirements-dev.txt
 
 Phase 1: opens main window with geometry persistence. No training/detection UI yet.
 """
@@ -11,23 +11,22 @@ from __future__ import annotations
 import sys
 import warnings
 
-# PyTorch CUDA использует устаревший pynvml; предупреждение не исправить из приложения
-warnings.filterwarnings("ignore", category=FutureWarning, module="torch.cuda")
-
+from app.core.observability.logging_config import setup_logging
 from app.ui.infrastructure import (
-    create_application,
     AppSettings,
     Container,
-    TrainingSignals,
     NotificationCenter,
+    TrainingSignals,
+    create_application,
     install_error_boundary,
 )
 from app.ui.infrastructure.application import run_application
 from app.ui.shell import MainWindow
-from app.core.observability.logging_config import setup_logging
 
 
 def main() -> None:
+    # PyTorch CUDA использует устаревший pynvml; предупреждение не исправить из приложения
+    warnings.filterwarnings("ignore", category=FutureWarning, module="torch.cuda")
     setup_logging()
     app = create_application()
     settings = AppSettings()
