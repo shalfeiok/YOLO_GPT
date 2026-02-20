@@ -37,23 +37,42 @@ class NotificationCenter:
         except Exception:
             import logging
             logging.getLogger(__name__).debug('Notification display failed', exc_info=True)
-        # If no status bar is available, do nothing (silent).
         return
 
-    def info(self, message: str) -> None:
-        self._status(message)
+    @staticmethod
+    def _join_message(title_or_message: str, message: str | None = None) -> str:
+        if message is None:
+            return title_or_message
+        return f"{title_or_message}: {message}" if title_or_message else message
 
-    def success(self, message: str) -> None:
-        self._status(message)
+    def info(self, title_or_message: str, message: str | None = None) -> None:
+        self._status(self._join_message(title_or_message, message))
 
-    def warning(self, message: str) -> None:
-        self._status(message)
+    def success(self, title_or_message: str, message: str | None = None) -> None:
+        self._status(self._join_message(title_or_message, message))
 
-    def error(self, message: str) -> None:
-        self._status(message)
+    def warning(self, title_or_message: str, message: str | None = None) -> None:
+        self._status(self._join_message(title_or_message, message))
+
+    def error(self, title_or_message: str, message: str | None = None) -> None:
+        text = self._join_message(title_or_message, message)
+        self._status(text)
         if QMessageBox is None:
             return
         try:
-            QMessageBox.critical(self._window, "Ошибка", message)
+            QMessageBox.critical(self._window, "Ошибка", text)
         except Exception:
             return
+
+    # Backward-compatible API used in older views.
+    def notify_info(self, message: str) -> None:
+        self.info(message)
+
+    def notify_success(self, message: str) -> None:
+        self.success(message)
+
+    def notify_warning(self, message: str) -> None:
+        self.warning(message)
+
+    def notify_error(self, message: str) -> None:
+        self.error(message)

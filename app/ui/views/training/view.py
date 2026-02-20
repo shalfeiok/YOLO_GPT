@@ -448,7 +448,7 @@ class TrainingView(QWidget):
             self._status_label.setText(f"Ошибка: {error}")
             self._progress_bar.setValue(0)
             if self._container.notifications:
-                self._container.notifications.notify_error(error)
+                self._container.notifications.error(error)
             else:
                 QMessageBox.critical(self, "Ошибка обучения", error)
             return
@@ -469,7 +469,7 @@ class TrainingView(QWidget):
         if not dataset_paths:
             msg = "Укажите хотя бы один датасет (папку с data.yaml и train/valid)."
             if self._container.notifications:
-                self._container.notifications.notify_warning(msg)
+                self._container.notifications.warning(msg)
             else:
                 QMessageBox.critical(self, "Ошибка", msg)
             return
@@ -477,11 +477,11 @@ class TrainingView(QWidget):
         combined_dir = project.parent / "combined_dataset"
         out_yaml = combined_dir / "data.yaml"
         try:
-            self._container.dataset_config_builder.build_multi(dataset_paths, out_yaml)
+            self._container.dataset_builder.build_multi(dataset_paths, out_yaml)
         except Exception as e:
             msg = f"Не удалось собрать датасет: {e}"
             if self._container.notifications:
-                self._container.notifications.notify_error(msg)
+                self._container.notifications.error(msg)
             else:
                 QMessageBox.critical(self, "Ошибка", msg)
             return
@@ -499,7 +499,7 @@ class TrainingView(QWidget):
         if not model_id and not weights_path:
             msg = "Выберите базовую модель или укажите путь к весам (.pt)."
             if self._container.notifications:
-                self._container.notifications.notify_warning(msg)
+                self._container.notifications.warning(msg)
             else:
                 QMessageBox.critical(self, "Ошибка", msg)
             return

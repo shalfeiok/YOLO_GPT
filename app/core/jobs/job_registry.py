@@ -15,6 +15,7 @@ from app.core.events.job_events import (
     JobStarted,
     JobTimedOut,
 )
+from app.core.events.events import TrainingCancelled, TrainingFailed, TrainingFinished, TrainingProgress, TrainingStarted
 from app.core.jobs.job_event_store import JobEventStore, pack_job_event
 
 
@@ -54,6 +55,7 @@ class JobRegistry:
         self._max_jobs = max_jobs
         self._jobs: dict[str, JobRecord] = {}
         self._store = store
+        self._training_job_id: str | None = None
 
         # Subscribe to live events.
         self._bus.subscribe(JobStarted, self._on_started)
@@ -64,6 +66,13 @@ class JobRegistry:
         self._bus.subscribe(JobCancelled, self._on_cancelled)
         self._bus.subscribe(JobRetrying, self._on_retrying)
         self._bus.subscribe(JobTimedOut, self._on_timed_out)
+
+        # Bridge training lifecycle into Jobs history so the Jobs tab reflects long-running training.
+        self._bus.subscribe(TrainingStarted, self._on_training_started)
+        self._bus.subscribe(TrainingProgress, self._on_training_progress)
+        self._bus.subscribe(TrainingFinished, self._on_training_finished)
+        self._bus.subscribe(TrainingFailed, self._on_training_failed)
+        self._bus.subscribe(TrainingCancelled, self._on_training_cancelled)
 
         # Replay persisted events (dev-friendly and useful after crashes).
         if self._store is not None and replay_on_start:
@@ -218,3 +227,45 @@ class JobRegistry:
         rec.status = "cancelled"
         rec.finished_at = datetime.utcnow()
         self._persist(e)
+
+    def _on_training_started(self, e: TrainingStarted) -> None:
+        job_id = f"training:{int(datetime.utcnow().timestamp() * 1000)}"
+        self._training_job_id = job_id
+        name = f"Training: {e.model_name}"
+        self._jobs[job_id] = JobRecord(job_id=job_id, name=name)
+        self._jobs[job_id].message = f"epochs={e.epochs}"
+        self._purge_if_needed()
+
+    def _on_training_progress(self, e: TrainingProgress) -> None:
+        if not self._training_job_id:
+            return
+        rec = self._ensure(self._training_job_id, "Training")
+        rec.progress = max(0.0, min(1.0, float(e.fraction)))
+        rec.message = e.message
+
+    def _on_training_finished(self, _e: TrainingFinished) -> None:
+        if not self._training_job_id:
+            return
+        rec = self._ensure(self._training_job_id, "Training")
+        rec.status = "finished"
+        rec.progress = 1.0
+        rec.finished_at = datetime.utcnow()
+        self._training_job_id = None
+
+    def _on_training_failed(self, e: TrainingFailed) -> None:
+        if not self._training_job_id:
+            return
+        rec = self._ensure(self._training_job_id, "Training")
+        rec.status = "failed"
+        rec.error = str(e.error)
+        rec.finished_at = datetime.utcnow()
+        self._training_job_id = None
+
+    def _on_training_cancelled(self, e: TrainingCancelled) -> None:
+        if not self._training_job_id:
+            return
+        rec = self._ensure(self._training_job_id, "Training")
+        rec.status = "cancelled"
+        rec.message = e.message
+        rec.finished_at = datetime.utcnow()
+        self._training_job_id = None

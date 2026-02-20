@@ -182,8 +182,13 @@ class Container:
     @property
     def dataset_builder(self) -> IDatasetConfigBuilder:
         if self._dataset_builder is None:
-            self._dataset_builder = DatasetConfigBuilder(PROJECT_ROOT)
+            self._dataset_builder = DatasetConfigBuilder()
         return self._dataset_builder
+
+    @property
+    def dataset_config_builder(self) -> IDatasetConfigBuilder:
+        """Backward-compatible alias used by legacy training view code."""
+        return self.dataset_builder
 
     @property
     def theme_manager(self) -> ThemeManager:

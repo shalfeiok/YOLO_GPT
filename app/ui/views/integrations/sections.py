@@ -98,12 +98,10 @@ def build_comet(ctx: SectionsCtx) -> QGroupBox:
             mode=cfg.mode,
         )
         ctx.vm.save_comet(c)
-        ctx.state.comet = c
         ctx.toast_ok("Сохранено", "Настройки Comet ML сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_comet()
-        ctx.state.comet = c
         cb.setChecked(c.enabled)
         le_key.setText(c.api_key)
         le_proj.setText(c.project_name)
@@ -141,12 +139,10 @@ def build_dvc(ctx: SectionsCtx) -> QGroupBox:
     def _save() -> None:
         c = DVCConfig(enabled=cb.isChecked())
         ctx.vm.save_dvc(c)
-        ctx.state.dvc = c
         ctx.toast_ok("Сохранено", "Настройки DVC сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_dvc()
-        ctx.state.dvc = c
         cb.setChecked(c.enabled)
         ctx.toast_ok("Сброс", "Настройки DVC сброшены.")
 
@@ -207,12 +203,10 @@ def build_sagemaker(ctx: SectionsCtx) -> QGroupBox:
             template_cloned_path=le_tpl.text().strip(),
         )
         ctx.vm.save_sagemaker(c)
-        ctx.state.sagemaker = c
         ctx.toast_ok("Сохранено", "Настройки SageMaker сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_sagemaker()
-        ctx.state.sagemaker = c
         le_inst.setText(c.instance_type)
         le_end.setText(c.endpoint_name)
         le_model.setText(getattr(c, 'model_path', ''))
@@ -257,12 +251,10 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
             return
         c = replace(cfg, enabled=cb.isChecked(), k_folds=k)
         ctx.vm.save_kfold(c)
-        ctx.state.kfold = c
         ctx.toast_ok("Сохранено", "Настройки K-Fold сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_kfold()
-        ctx.state.kfold = c
         cb.setChecked(c.enabled)
         le_k.setText(str(getattr(c, 'k_folds', getattr(c, 'k', 5))))
         ctx.toast_ok("Сброс", "Настройки K-Fold сброшены.")
@@ -305,12 +297,10 @@ def build_tuning(ctx: SectionsCtx) -> QGroupBox:
             return
         c = TuningConfig(enabled=cb.isChecked(), iterations=it)
         ctx.vm.save_tuning(c)
-        ctx.state.tuning = c
         ctx.toast_ok("Сохранено", "Настройки тюнинга сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_tuning()
-        ctx.state.tuning = c
         cb.setChecked(c.enabled)
         le_it.setText(str(c.iterations))
         ctx.toast_ok("Сброс", "Настройки тюнинга сброшены.")
@@ -336,11 +326,11 @@ def build_export(ctx: SectionsCtx) -> QGroupBox:
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
     grp.setToolTip("Экспорт модели в разные форматы.")
     lay = QVBoxLayout(grp)
-    cfg = ctx.state.export
+    cfg = ctx.state.model_export
 
     lay.addWidget(QLabel("Модель (.pt) или YAML:"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(cfg.model_path); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick = SecondaryButton("Обзор…")
     pick.clicked.connect(lambda: (p := get_open_model_or_yaml_path(ctx.parent)) and le_model.setText(str(p)))
@@ -363,15 +353,13 @@ def build_export(ctx: SectionsCtx) -> QGroupBox:
     lay.addLayout(row_out)
 
     def _save() -> None:
-        c = ModelExportConfig(model_path=le_model.text().strip(), format=cb_fmt.currentText(), output_dir=le_out.text().strip())
+        c = ModelExportConfig(weights_path=le_model.text().strip(), format=cb_fmt.currentText(), output_dir=le_out.text().strip())
         ctx.vm.save_export(c)
-        ctx.state.export = c
         ctx.toast_ok("Сохранено", "Настройки экспорта сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_export()
-        ctx.state.export = c
-        le_model.setText(c.model_path)
+        le_model.setText(getattr(c, "weights_path", getattr(c, "model_path", "")))
         cb_fmt.setCurrentText(c.format)
         le_out.setText(c.output_dir)
         ctx.toast_ok("Сброс", "Настройки экспорта сброшены.")
@@ -410,21 +398,61 @@ def build_sahi(ctx: SectionsCtx) -> QGroupBox:
     grp.setToolTip("Slicing Aided Hyper Inference (SAHI) для детекции.")
     lay = QVBoxLayout(grp)
     cfg = ctx.state.sahi
-    cb = QCheckBox("Включить SAHI")
-    cb.setChecked(cfg.enabled)
-    lay.addWidget(cb)
+
+    lay.addWidget(QLabel("Модель (.pt):"))
+    row_m = QHBoxLayout()
+    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    row_m.addWidget(le_model, 1)
+    pick_m = SecondaryButton("Обзор…")
+    pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="SAHI модель")) and le_model.setText(str(p)))
+    row_m.addWidget(pick_m)
+    lay.addLayout(row_m)
+
+    lay.addWidget(QLabel("Папка с изображениями:"))
+    row_src = QHBoxLayout()
+    le_src = QLineEdit(); le_src.setText(cfg.source_dir); le_src.setStyleSheet(_edit_style())
+    row_src.addWidget(le_src, 1)
+    pick_src = SecondaryButton("Обзор…")
+    pick_src.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Папка изображений")) and le_src.setText(str(p)))
+    row_src.addWidget(pick_src)
+    lay.addLayout(row_src)
 
     def _save() -> None:
-        c = SahiConfig(enabled=cb.isChecked())
+        c = SahiConfig(
+            model_path=le_model.text().strip(),
+            source_dir=le_src.text().strip(),
+            slice_height=cfg.slice_height,
+            slice_width=cfg.slice_width,
+            overlap_height_ratio=cfg.overlap_height_ratio,
+            overlap_width_ratio=cfg.overlap_width_ratio,
+            confidence_threshold=getattr(cfg, "confidence_threshold", 0.4),
+        )
         ctx.vm.save_sahi(c)
-        ctx.state.sahi = c
         ctx.toast_ok("Сохранено", "Настройки SAHI сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_sahi()
-        ctx.state.sahi = c
-        cb.setChecked(c.enabled)
+        le_model.setText(c.model_path)
+        le_src.setText(c.source_dir)
         ctx.toast_ok("Сброс", "Настройки SAHI сброшены.")
+
+    def _run() -> None:
+        if not le_model.text().strip() or not le_src.text().strip():
+            ctx.toast_err("Ошибка", "Укажите модель и папку изображений")
+            return
+        _save()
+        ctx.vm.sahi_predict_async(
+            SahiConfig(
+                model_path=le_model.text().strip(),
+                source_dir=le_src.text().strip(),
+                slice_height=cfg.slice_height,
+                slice_width=cfg.slice_width,
+                overlap_height_ratio=cfg.overlap_height_ratio,
+                overlap_width_ratio=cfg.overlap_width_ratio,
+                confidence_threshold=getattr(cfg, "confidence_threshold", 0.4),
+            )
+        )
+        ctx.toast_ok("Запуск", "SAHI инференс запущен в фоне.")
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
@@ -436,6 +464,9 @@ def build_sahi(ctx: SectionsCtx) -> QGroupBox:
     btn = SecondaryButton("Применить настройки")
     btn.clicked.connect(_save)
     row.addWidget(btn)
+    run = SecondaryButton("Запустить SAHI")
+    run.clicked.connect(_run)
+    row.addWidget(run)
     row.addStretch()
     lay.addLayout(row)
     return grp
@@ -447,22 +478,63 @@ def build_seg_isolation(ctx: SectionsCtx) -> QGroupBox:
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
     grp.setToolTip("Изоляция сегментированных объектов на изображении.")
     lay = QVBoxLayout(grp)
-    cfg = ctx.state.seg
-    cb = QCheckBox("Включить изоляцию сегментации")
-    cb.setChecked(cfg.enabled)
-    lay.addWidget(cb)
+    cfg = ctx.state.seg_isolation
+
+    lay.addWidget(QLabel("Seg model (.pt):"))
+    row_m = QHBoxLayout()
+    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    row_m.addWidget(le_model, 1)
+    pick_m = SecondaryButton("Обзор…")
+    pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="Seg model")) and le_model.setText(str(p)))
+    row_m.addWidget(pick_m)
+    lay.addLayout(row_m)
+
+    lay.addWidget(QLabel("Источник (файл или папка):"))
+    le_src = QLineEdit(); le_src.setText(cfg.source_path); le_src.setStyleSheet(_edit_style())
+    lay.addWidget(le_src)
+
+    lay.addWidget(QLabel("Директория вывода:"))
+    row_out = QHBoxLayout()
+    le_out = QLineEdit(); le_out.setText(cfg.output_dir); le_out.setStyleSheet(_edit_style())
+    row_out.addWidget(le_out, 1)
+    pick_out = SecondaryButton("Обзор…")
+    pick_out.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Директория вывода")) and le_out.setText(str(p)))
+    row_out.addWidget(pick_out)
+    lay.addLayout(row_out)
 
     def _save() -> None:
-        c = SegIsolationConfig(enabled=cb.isChecked())
+        c = SegIsolationConfig(
+            model_path=le_model.text().strip(),
+            source_path=le_src.text().strip(),
+            output_dir=le_out.text().strip(),
+            background=cfg.background,
+            crop=cfg.crop,
+        )
         ctx.vm.save_seg(c)
-        ctx.state.seg = c
         ctx.toast_ok("Сохранено", "Настройки Seg isolation сохранены.")
 
     def _reset() -> None:
         c = ctx.vm.reset_seg()
-        ctx.state.seg = c
-        cb.setChecked(c.enabled)
+        le_model.setText(c.model_path)
+        le_src.setText(c.source_path)
+        le_out.setText(c.output_dir)
         ctx.toast_ok("Сброс", "Настройки Seg isolation сброшены.")
+
+    def _run() -> None:
+        if not le_model.text().strip() or not le_src.text().strip():
+            ctx.toast_err("Ошибка", "Укажите модель и источник")
+            return
+        _save()
+        ctx.vm.seg_isolate_async(
+            SegIsolationConfig(
+                model_path=le_model.text().strip(),
+                source_path=le_src.text().strip(),
+                output_dir=le_out.text().strip(),
+                background=cfg.background,
+                crop=cfg.crop,
+            )
+        )
+        ctx.toast_ok("Запуск", "Seg isolation запущен в фоне.")
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
@@ -474,6 +546,9 @@ def build_seg_isolation(ctx: SectionsCtx) -> QGroupBox:
     btn = SecondaryButton("Применить настройки")
     btn.clicked.connect(_save)
     row.addWidget(btn)
+    run = SecondaryButton("Запустить Seg isolation")
+    run.clicked.connect(_run)
+    row.addWidget(run)
     row.addStretch()
     lay.addLayout(row)
     return grp
@@ -485,11 +560,11 @@ def build_validation(ctx: SectionsCtx) -> QGroupBox:
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
     grp.setToolTip("Параметры валидации модели.")
     lay = QVBoxLayout(grp)
-    cfg = ctx.state.validation
+    cfg = ctx.state.model_validation
 
     lay.addWidget(QLabel("Model (.pt):"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(cfg.model_path); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick_m = SecondaryButton("Обзор…")
     pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="Модель")) and le_model.setText(str(p)))
@@ -506,9 +581,8 @@ def build_validation(ctx: SectionsCtx) -> QGroupBox:
     lay.addLayout(row_y)
 
     def _save() -> None:
-        c = ModelValidationConfig(model_path=le_model.text().strip(), data_yaml=le_yaml.text().strip())
+        c = ModelValidationConfig(weights_path=le_model.text().strip(), data_yaml=le_yaml.text().strip())
         ctx.vm.save_validation(c)
-        ctx.state.validation = c
         ctx.toast_ok("Сохранено", "Настройки validation сохранены.")
 
     def _run() -> None:

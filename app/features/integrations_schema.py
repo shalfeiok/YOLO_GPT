@@ -220,6 +220,7 @@ class TuningConfig:
     def from_dict(cls, data: Mapping[str, Any]) -> "TuningConfig":
         m = _mapping(data)
         return cls(
+            enabled=_as_bool(m.get("enabled"), False),
             data_yaml=_as_str(m.get("data_yaml"), ""),
             model_path=_as_str(m.get("model_path"), ""),
             epochs=max(1, _as_int(m.get("epochs"), 30)),
@@ -253,6 +254,7 @@ class SahiConfig:
     slice_width: int = 256
     overlap_height_ratio: float = 0.2
     overlap_width_ratio: float = 0.2
+    confidence_threshold: float = 0.4
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "SahiConfig":
@@ -264,6 +266,7 @@ class SahiConfig:
             slice_width=max(1, _as_int(m.get("slice_width"), 256)),
             overlap_height_ratio=_clamp(_as_float(m.get("overlap_height_ratio"), 0.2), 0.0, 0.95),
             overlap_width_ratio=_clamp(_as_float(m.get("overlap_width_ratio"), 0.2), 0.0, 0.95),
+            confidence_threshold=_clamp(_as_float(m.get("confidence_threshold"), 0.4), 0.0, 1.0),
         )
 
 
@@ -361,9 +364,12 @@ class IntegrationsConfig:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "IntegrationsConfig":
         m = _mapping(data)
+        jobs_raw = _mapping(m.get("jobs"))
+        if not jobs_raw:
+            jobs_raw = _mapping(m.get("jobs_policy"))
         return cls(
             schema_version=_as_int(m.get("schema_version"), 2),
-            jobs=JobsPolicyConfig.from_dict(_mapping(m.get("jobs"))),
+            jobs=JobsPolicyConfig.from_dict(jobs_raw),
             albumentations=AlbumentationsConfig.from_dict(_mapping(m.get("albumentations"))),
             comet=CometConfig.from_dict(_mapping(m.get("comet"))),
             dvc=DvcConfig.from_dict(_mapping(m.get("dvc"))),
