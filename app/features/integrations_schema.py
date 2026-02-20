@@ -195,7 +195,7 @@ class KFoldConfig:
     def from_dict(cls, data: Mapping[str, Any]) -> "KFoldConfig":
         m = _mapping(data)
         return cls(
-            enabled=bool(m.get('enabled', False))),
+            enabled=bool(m.get("enabled", False)),
             dataset_path=_as_str(m.get("dataset_path"), ""),
             data_yaml_path=_as_str(m.get("data_yaml_path"), ""),
             k_folds=max(2, _as_int(m.get("k_folds"), 5)),
@@ -206,8 +206,6 @@ class KFoldConfig:
             train_batch=max(1, _as_int(m.get("train_batch"), 16)),
             train_project=_as_str(m.get("train_project"), "kfold_demo"),
         )
-
-
 @dataclass(slots=True)
 class TuningConfig:
     data_yaml: str = ""

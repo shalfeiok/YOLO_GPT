@@ -36,3 +36,6 @@ This file records runtime/compatibility fixes applied while executing the rework
 - Fixed NameError: missing `import os` in `app/ui/views/training/sections.py`.
 - Fixed KFoldConfig.from_dict bug (`m` -> `d`) and added alias property `k` -> `k_folds`.
 - Updated Integrations KFold UI to use `k_folds` (backward compatible) and preserve full config via `replace(cfg, ...)`.
+
+## Hotfix 2026-02-20 - startup crash (IndentationError)
+- Fixed syntax/indentation error in `app/features/integrations_schema.py` (`KFoldConfig.from_dict` had extra parenthesis and wrong indentation).
