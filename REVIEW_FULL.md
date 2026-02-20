@@ -19,6 +19,8 @@
 
 - [x] 11) Replay idempotency: восстановление history больше не дописывает повторно те же `Job*` события в store во время replay.
 
+- [x] 12) Replay race-safety: live `Job*` события во время replay теперь не теряются в persistence (replay не блокирует обычный `_persist`).
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

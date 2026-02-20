@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.application.facades import integrations as facade
 from app.core.events import EventBus
+from app.core.events.job_events import JobStarted
 from app.core.events.events import TrainingCancelled, TrainingFinished, TrainingProgress, TrainingStarted
 from app.core.jobs import JobRegistry
 from app.features.hyperparameter_tuning.domain import TuningConfig
@@ -217,4 +218,30 @@ def test_job_registry_replay_does_not_reappend_events() -> None:
 
     assert reg.get("j1") is not None
     assert store.append_calls == 0
+
+def test_job_registry_live_events_during_replay_are_persisted() -> None:
+    bus = EventBus()
+
+    class _Store:
+        def __init__(self) -> None:
+            self.events = []
+            self.sent_live = False
+
+        def load(self):
+            if not self.sent_live:
+                self.sent_live = True
+                bus.publish(JobStarted(job_id="live-1", name="Live During Replay"))
+            return []
+
+        def append(self, event):
+            self.events.append(event)
+
+        def clear(self):
+            self.events.clear()
+
+    store = _Store()
+    reg = JobRegistry(bus, store=store, replay_on_start=True)
+
+    assert reg.get("live-1") is not None
+    assert any(e.get("type") == "JobStarted" and e.get("data", {}).get("job_id") == "live-1" for e in store.events)
 
