@@ -185,6 +185,11 @@ class Container:
             raise RuntimeError("ThemeManager must be injected from UI")
         return self._theme_manager
 
+    @theme_manager.setter
+    def theme_manager(self, theme_manager: ThemeManager) -> None:
+        """Backward-compatible setter for UI code that assigns container.theme_manager."""
+        self._theme_manager = theme_manager
+
     def set_theme_manager(self, theme_manager: ThemeManager) -> None:
         self._theme_manager = theme_manager
 
@@ -193,6 +198,11 @@ class Container:
         if self._notifications is None:
             raise RuntimeError("NotificationCenter must be injected from UI")
         return self._notifications
+
+    @notifications.setter
+    def notifications(self, notifications: NotificationCenter) -> None:
+        """Backward-compatible setter for UI code that assigns container.notifications."""
+        self._notifications = notifications
 
     def set_notifications(self, notifications: NotificationCenter) -> None:
         self._notifications = notifications

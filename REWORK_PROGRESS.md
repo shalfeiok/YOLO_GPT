@@ -53,3 +53,7 @@ Legend: [ ] not started, [~] in progress, [x] done
 
 ### P0 – Detection runner
 - [~] DetectionRunner: вынести threads/capture/inference из DetectionView в отдельный класс (runner.py добавлен, wiring в UI следующим шагом)
+
+
+### Hotfix
+- [x] Container: backward-compatible setters for `theme_manager` and `notifications` (UI can assign via `container.theme_manager = ...`).
