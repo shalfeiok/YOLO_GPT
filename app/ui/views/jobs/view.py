@@ -82,6 +82,12 @@ class JobsView(QWidget):
 
         root.addLayout(header)
 
+        # Empty-state label (shown when there are no jobs)
+        self._empty_label = QLabel("Нет задач")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setWordWrap(True)
+        root.addWidget(self._empty_label)
+
         splitter = QSplitter(Qt.Orientation.Vertical)
         root.addWidget(splitter, 1)
 

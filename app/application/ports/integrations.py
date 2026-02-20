@@ -52,6 +52,12 @@ class IntegrationsState:
     model_export: ModelExportConfig
     model_validation: ModelValidationConfig
 
+    # Backward-compatible alias: UI historically used `state.export`.
+    @property
+    def export(self) -> ModelExportConfig:  # noqa: D401
+        """Alias for model_export (kept for UI compatibility)."""
+        return self.model_export
+
 
 class IntegrationsPort(Protocol):
     @property

@@ -46,3 +46,8 @@ This file records runtime/compatibility fixes applied while executing the rework
 - Integrations: added `enabled` support to `TuningConfig` (schema + domain) and safe parsing default.
 - Integrations: fixed `KFoldConfig.from_dict` NameError (`m` -> `d`).
 - Jobs: added empty-state label when no jobs are present.
+
+## Hotfix 2026-02-20 (runtime stability 3)
+- Training: fixed `NameError: Card is not defined` by importing `Card` from `app.ui.components.cards` in `app/ui/views/training/sections.py`.
+- Integrations: fixed `IntegrationsState` compatibility by adding `export` property alias for `model_export` in `app/application/ports/integrations.py`.
+- Jobs: fixed `AttributeError: JobsView has no _empty_label` by creating the label during `JobsView` initialization.
