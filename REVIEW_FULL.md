@@ -15,6 +15,8 @@
 
 - [x] 9) Training cancel reason durability: причина отмены обучения теперь сохраняется в event-store через `JobProgress` перед `JobCancelled` и не теряется в истории.
 
+- [x] 10) Replay backward-compat: восстановление Job history теперь толерантно к legacy/event-строкам без `name` (берется существующее имя job или fallback `Job`).
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

@@ -130,9 +130,13 @@ class JobRegistry:
                 continue
             # Replay only what JobRegistry needs (ignore result payload).
             job_id = str(data.get("job_id", ""))
-            name = str(data.get("name", ""))
-            if not job_id or not name:
+            if not job_id:
                 continue
+            raw_name = data.get("name")
+            if isinstance(raw_name, str) and raw_name.strip():
+                name = raw_name
+            else:
+                name = self._jobs.get(job_id).name if job_id in self._jobs else "Job"
 
             if t == "JobStarted":
                 self._on_started(JobStarted(job_id=job_id, name=name))

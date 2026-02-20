@@ -162,3 +162,36 @@ def test_job_registry_persists_training_cancel_reason_message() -> None:
     progress_messages = [e["data"].get("message") for e in store.events if e["type"] == "JobProgress"]
     assert "user stop" in progress_messages
 
+def test_job_registry_replay_restores_cancel_message_and_tolerates_missing_name() -> None:
+    class _Store:
+        def load(self):
+            return [
+                {
+                    "type": "JobStarted",
+                    "data": {"job_id": "j1", "name": "Replay Train"},
+                },
+                {
+                    "type": "JobProgress",
+                    "data": {"job_id": "j1", "progress": 0.4, "message": "user stop"},
+                },
+                {
+                    "type": "JobCancelled",
+                    "data": {"job_id": "j1"},
+                },
+            ]
+
+        def append(self, event):
+            pass
+
+        def clear(self):
+            pass
+
+    bus = EventBus()
+    reg = JobRegistry(bus, store=_Store(), replay_on_start=True)
+
+    rec = reg.get("j1")
+    assert rec is not None
+    assert rec.status == "cancelled"
+    assert rec.message == "user stop"
+    assert rec.name == "Replay Train"
+
