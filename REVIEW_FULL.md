@@ -25,6 +25,8 @@
 
 - [x] 14) Replay input validation: `JobRegistry` теперь игнорирует не-list payload из `store.load()` (например `None`) без исключений на старте.
 
+- [x] 15) Detection job-id uniqueness: id детекции теперь включает timestamp + run_id, чтобы избежать коллизий history между сессиями.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение

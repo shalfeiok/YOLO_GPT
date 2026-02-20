@@ -814,7 +814,7 @@ class DetectionView(QWidget):
         self._preview_buffer.clear()
         self._start_btn.setEnabled(False)
         self._stop_btn.setEnabled(True)
-        self._detection_job_id = f"detection:{this_run_id}"
+        self._detection_job_id = f"detection:{int(time.time() * 1000)}:{this_run_id}"
         self._container.event_bus.publish(JobStarted(job_id=self._detection_job_id, name="Detection"))
 
         self._visualization_backend = get_backend(backend_id)
