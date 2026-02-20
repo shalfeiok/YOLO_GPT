@@ -9,7 +9,7 @@ from app.core.events.events import TrainingCancelled, TrainingFinished, Training
 from app.core.jobs import JobRegistry
 from app.features.hyperparameter_tuning.domain import TuningConfig
 from app.features.sahi_integration.domain import SahiConfig
-from app.features.integrations_schema import IntegrationsConfig
+from app.features.integrations_schema import IntegrationsConfig, KFoldConfig
 from app.services.adapters.integrations_adapter import IntegrationsAdapter
 
 
@@ -27,6 +27,11 @@ def test_tuning_enabled_roundtrip() -> None:
     assert data["enabled"] is True
     restored = TuningConfig.from_dict(data)
     assert restored.enabled is True
+
+
+def test_kfold_enabled_parses_string_false_as_false() -> None:
+    cfg = KFoldConfig.from_dict({"enabled": "false"})
+    assert cfg.enabled is False
 
 
 def test_integrations_schema_reads_legacy_jobs_policy_key() -> None:
@@ -289,4 +294,3 @@ def test_job_registry_replay_non_list_payload_is_safe() -> None:
 
     reg = JobRegistry(EventBus(), store=_Store(), replay_on_start=True)
     assert reg.list() == []
-
