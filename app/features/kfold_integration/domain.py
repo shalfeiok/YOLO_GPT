@@ -11,6 +11,20 @@ from pathlib import Path
 from typing import Any
 
 
+def _as_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off"}:
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return default
+
+
 @dataclass
 class KFoldConfig:
     """Parameters for K-Fold dataset split and optional training."""
@@ -46,7 +60,7 @@ class KFoldConfig:
         if not d:
             return cls()
         return cls(
-            enabled=bool(d.get("enabled", False)),
+            enabled=_as_bool(d.get("enabled"), False),
             dataset_path=str(d.get("dataset_path", "")),
             data_yaml_path=str(d.get("data_yaml_path", "")),
             k_folds=int(d.get("k_folds", 5)),
