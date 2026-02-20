@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "jobs": {
+    "default_timeout_sec": 900,
+    "retries": 0,
+    "retry_backoff_sec": 1.0,
+    "retry_jitter": 0.3,
+    "retry_deadline_sec": 0
+  },
+  "albumentations": {
+    "enabled": false,
+    "use_standard": true,
+    "custom_transforms": [],
+    "transform_p": 0.5
+  },
+  "comet": {
+    "enabled": false,
+    "api_key": "",
+    "project_name": "yolo26-project",
+    "max_image_predictions": 100,
+    "eval_batch_logging_interval": 1,
+    "eval_log_confusion_matrix": true,
+    "mode": "online"
+  },
+  "dvc": {
+    "enabled": false
+  },
+  "sagemaker": {
+    "instance_type": "ml.m5.4xlarge",
+    "endpoint_name": "",
+    "model_path": "",
+    "template_cloned_path": ""
+  },
+  "kfold": {
+    "enabled": false,
+    "dataset_path": "",
+    "data_yaml_path": "",
+    "k_folds": 5,
+    "random_state": 20,
+    "output_path": "",
+    "weights_path": "",
+    "train_epochs": 100,
+    "train_batch": 16,
+    "train_project": "kfold_demo"
+  },
+  "tuning": {
+    "enabled": false,
+    "data_yaml": "",
+    "model_path": "",
+    "epochs": 30,
+    "iterations": 300,
+    "project": "runs/detect",
+    "name": "tune"
+  },
+  "model_export": {
+    "weights_path": "",
+    "format": "onnx",
+    "output_dir": ""
+  },
+  "sahi": {
+    "model_path": "",
+    "source_dir": "",
+    "slice_height": 256,
+    "slice_width": 256,
+    "overlap_height_ratio": 0.2,
+    "overlap_width_ratio": 0.2
+  },
+  "seg_isolation": {
+    "model_path": "",
+    "source_path": "",
+    "output_dir": "",
+    "background": "black",
+    "crop": true
+  },
+  "model_validation": {
+    "data_yaml": "",
+    "weights_path": ""
+  },
+  "ultralytics_solutions": {
+    "solution_type": "ObjectCounter",
+    "model_path": "",
+    "source": "",
+    "output_path": "",
+    "region_points": "[(20, 400), (1260, 400)]",
+    "fps": 30.0,
+    "colormap": "COLORMAP_JET"
+  },
+  "detection_output": {
+    "save_path": "",
+    "save_frames": false
+  }
+}

@@ -40,6 +40,8 @@ from app.ui.theme.tokens import Tokens
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.cards import Card
 from app.ui.components.inputs import NoWheelSpinBox
+from app.ui.components.log_view import LogView
+from app.ui.views.metrics.dashboard import MetricsDashboardWidget
 
 if TYPE_CHECKING:
     from app.ui.views.training.view import TrainingView

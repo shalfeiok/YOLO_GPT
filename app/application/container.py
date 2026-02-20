@@ -186,6 +186,11 @@ class Container:
         return self._dataset_builder
 
     @property
+    def dataset_config_builder(self) -> IDatasetConfigBuilder:
+        """Backward-compatible alias used by legacy training view code."""
+        return self.dataset_builder
+
+    @property
     def theme_manager(self) -> ThemeManager:
         if self._theme_manager is None:
             raise RuntimeError("ThemeManager must be injected from UI")
