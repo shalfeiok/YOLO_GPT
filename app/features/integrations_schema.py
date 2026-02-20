@@ -208,6 +208,7 @@ class KFoldConfig:
         )
 @dataclass(slots=True)
 class TuningConfig:
+    enabled: bool = False
     data_yaml: str = ""
     model_path: str = ""
     epochs: int = 30

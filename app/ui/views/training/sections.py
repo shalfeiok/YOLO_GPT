@@ -5,6 +5,7 @@ This module exists to keep TrainingView (controller/binding code) small.
 from __future__ import annotations
 
 import os
+from app.core.paths import PROJECT_ROOT
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt

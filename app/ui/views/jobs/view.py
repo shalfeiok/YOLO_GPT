@@ -176,6 +176,10 @@ class JobsView(QWidget):
             jobs = [j for j in jobs if flt in j.name.lower() or flt in j.status.lower()]
 
         self._table.setRowCount(len(jobs))
+
+        has_jobs = len(jobs) > 0
+        self._table.setVisible(has_jobs)
+        self._empty_label.setVisible(not has_jobs)
         for r, j in enumerate(jobs):
             t = j.started_at.strftime("%H:%M:%S")
             self._table.setItem(r, 0, QTableWidgetItem(t))

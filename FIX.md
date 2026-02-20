@@ -39,3 +39,10 @@ This file records runtime/compatibility fixes applied while executing the rework
 
 ## Hotfix 2026-02-20 - startup crash (IndentationError)
 - Fixed syntax/indentation error in `app/features/integrations_schema.py` (`KFoldConfig.from_dict` had extra parenthesis and wrong indentation).
+
+
+## Hotfix 2026-02-20 (runtime stability 2)
+- Training: added missing imports `os` and `PROJECT_ROOT` in `app/ui/views/training/sections.py`.
+- Integrations: added `enabled` support to `TuningConfig` (schema + domain) and safe parsing default.
+- Integrations: fixed `KFoldConfig.from_dict` NameError (`m` -> `d`).
+- Jobs: added empty-state label when no jobs are present.
