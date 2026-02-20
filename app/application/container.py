@@ -21,6 +21,7 @@ from app.application.use_cases.integrations_config import (
 )
 from app.application.use_cases.start_detection import StartDetectionUseCase
 from app.application.use_cases.stop_detection import StopDetectionUseCase
+from app.application.use_cases.stop_detection import StopDetectionUseCase
 from app.core.events import EventBus
 from app.core.paths import get_app_state_dir
 from app.core.jobs import JobRunner, JobRegistry, ProcessJobRunner, JsonlJobEventStore
@@ -50,6 +51,7 @@ class Container:
         self._export_model_uc: ExportModelUseCase | None = None
         self._validate_model_uc: ValidateModelUseCase | None = None
         self._start_detection_uc: StartDetectionUseCase | None = None
+        self._stop_detection_uc: StopDetectionUseCase | None = None
         self._export_integrations_cfg_uc: ExportIntegrationsConfigUseCase | None = None
         self._import_integrations_cfg_uc: ImportIntegrationsConfigUseCase | None = None
         self._integrations_cfg_repo: DefaultIntegrationsConfigRepository | None = None
@@ -109,6 +111,9 @@ class Container:
 
     @property
     def stop_detection_use_case(self) -> StopDetectionUseCase:
+        """Application-layer API for stopping detection (best-effort cleanup)."""
+        if self._stop_detection_uc is None:
+            self._stop_detection_uc = StopDetectionUseCase()
         return self._stop_detection_uc
     @property
     def integrations_config_repo(self) -> DefaultIntegrationsConfigRepository:

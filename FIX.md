@@ -20,3 +20,8 @@ This file records runtime/compatibility fixes applied while executing the rework
   - Symptom: `ModuleNotFoundError: No module named 'app.ui.components.theme'`
   - Fix: Added shim module `app/ui/components/theme.py` that re-exports tokens/manager from `app.ui.theme`.
     This preserves old import paths while keeping the canonical implementation in `app/ui/theme/`.
+
+## Hotfix 2026-02-20 (runtime)
+- Fix: `TrainingView` crash: add missing import `SecondaryButton` in `app/ui/views/training/sections.py`.
+- Fix: `IntegrationsView` crash: add `enabled: bool` to `KFoldConfig` models (`app/features/integrations_schema.py`, `app/features/kfold_integration/domain.py`) and parse/serialize it.
+- Fix: `DetectionView` stop crash: initialize and lazy-create `Container._stop_detection_uc` and `stop_detection_use_case`.

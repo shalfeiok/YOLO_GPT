@@ -15,6 +15,7 @@ from typing import Any
 class KFoldConfig:
     """Parameters for K-Fold dataset split and optional training."""
 
+    enabled: bool = False
     dataset_path: str = ""
     data_yaml_path: str = ""
     k_folds: int = 5
@@ -28,6 +29,7 @@ class KFoldConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "enabled": self.enabled,
             "dataset_path": self.dataset_path,
             "data_yaml_path": self.data_yaml_path,
             "k_folds": self.k_folds,
@@ -44,6 +46,7 @@ class KFoldConfig:
         if not d:
             return cls()
         return cls(
+            enabled=bool(m.get("enabled", False)),
             dataset_path=str(d.get("dataset_path", "")),
             data_yaml_path=str(d.get("data_yaml_path", "")),
             k_folds=int(d.get("k_folds", 5)),

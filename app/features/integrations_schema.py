@@ -172,6 +172,7 @@ class JobsPolicyConfig:
 
 @dataclass(slots=True)
 class KFoldConfig:
+    enabled: bool = False
     dataset_path: str = ""
     data_yaml_path: str = ""
     k_folds: int = 5
