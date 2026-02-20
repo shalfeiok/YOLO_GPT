@@ -128,6 +128,9 @@ class JobRegistry:
         except Exception:
             return
 
+        if not isinstance(records, list):
+            return
+
         for rec in records:
             if not isinstance(rec, dict):
                 continue

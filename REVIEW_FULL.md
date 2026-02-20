@@ -23,6 +23,8 @@
 
 - [x] 13) Replay robustness: `JobRegistry` безопасно переживает исключения `store.load()` и мусорные/non-dict записи без падения старта приложения.
 
+- [x] 14) Replay input validation: `JobRegistry` теперь игнорирует не-list payload из `store.load()` (например `None`) без исключений на старте.
+
 ## 1) Критично: Jobs tab не отражает Training/Detection как «задачи»
 
 ### Наблюдение
@@ -114,3 +116,13 @@ Toggle «включено/выключено» в UI будет сбрасыва
 - [x] Единый ключ policy-конфига (`jobs_policy` или `jobs`) + миграция.
 - [x] Принять решение по показу Training/Detection в Jobs tab (унификация событий).
 - [x] (Опционально) убрать синхронный refresh окон при старте детекции.
+
+
+## Дополнительный аудит (итерация quality-pass)
+
+Проверено:
+- Полный прогон тестов (`pytest -q -ra`) — зелёный, 1 ожидаемый skip в headless окружении (libGL).
+- Контракт replay job-history: обработка исключений `load()`, мусорных/non-dict записей, now non-list payload.
+
+Результат:
+- Найден и закрыт edge-case: `store.load()` может вернуть не-`list` (например `None`), что раньше приводило бы к `TypeError` при `for rec in records`.

@@ -276,3 +276,17 @@ def test_job_registry_replay_ignores_non_dict_records() -> None:
     assert rec is not None
     assert rec.name == "ok"
 
+def test_job_registry_replay_non_list_payload_is_safe() -> None:
+    class _Store:
+        def load(self):
+            return None
+
+        def append(self, event):
+            raise AssertionError("append should not be called")
+
+        def clear(self):
+            pass
+
+    reg = JobRegistry(EventBus(), store=_Store(), replay_on_start=True)
+    assert reg.list() == []
+
