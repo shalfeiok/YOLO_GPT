@@ -1,0 +1,8 @@
+black>=24.0
+ruff>=0.6
+mypy>=1.10
+pre-commit>=3.7
+pytest>=7.0
+pytest-cov>=4.1
+types-PyYAML
+pyinstaller>=6.4

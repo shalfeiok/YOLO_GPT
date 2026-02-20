@@ -1,0 +1,7 @@
+# Установка PyTorch из локальных .whl в папке package/
+# Пути абсолютные — pip резолвит пути относительно CWD, а не файла.
+# Запуск: pip install -r requirements-package.txt (из любой директории)
+
+C:\Users\DevilDok\PycharmProjects\package\torch-2.11.0.dev20260210+cu128-cp311-cp311-win_amd64.whl
+C:\Users\DevilDok\PycharmProjects\package\torchaudio-2.11.0.dev20260210+cu128-cp311-cp311-win_amd64.whl
+C:\Users\DevilDok\PycharmProjects\package\torchvision-0.26.0.dev20260210+cu128-cp311-cp311-win_amd64.whl

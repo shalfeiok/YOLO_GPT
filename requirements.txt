@@ -1,0 +1,42 @@
+# YOLO Trainer & Real-Time Detection — зависимости проекта
+# Python 3.11+
+
+# GUI
+PySide6>=6.6.0
+
+# Компьютерное зрение и ML
+# Для превью детекции нужен opencv-python с GUI (imshow), не opencv-python-headless
+opencv-python>=4.8.0
+numpy>=1.24.0,<3.0.0
+Pillow>=10.0.0
+ultralytics>=8.0.0
+albumentations>=1.3.0
+
+# Захват экрана и списка окон (Windows: список процессов в детекции, захват окна/экрана)
+pywin32>=306; platform_system == "Windows"
+mss>=9.0.0
+
+# ONNX инференс (детекция: CPU по умолчанию; для GPU установите один из пакетов ниже)
+onnxruntime>=1.16.0
+# Для GPU: onnxruntime-gpu (CUDA, Windows/Linux) или onnxruntime-directml (Windows, любые DX12 GPU)
+
+# Конфигурация и данные
+PyYAML>=6.0
+
+# Системные метрики (CPU, RAM, GPU)
+psutil>=5.9.0
+nvidia-ml-py>=12.535.0
+
+# Графики метрик (дашборд обучения)
+pyqtgraph>=0.13.0
+
+# Опционально: захват экрана через D3D (Windows)
+d3dshot==0.1.3; platform_system == "Windows"  # раскомментируйте при необходимости
+
+# Тесты
+pytest>=7.0.0
+
+
+# C:\Users\DevilDok\PycharmProjects\package\torch-2.11.0.dev20260210+cu128-cp311-cp311-win_amd64.whl
+# C:\Users\DevilDok\PycharmProjects\package\torchaudio-2.11.0.dev20260210+cu128-cp311-cp311-win_amd64.whl
+# C:\Users\DevilDok\PycharmProjects\package\torchvision-0.26.0.dev20260210+cu128-cp311-cp311-win_amd64.whl

@@ -1,0 +1,70 @@
+"""
+Stack controller: QStackedWidget + lazy tab loading. Creates view only on first show.
+"""
+from __future__ import annotations
+
+from typing import Callable
+
+from PySide6.QtWidgets import QLabel, QStackedWidget, QWidget
+
+from app.ui.components.demo import create_components_demo_widget
+
+# Tab ids in order (must match sidebar order)
+TAB_IDS = ("datasets", "training", "detection", "integrations", "jobs")
+
+
+def _placeholder_widget(title: str, subtitle: str = "") -> QWidget:
+    w = QLabel(f"{title}\n{subtitle}")
+    w.setStyleSheet("font-size: 14px; color: #94a3b8; padding: 24px;")
+    w.setWordWrap(True)
+    return w
+
+
+def _default_factory(tab_id: str) -> QWidget:
+    titles = {
+        "datasets": "Датасеты",
+        "training": "Обучение",
+        "detection": "Детекция",
+        "integrations": "Интеграции и мониторинг",
+        "jobs": "Задачи",
+    }
+    return _placeholder_widget(
+        titles.get(tab_id, tab_id),
+        f"Контент будет добавлен в Phase 4–5. (tab_id: {tab_id})",
+    )
+
+
+class StackController:
+    """Manages QStackedWidget and lazy-creates tab content on first switch."""
+
+    def __init__(
+        self,
+        stack: QStackedWidget,
+        factories: dict[str, Callable[[], QWidget]] | None = None,
+    ) -> None:
+        self._stack = stack
+        self._factories = dict(factories) if factories else {}
+        self._factories.setdefault("training", lambda: create_components_demo_widget())
+        self._created: set[str] = set()
+
+        for tab_id in TAB_IDS:
+            placeholder = _placeholder_widget("Загрузка…", tab_id)
+            placeholder.setObjectName(f"placeholder_{tab_id}")
+            self._stack.addWidget(placeholder)
+
+    def switch_to(self, tab_id: str) -> None:
+        if tab_id not in TAB_IDS:
+            return
+        index = TAB_IDS.index(tab_id)
+        if tab_id not in self._created:
+            self._created.add(tab_id)
+            factory = self._factories.get(tab_id) or (lambda: _default_factory(tab_id))
+            widget = factory()
+            self._stack.removeWidget(self._stack.widget(index))
+            self._stack.insertWidget(index, widget)
+        self._stack.setCurrentIndex(index)
+
+    def tab_index(self, tab_id: str) -> int:
+        if tab_id not in TAB_IDS:
+            return 0
+        return TAB_IDS.index(tab_id)
