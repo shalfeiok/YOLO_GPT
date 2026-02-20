@@ -232,7 +232,7 @@ class IntegrationsViewModel(QObject):
         return self.export_model_async(cfg)
 
     def run_validation(self, *, model_path: str, data_yaml: str) -> str:
-        cfg = ModelValidationConfig(model_path=model_path, data_yaml=data_yaml)
+        cfg = ModelValidationConfig(weights_path=model_path, data_yaml=data_yaml)
         return self.validate_model_async(cfg)
 
     # ---- Actions ----
