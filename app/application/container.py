@@ -182,7 +182,7 @@ class Container:
     @property
     def dataset_builder(self) -> IDatasetConfigBuilder:
         if self._dataset_builder is None:
-            self._dataset_builder = DatasetConfigBuilder(PROJECT_ROOT)
+            self._dataset_builder = DatasetConfigBuilder()
         return self._dataset_builder
 
     @property

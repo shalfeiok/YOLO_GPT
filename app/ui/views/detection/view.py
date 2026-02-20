@@ -166,7 +166,8 @@ class DetectionView(QWidget):
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
         self._build_ui()
-        self._refresh_windows()
+        # Defer potentially expensive window enumeration to keep tab opening responsive.
+        QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:
         t = Tokens
@@ -649,10 +650,18 @@ class DetectionView(QWidget):
         dlg.exec()
 
     def _refresh_windows(self) -> None:
-        self._window_list = self._capture.list_windows()
+        current = self._source_combo.currentText().strip()
+        try:
+            self._window_list = self._capture.list_windows()
+        except Exception:
+            self._window_list = []
         titles = ["Весь экран"] + [t for _, t in self._window_list] + ["Камера", "Видеофайл"]
         self._source_combo.clear()
         self._source_combo.addItems(titles)
+        if current:
+            idx = self._source_combo.findText(current)
+            if idx >= 0:
+                self._source_combo.setCurrentIndex(idx)
 
     def _update_window_list_only(self) -> None:
         self._window_list = self._capture.list_windows()
