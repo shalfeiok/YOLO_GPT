@@ -57,26 +57,30 @@ class DatasetWorker(QObject):
             self.finished.emit(False, str(e))
 
     def _run_prepare_yolo(self) -> None:
-        src = Path(self._params["src"])
-        out = Path(self._params["out"])
-        if not src.is_dir():
+        src_raw = str(self._params.get("src", "")).strip()
+        out_raw = str(self._params.get("out", "")).strip()
+        src = Path(src_raw)
+        out = Path(out_raw) if out_raw else None
+        if not src_raw or not src.is_dir():
             raise FileNotFoundError("Укажите существующую исходную папку.")
         if is_voc_dataset(src):
             convert_voc_to_yolo(src)
             self._params["result_message"] = f"Pascal VOC конвертирован в YOLO.\nПуть: {src}"
         else:
-            if not out:
+            if out is None:
                 raise ValueError("Укажите папку, куда сохранить YOLO-датасет.")
             prepare_for_yolo(src, out)
             self._params["result_message"] = f"Датасет сохранён: {out}"
 
     def _run_augment(self) -> None:
-        src = Path(self._params["src"])
-        out = Path(self._params["out"])
+        src_raw = str(self._params.get("src", "")).strip()
+        out_raw = str(self._params.get("out", "")).strip()
+        src = Path(src_raw)
+        out = Path(out_raw) if out_raw else None
         opts = self._params.get("opts", {})
-        if not src.is_dir():
+        if not src_raw or not src.is_dir():
             raise FileNotFoundError("Укажите исходный датасет.")
-        if not out:
+        if out is None:
             raise ValueError("Укажите папку для нового датасета.")
         if not any(opts.values()):
             raise ValueError("Отметьте хотя бы один вариант эффекта.")
@@ -84,13 +88,15 @@ class DatasetWorker(QObject):
         self._params["result_message"] = f"Варианты созданы: {out}"
 
     def _run_export_classes(self) -> None:
-        src = Path(self._params["src"])
-        out = Path(self._params["out"])
+        src_raw = str(self._params.get("src", "")).strip()
+        out_raw = str(self._params.get("out", "")).strip()
+        src = Path(src_raw)
+        out = Path(out_raw) if out_raw else None
         selected = self._params.get("selected", set())
         classes = self._params.get("classes", [])
-        if not src.is_dir():
+        if not src_raw or not src.is_dir():
             raise FileNotFoundError("Укажите датасет.")
-        if not out:
+        if out is None:
             raise ValueError("Укажите папку для экспорта.")
         if not selected:
             raise ValueError("Отметьте хотя бы один класс.")
@@ -98,14 +104,16 @@ class DatasetWorker(QObject):
         self._params["result_message"] = f"Экспорт: {out}"
 
     def _run_merge_classes(self) -> None:
-        src = Path(self._params["src"])
-        out = Path(self._params["out"])
+        src_raw = str(self._params.get("src", "")).strip()
+        out_raw = str(self._params.get("out", "")).strip()
+        src = Path(src_raw)
+        out = Path(out_raw) if out_raw else None
         to_merge = self._params.get("to_merge", set())
         new_name = self._params.get("new_name", "merged")
         class_names = self._params.get("class_names", [])
-        if not src.is_dir():
+        if not src_raw or not src.is_dir():
             raise FileNotFoundError("Укажите датасет.")
-        if not out:
+        if out is None:
             raise ValueError("Укажите папку для нового датасета.")
         if len(to_merge) < 2:
             raise ValueError("Отметьте хотя бы два класса для объединения.")
@@ -113,10 +121,11 @@ class DatasetWorker(QObject):
         self._params["result_message"] = f"Классы объединены. Новый датасет: {out}"
 
     def _run_rename_class(self) -> None:
-        src = Path(self._params["src"])
+        src_raw = str(self._params.get("src", "")).strip()
+        src = Path(src_raw)
         old_name = self._params.get("old_name", "")
         new_name = self._params.get("new_name", "")
-        if not src.is_dir():
+        if not src_raw or not src.is_dir():
             raise FileNotFoundError("Укажите датасет.")
         if not old_name or not new_name:
             raise ValueError("Выберите класс и введите новое имя.")
