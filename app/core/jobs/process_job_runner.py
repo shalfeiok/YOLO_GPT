@@ -151,6 +151,12 @@ class ProcessJobRunner:
             started = time.time()
             result: T | None = None
             error: str | None = None
+            got_result = False
+
+            # Queue feeder threads in multiprocessing can flush messages shortly after
+            # the child process is already reported as dead. Keep polling briefly to avoid
+            # dropping a terminal payload that was already produced by the child.
+            drain_deadline: float | None = None
 
             while True:
                 if timeout_sec is not None and (time.time() - started) > timeout_sec:
@@ -168,12 +174,19 @@ class ProcessJobRunner:
                     self._bus.publish(JobCancelled(job_id=job_id, name=name))
                     raise CancelledError("Job cancelled")
 
+                alive = p.is_alive()
+                if not alive and drain_deadline is None:
+                    drain_deadline = time.monotonic() + 0.3
+
+                get_timeout = 0.15 if alive else 0.03
                 try:
-                    msg = q.get(timeout=0.15)
+                    msg = q.get(timeout=get_timeout)
                 except queue.Empty:
-                    if not p.is_alive():
-                        break
-                    continue
+                    if alive:
+                        continue
+                    if drain_deadline is not None and time.monotonic() < drain_deadline:
+                        continue
+                    break
 
                 kind = msg[0]
                 if kind == "progress":
@@ -189,6 +202,7 @@ class ProcessJobRunner:
                 elif kind == "result":
                     _, res = msg
                     result = cast(T, res)
+                    got_result = True
                     break
                 elif kind == "error":
                     _, err = msg
@@ -205,6 +219,8 @@ class ProcessJobRunner:
                 raise CancelledError("Job cancelled")
             if error is not None:
                 raise RuntimeError(error)
+            if not got_result:
+                raise RuntimeError("Job process exited without a result payload")
             return cast(T, result)
 
         def _run() -> T:
