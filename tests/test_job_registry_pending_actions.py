@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+from app.core.events import EventBus
+from app.core.events.job_events import JobStarted
+from app.core.jobs import JobRegistry
+
+
+def test_set_rerun_before_start_is_attached_on_start() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    called = {"n": 0}
+
+    def rerun() -> None:
+        called["n"] += 1
+
+    registry.set_rerun("j1", rerun)
+    bus.publish(JobStarted(job_id="j1", name="task"))
+
+    rec = registry.get("j1")
+    assert rec is not None
+    assert rec.rerun is not None
+    rec.rerun()
+    assert called["n"] == 1
+
+
+def test_set_cancel_before_start_is_attached_on_start() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    called = {"n": 0}
+
+    def cancel() -> None:
+        called["n"] += 1
+
+    registry.set_cancel("j2", cancel)
+    bus.publish(JobStarted(job_id="j2", name="task"))
+
+    rec = registry.get("j2")
+    assert rec is not None
+    assert rec.cancel is not None
+    rec.cancel()
+    assert called["n"] == 1
