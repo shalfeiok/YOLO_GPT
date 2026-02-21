@@ -181,3 +181,41 @@ def test_process_job_runner_closes_queue_on_exit(monkeypatch) -> None:
     assert ctx.last_queue is not None
     assert ctx.last_queue.closed is True
     assert ctx.last_queue.joined is True
+
+
+class _UnknownKindQueue:
+    def get(self, timeout=None):
+        return ("mystery-kind", {"x": 1})
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _UnknownKindCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _UnknownKindQueue()
+
+
+def test_process_job_runner_fails_on_unknown_child_message_kind(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _UnknownKindCtx())
+
+    failed: list[JobFailed] = []
+    finished: list[JobFinished] = []
+    bus.subscribe(JobFailed, failed.append)
+    bus.subscribe(JobFinished, finished.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("unknown-kind", _dummy)
+    with pytest.raises(RuntimeError, match="Unknown child message kind"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Unknown child message kind" in failed[0].error
+    assert finished == []

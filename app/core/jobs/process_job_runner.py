@@ -222,6 +222,9 @@ class ProcessJobRunner:
                         # Child cooperatively cancelled.
                         self._bus.publish(JobCancelled(job_id=job_id, name=name))
                         raise CancelledError("Job cancelled")
+                    else:
+                        error = f"Unknown child message kind: {kind!r}"
+                        break
             finally:
                 p.join(timeout=0.5)
                 if p.is_alive():
