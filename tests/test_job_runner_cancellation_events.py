@@ -38,3 +38,26 @@ def test_job_runner_emits_single_cancel_event_when_pre_cancelled() -> None:
         handle.future.result(timeout=2.0)
 
     assert len(cancelled_events) == 1
+
+
+def test_job_runner_emits_single_cancel_event_when_cancelled_during_run() -> None:
+    bus = EventBus()
+    runner = JobRunner(bus, max_workers=1)
+
+    cancelled_events: list[JobCancelled] = []
+    bus.subscribe(JobCancelled, cancelled_events.append)
+
+    gate = threading.Event()
+
+    def cancellable_job(_token, _progress):
+        gate.wait(timeout=2.0)
+        return "done"
+
+    handle = runner.submit("cancel-mid", cancellable_job)
+    handle.cancel()
+    gate.set()
+
+    with pytest.raises(CancelledError):
+        handle.future.result(timeout=2.0)
+
+    assert len(cancelled_events) == 1
