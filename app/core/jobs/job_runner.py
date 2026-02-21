@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import uuid
+import contextlib
+import io
 import random
+import time
+import uuid
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-import io
-import contextlib
 from threading import Event, Thread
-import time
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 
+from app.core.errors import CancelledError, InfrastructureError, IntegrationError
 from app.core.events import EventBus
-from app.core.errors import CancelledError
-from app.core.errors import IntegrationError, InfrastructureError
 from app.core.events.job_events import (
     JobCancelled,
     JobFailed,
@@ -90,14 +90,14 @@ class JobRunner:
             def __init__(self) -> None:
                 self._buf = ""
 
-            def write(self, s: str) -> int:  # type: ignore[override]
+            def write(self, s: str) -> int:
                 self._buf += s
                 while "\n" in self._buf:
                     line, self._buf = self._buf.split("\n", 1)
                     log_line(line)
                 return len(s)
 
-            def flush(self) -> None:  # type: ignore[override]
+            def flush(self) -> None:
                 if self._buf.strip():
                     log_line(self._buf)
                 self._buf = ""
@@ -145,7 +145,9 @@ class JobRunner:
             stderr.flush()
             if "error" in err_box:
                 raise err_box["error"]
-            return result_box.get("result")  # type: ignore[return-value]
+            if "result" not in result_box:
+                raise RuntimeError("Job finished without result")
+            return cast(T, result_box["result"])
 
         def _run() -> T:
             max_attempts = max(1, retries + 1)

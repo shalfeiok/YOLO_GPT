@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from app.core.events.job_events import (
     JobCancelled,
@@ -133,8 +133,8 @@ def _safe_serialize(value: Any) -> Any:
         return value
     if isinstance(value, datetime):
         return value.isoformat()
-    if is_dataclass(value):
-        return {k: _safe_serialize(v) for k, v in asdict(value).items()}
+    if is_dataclass(value) and not isinstance(value, type):
+        return {k: _safe_serialize(v) for k, v in asdict(cast(Any, value)).items()}
     if isinstance(value, dict):
         return {str(k): _safe_serialize(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -147,10 +147,6 @@ def _safe_serialize(value: Any) -> Any:
 def pack_job_event(e: JobEvent) -> dict[str, Any]:
     """Convert a Job* event instance to a JSON-serializable dict."""
     t = type(e).__name__
-    if is_dataclass(e):
-        raw: Any = asdict(e)
-    else:
-        # Fallback for non-dataclass events (shouldn't happen here)
-        raw = getattr(e, "__dict__", {})
+    raw: Any = asdict(cast(Any, e))
     data = _safe_serialize(raw)
     return {"type": t, "data": data, "ts": datetime.utcnow().isoformat()}

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from app.core.events import EventBus
 from app.core.events.job_events import (
@@ -186,7 +187,7 @@ class JobRegistry:
             rec.logs = rec.logs[-self._max_log_lines :]
         self._persist(e)
 
-    def _on_finished(self, e: JobFinished[Any]) -> None:
+    def _on_finished(self, e: JobFinished) -> None:
         rec = self._ensure(e.job_id, e.name)
         rec.status = "finished"
         rec.progress = 1.0

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Process-based job runner.
 
 Why this exists:
@@ -15,20 +13,22 @@ Notes:
 - Cancellation is cooperative via a multiprocessing.Event, but timeout is hard.
 """
 
+from __future__ import annotations
+
 import contextlib
 import io
-import random
 import queue
+import random
 import time
 import uuid
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from multiprocessing import Event as MpEvent
-from multiprocessing import Process, Queue, get_context
-from typing import Any, Callable, Generic, TypeVar, cast
+from multiprocessing import Queue, get_context
+from multiprocessing.synchronize import Event as MpEvent
+from typing import Any, Generic, TypeVar, cast
 
-from app.core.errors import CancelledError
-from app.core.errors import IntegrationError, InfrastructureError
+from app.core.errors import CancelledError, InfrastructureError, IntegrationError
 from app.core.events import EventBus
 from app.core.events.job_events import (
     JobCancelled,
@@ -83,7 +83,7 @@ def _child_entry(
         def __init__(self) -> None:
             self._buf = ""
 
-        def write(self, s: str) -> int:  # type: ignore[override]
+        def write(self, s: str) -> int:
             self._buf += s
             while "\n" in self._buf:
                 line, self._buf = self._buf.split("\n", 1)
@@ -91,7 +91,7 @@ def _child_entry(
                     q.put(("log", line))
             return len(s)
 
-        def flush(self) -> None:  # type: ignore[override]
+        def flush(self) -> None:
             if self._buf.strip():
                 q.put(("log", self._buf))
             self._buf = ""
@@ -178,7 +178,9 @@ class ProcessJobRunner:
                 kind = msg[0]
                 if kind == "progress":
                     _, prog, m = msg
-                    self._bus.publish(JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m)))
+                    self._bus.publish(
+                        JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m))
+                    )
                 elif kind == "log":
                     _, line = msg
                     ln = cast(str, line).rstrip("\n")
