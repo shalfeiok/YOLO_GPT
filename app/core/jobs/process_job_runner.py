@@ -212,12 +212,14 @@ class ProcessJobRunner:
                             break
                         _, prog, m = msg
                         try:
-                            prog_val = float(prog)
+                            raw_progress = float(prog)
                         except (TypeError, ValueError):
                             error = f"Malformed child progress payload: {msg!r}"
                             break
+                        prog_val = 0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
+                        msg_text = None if m is None else str(m)
                         self._bus.publish(
-                            JobProgress(job_id=job_id, name=name, progress=prog_val, message=cast(str | None, m))
+                            JobProgress(job_id=job_id, name=name, progress=prog_val, message=msg_text)
                         )
                     elif kind == "log":
                         if len(msg) != 2:
@@ -243,6 +245,9 @@ class ProcessJobRunner:
                         error = str(err)
                         break
                     elif kind == "cancelled":
+                        if len(msg) != 2:
+                            error = f"Malformed child cancelled message: {msg!r}"
+                            break
                         # Child cooperatively cancelled.
                         self._bus.publish(JobCancelled(job_id=job_id, name=name))
                         raise CancelledError("Job cancelled")

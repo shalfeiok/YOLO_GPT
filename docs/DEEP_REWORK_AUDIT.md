@@ -137,7 +137,7 @@
 - **Failure scenario:** Child process exits early (spawn/import failure, abrupt interpreter exit) -> parent loop breaks on `not p.is_alive()` -> `error is None` and `result is None` -> false-positive success published to UI.
 - **Minimal fix:** track `got_result` flag, use monotonic timeout accounting, drain queue briefly after child exit, close IPC queue deterministically, and raise runtime error when process exits without payload (including non-zero child exit code in the error).
 - **Proper fix:** formal parent/child protocol with explicit terminal envelope and exit-code verification, plus crash-reason telemetry.
-- **Regression test:** `tests/test_process_job_runner_exit_without_payload.py` ensures `JobFailed` is emitted when payload is missing and that late queue flush after child exit still produces `JobFinished`, and non-zero child exits without payload include exit-code diagnostics, while unknown and malformed child message envelopes (including invalid progress payload types) fail explicitly instead of being silently ignored.
+- **Regression test:** `tests/test_process_job_runner_exit_without_payload.py` ensures `JobFailed` is emitted when payload is missing and that late queue flush after child exit still produces `JobFinished`, and non-zero child exits without payload include exit-code diagnostics, while unknown and malformed child message envelopes (including invalid progress payload types and out-of-range progress values normalized to [0,1]) fail explicitly instead of being silently ignored.
 
 ## Phase 3 — Architectural Rework Plan
 

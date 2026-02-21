@@ -5,7 +5,7 @@ import queue
 import pytest
 
 from app.core.events import EventBus
-from app.core.events.job_events import JobFailed, JobFinished
+from app.core.events.job_events import JobFailed, JobFinished, JobProgress
 from app.core.jobs.process_job_runner import ProcessJobRunner
 
 
@@ -289,3 +289,44 @@ def test_process_job_runner_fails_on_malformed_progress_payload(monkeypatch) -> 
 
     assert len(failed) == 1
     assert "Malformed child progress payload" in failed[0].error
+
+
+class _ProgressThenResultQueue:
+    def __init__(self) -> None:
+        self._calls = 0
+
+    def get(self, timeout=None):
+        self._calls += 1
+        if self._calls == 1:
+            return ("progress", 99, "child-progress")
+        return ("result", "ok")
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _ProgressThenResultCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _ProgressThenResultQueue()
+
+
+def test_process_job_runner_clamps_progress_from_child_messages(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _ProgressThenResultCtx())
+
+    progress_events = []
+    bus.subscribe(JobProgress, progress_events.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("clamp-progress", _dummy)
+    assert handle.future.result(timeout=2) == "ok"
+
+    child_progress = [e for e in progress_events if getattr(e, "message", None) == "child-progress"]
+    assert len(child_progress) == 1
+    assert child_progress[0].progress == 1.0
