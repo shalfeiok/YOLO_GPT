@@ -57,7 +57,6 @@ class JobRegistry:
         self._jobs: dict[str, JobRecord] = {}
         self._store = store
         self._lock = RLock()
-        self._is_replaying = False
 
         # Subscribe to live events.
         self._bus.subscribe(JobStarted, self._on_started)
@@ -116,7 +115,7 @@ class JobRegistry:
             self._jobs.pop(rec.job_id, None)
 
     def _persist(self, e: Any) -> None:
-        if self._store is None or self._is_replaying:
+        if self._store is None:
             return
         try:
             self._store.append(pack_job_event(e))
@@ -126,58 +125,57 @@ class JobRegistry:
 
     def _replay_from_store(self) -> None:
         assert self._store is not None
-        self._is_replaying = True
-        try:
-            for rec in self._store.load():
-                t = rec.get("type")
-                data = rec.get("data") or {}
-                if not isinstance(data, dict) or not isinstance(t, str):
-                    continue
-                # Replay only what JobRegistry needs (ignore result payload).
-                job_id = str(data.get("job_id", ""))
-                name = str(data.get("name", ""))
-                if not job_id or not name:
-                    continue
+        for rec in self._store.load():
+            t = rec.get("type")
+            data = rec.get("data") or {}
+            if not isinstance(data, dict) or not isinstance(t, str):
+                continue
+            # Replay only what JobRegistry needs (ignore result payload).
+            job_id = str(data.get("job_id", ""))
+            name = str(data.get("name", ""))
+            if not job_id or not name:
+                continue
 
-                if t == "JobStarted":
-                    self._on_started(JobStarted(job_id=job_id, name=name))
-                elif t == "JobProgress":
-                    try:
-                        progress = float(data.get("progress", 0.0))
-                    except Exception:
-                        progress = 0.0
-                    msg = data.get("message")
-                    self._on_progress(JobProgress(job_id=job_id, name=name, progress=progress, message=msg))
-                elif t == "JobLogLine":
-                    line = str(data.get("line", ""))
-                    if line:
-                        self._on_log(JobLogLine(job_id=job_id, name=name, line=line))
-                elif t == "JobFinished":
-                    self._on_finished(JobFinished(job_id=job_id, name=name, result=None))
-                elif t == "JobFailed":
-                    err = str(data.get("error", ""))
-                    self._on_failed(JobFailed(job_id=job_id, name=name, error=err))
-                elif t == "JobCancelled":
-                    self._on_cancelled(JobCancelled(job_id=job_id, name=name))
-                elif t == "JobRetrying":
-                    try:
-                        attempt = int(data.get("attempt", 1))
-                        max_attempts = int(data.get("max_attempts", attempt))
-                    except Exception:
-                        attempt, max_attempts = 1, 1
-                    err = str(data.get("error", ""))
-                    self._on_retrying(JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=err))
-                elif t == "JobTimedOut":
-                    try:
-                        timeout_sec = float(data.get("timeout_sec", 0.0))
-                    except Exception:
-                        timeout_sec = 0.0
-                    self._on_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec))
+            if t == "JobStarted":
+                self._apply_started(JobStarted(job_id=job_id, name=name), persist=False)
+            elif t == "JobProgress":
+                try:
+                    progress = float(data.get("progress", 0.0))
+                except Exception:
+                    progress = 0.0
+                msg = data.get("message")
+                self._apply_progress(JobProgress(job_id=job_id, name=name, progress=progress, message=msg), persist=False)
+            elif t == "JobLogLine":
+                line = str(data.get("line", ""))
+                if line:
+                    self._apply_log(JobLogLine(job_id=job_id, name=name, line=line), persist=False)
+            elif t == "JobFinished":
+                self._apply_finished(JobFinished(job_id=job_id, name=name, result=None), persist=False)
+            elif t == "JobFailed":
+                err = str(data.get("error", ""))
+                self._apply_failed(JobFailed(job_id=job_id, name=name, error=err), persist=False)
+            elif t == "JobCancelled":
+                self._apply_cancelled(JobCancelled(job_id=job_id, name=name), persist=False)
+            elif t == "JobRetrying":
+                try:
+                    attempt = int(data.get("attempt", 1))
+                    max_attempts = int(data.get("max_attempts", attempt))
+                except Exception:
+                    attempt, max_attempts = 1, 1
+                err = str(data.get("error", ""))
+                self._apply_retrying(
+                    JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=err),
+                    persist=False,
+                )
+            elif t == "JobTimedOut":
+                try:
+                    timeout_sec = float(data.get("timeout_sec", 0.0))
+                except Exception:
+                    timeout_sec = 0.0
+                self._apply_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec), persist=False)
 
-            with self._lock:
-                self._purge_if_needed()
-        finally:
-            self._is_replaying = False
+        with self._lock:
+            self._purge_if_needed()
 
     # Event handlers
     def _ensure(self, job_id: str, name: str) -> JobRecord:
@@ -187,61 +185,93 @@ class JobRegistry:
             self._jobs[job_id] = rec
         return rec
 
-    def _on_started(self, e: JobStarted) -> None:
+    def _apply_started(self, e: JobStarted, *, persist: bool) -> None:
         with self._lock:
             self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
             self._purge_if_needed()
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_progress(self, e: JobProgress) -> None:
+    def _apply_progress(self, e: JobProgress, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.progress = e.progress
             rec.message = e.message
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_log(self, e: JobLogLine) -> None:
+    def _apply_log(self, e: JobLogLine, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.logs.append(e.line)
             if len(rec.logs) > self._max_log_lines:
                 rec.logs = rec.logs[-self._max_log_lines :]
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_finished(self, e: JobFinished) -> None:
+    def _apply_finished(self, e: JobFinished, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.status = "finished"
             rec.progress = 1.0
             rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_failed(self, e: JobFailed) -> None:
+    def _apply_failed(self, e: JobFailed, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.status = "failed"
             rec.error = e.error
             rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_retrying(self, e: JobRetrying) -> None:
+    def _apply_retrying(self, e: JobRetrying, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.status = "retrying"
             rec.message = f"retry {e.attempt}/{e.max_attempts}: {e.error}"
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_timed_out(self, e: JobTimedOut) -> None:
+    def _apply_timed_out(self, e: JobTimedOut, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.status = "timed_out"
             rec.error = f"timeout after {e.timeout_sec:.1f}s"
             rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        if persist:
+            self._persist(e)
 
-    def _on_cancelled(self, e: JobCancelled) -> None:
+    def _apply_cancelled(self, e: JobCancelled, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
             rec.status = "cancelled"
             rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        if persist:
+            self._persist(e)
+
+    def _on_started(self, e: JobStarted) -> None:
+        self._apply_started(e, persist=True)
+
+    def _on_progress(self, e: JobProgress) -> None:
+        self._apply_progress(e, persist=True)
+
+    def _on_log(self, e: JobLogLine) -> None:
+        self._apply_log(e, persist=True)
+
+    def _on_finished(self, e: JobFinished) -> None:
+        self._apply_finished(e, persist=True)
+
+    def _on_failed(self, e: JobFailed) -> None:
+        self._apply_failed(e, persist=True)
+
+    def _on_retrying(self, e: JobRetrying) -> None:
+        self._apply_retrying(e, persist=True)
+
+    def _on_timed_out(self, e: JobTimedOut) -> None:
+        self._apply_timed_out(e, persist=True)
+
+    def _on_cancelled(self, e: JobCancelled) -> None:
+        self._apply_cancelled(e, persist=True)
