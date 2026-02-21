@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
+from typing import Any, cast
 
 try:
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QMessageBox
+    _qt_widgets = import_module("PySide6.QtWidgets")
+    QMessageBox = getattr(_qt_widgets, "QMessageBox", None)
 except Exception:  # pragma: no cover
-    QTimer = None  # type: ignore[assignment]
-    QMessageBox = None  # type: ignore[assignment]
+    QMessageBox = None
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,8 @@ class NotificationCenter:
                 return
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('Notification display failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("Notification display failed", exc_info=True)
         return
 
     @staticmethod
@@ -60,7 +62,7 @@ class NotificationCenter:
         if QMessageBox is None:
             return
         try:
-            QMessageBox.critical(self._window, "Ошибка", text)
+            cast(Any, QMessageBox).critical(self._window, "Ошибка", text)
         except Exception:
             return
 

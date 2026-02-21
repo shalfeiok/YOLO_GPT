@@ -3,8 +3,9 @@ QSettings wrapper: main window geometry, sidebar state, dock layout, theme.
 """
 from __future__ import annotations
 
+from typing import cast
+
 from PySide6.QtCore import QByteArray, QSettings, QSize
-from PySide6.QtGui import QWindow
 
 
 class AppSettings:
@@ -15,19 +16,19 @@ class AppSettings:
 
     # --- Main window ---
     def get_main_window_geometry(self) -> QByteArray | None:
-        return self._q.value("mainWindow/geometry", None, QByteArray)
+        return cast(QByteArray | None, self._q.value("mainWindow/geometry", None, QByteArray))
 
     def set_main_window_geometry(self, geometry: QByteArray) -> None:
         self._q.setValue("mainWindow/geometry", geometry)
 
     def get_main_window_state(self) -> QByteArray | None:
-        return self._q.value("mainWindow/state", None, QByteArray)
+        return cast(QByteArray | None, self._q.value("mainWindow/state", None, QByteArray))
 
     def set_main_window_state(self, state: QByteArray) -> None:
         self._q.setValue("mainWindow/state", state)
 
     def get_main_window_size(self) -> QSize | None:
-        return self._q.value("mainWindow/size", None, QSize)
+        return cast(QSize | None, self._q.value("mainWindow/size", None, QSize))
 
     def set_main_window_size(self, size: QSize) -> None:
         self._q.setValue("mainWindow/size", size)
