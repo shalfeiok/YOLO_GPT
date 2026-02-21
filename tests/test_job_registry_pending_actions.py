@@ -41,3 +41,29 @@ def test_set_cancel_before_start_is_attached_on_start() -> None:
     assert rec.cancel is not None
     rec.cancel()
     assert called["n"] == 1
+
+
+def test_setters_ignore_empty_job_id() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    registry.set_rerun("", lambda: None)
+    registry.set_cancel("", lambda: None)
+
+    assert registry._pending_rerun == {}
+    assert registry._pending_cancel == {}
+
+
+def test_pending_callbacks_are_bounded_by_max_jobs() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus, max_jobs=2)
+
+    registry.set_rerun("a", lambda: None)
+    registry.set_rerun("b", lambda: None)
+    registry.set_rerun("c", lambda: None)
+    registry.set_cancel("x", lambda: None)
+    registry.set_cancel("y", lambda: None)
+    registry.set_cancel("z", lambda: None)
+
+    assert len(registry._pending_rerun) <= 2
+    assert len(registry._pending_cancel) <= 2

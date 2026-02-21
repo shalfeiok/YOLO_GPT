@@ -75,20 +75,26 @@ class JobRegistry:
             self._replay_from_store()
 
     def set_rerun(self, job_id: str, rerun: Callable[[], Any]) -> None:
+        if not job_id:
+            return
         with self._lock:
             rec = self._jobs.get(job_id)
             if rec is not None:
                 rec.rerun = rerun
             else:
                 self._pending_rerun[job_id] = rerun
+                self._purge_pending_if_needed()
 
     def set_cancel(self, job_id: str, cancel: Callable[[], None]) -> None:
+        if not job_id:
+            return
         with self._lock:
             rec = self._jobs.get(job_id)
             if rec is not None:
                 rec.cancel = cancel
             else:
                 self._pending_cancel[job_id] = cancel
+                self._purge_pending_if_needed()
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._lock:
@@ -110,6 +116,18 @@ class JobRegistry:
 
     def _copy_record(self, rec: JobRecord) -> JobRecord:
         return replace(rec, logs=list(rec.logs))
+
+    def _purge_pending_if_needed(self) -> None:
+        if self._max_jobs <= 0:
+            return
+        overflow = len(self._pending_rerun) - self._max_jobs
+        if overflow > 0:
+            for key in list(self._pending_rerun.keys())[:overflow]:
+                self._pending_rerun.pop(key, None)
+        overflow = len(self._pending_cancel) - self._max_jobs
+        if overflow > 0:
+            for key in list(self._pending_cancel.keys())[:overflow]:
+                self._pending_cancel.pop(key, None)
 
     def _purge_if_needed(self) -> None:
         """Keep only the newest N jobs to avoid unbounded memory growth."""
