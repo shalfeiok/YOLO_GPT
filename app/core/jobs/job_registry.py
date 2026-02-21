@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from threading import RLock
 from typing import Any
 
 from app.core.events import EventBus
@@ -55,6 +56,7 @@ class JobRegistry:
         self._max_jobs = max_jobs
         self._jobs: dict[str, JobRecord] = {}
         self._store = store
+        self._lock = RLock()
 
         # Subscribe to live events.
         self._bus.subscribe(JobStarted, self._on_started)
@@ -71,23 +73,28 @@ class JobRegistry:
             self._replay_from_store()
 
     def set_rerun(self, job_id: str, rerun: Callable[[], Any]) -> None:
-        rec = self._jobs.get(job_id)
-        if rec is not None:
-            rec.rerun = rerun
+        with self._lock:
+            rec = self._jobs.get(job_id)
+            if rec is not None:
+                rec.rerun = rerun
 
     def set_cancel(self, job_id: str, cancel: Callable[[], None]) -> None:
-        rec = self._jobs.get(job_id)
-        if rec is not None:
-            rec.cancel = cancel
+        with self._lock:
+            rec = self._jobs.get(job_id)
+            if rec is not None:
+                rec.cancel = cancel
 
     def get(self, job_id: str) -> JobRecord | None:
-        return self._jobs.get(job_id)
+        with self._lock:
+            return self._jobs.get(job_id)
 
     def list(self) -> list[JobRecord]:
-        return sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
+        with self._lock:
+            return sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
 
     def clear(self) -> None:
-        self._jobs.clear()
+        with self._lock:
+            self._jobs.clear()
         if self._store is not None:
             self._store.clear()
 
@@ -170,52 +177,60 @@ class JobRegistry:
         return rec
 
     def _on_started(self, e: JobStarted) -> None:
-        self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
-        self._purge_if_needed()
+        with self._lock:
+            self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
+            self._purge_if_needed()
         self._persist(e)
 
     def _on_progress(self, e: JobProgress) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.progress = e.progress
-        rec.message = e.message
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.progress = e.progress
+            rec.message = e.message
         self._persist(e)
 
     def _on_log(self, e: JobLogLine) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.logs.append(e.line)
-        if len(rec.logs) > self._max_log_lines:
-            rec.logs = rec.logs[-self._max_log_lines :]
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.logs.append(e.line)
+            if len(rec.logs) > self._max_log_lines:
+                rec.logs = rec.logs[-self._max_log_lines :]
         self._persist(e)
 
     def _on_finished(self, e: JobFinished) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "finished"
-        rec.progress = 1.0
-        rec.finished_at = datetime.utcnow()
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "finished"
+            rec.progress = 1.0
+            rec.finished_at = datetime.utcnow()
         self._persist(e)
 
     def _on_failed(self, e: JobFailed) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "failed"
-        rec.error = e.error
-        rec.finished_at = datetime.utcnow()
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "failed"
+            rec.error = e.error
+            rec.finished_at = datetime.utcnow()
         self._persist(e)
 
     def _on_retrying(self, e: JobRetrying) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "retrying"
-        rec.message = f"retry {e.attempt}/{e.max_attempts}: {e.error}"
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "retrying"
+            rec.message = f"retry {e.attempt}/{e.max_attempts}: {e.error}"
         self._persist(e)
 
     def _on_timed_out(self, e: JobTimedOut) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "timed_out"
-        rec.error = f"timeout after {e.timeout_sec:.1f}s"
-        rec.finished_at = datetime.utcnow()
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "timed_out"
+            rec.error = f"timeout after {e.timeout_sec:.1f}s"
+            rec.finished_at = datetime.utcnow()
         self._persist(e)
 
     def _on_cancelled(self, e: JobCancelled) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "cancelled"
-        rec.finished_at = datetime.utcnow()
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "cancelled"
+            rec.finished_at = datetime.utcnow()
         self._persist(e)
