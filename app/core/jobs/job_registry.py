@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
+from threading import RLock
 from typing import Any
 
 from app.core.events import EventBus
@@ -55,6 +56,7 @@ class JobRegistry:
         self._max_jobs = max_jobs
         self._jobs: dict[str, JobRecord] = {}
         self._store = store
+        self._lock = RLock()
 
         # Subscribe to live events.
         self._bus.subscribe(JobStarted, self._on_started)
@@ -71,25 +73,35 @@ class JobRegistry:
             self._replay_from_store()
 
     def set_rerun(self, job_id: str, rerun: Callable[[], Any]) -> None:
-        rec = self._jobs.get(job_id)
-        if rec is not None:
-            rec.rerun = rerun
+        with self._lock:
+            rec = self._jobs.get(job_id)
+            if rec is not None:
+                rec.rerun = rerun
 
     def set_cancel(self, job_id: str, cancel: Callable[[], None]) -> None:
-        rec = self._jobs.get(job_id)
-        if rec is not None:
-            rec.cancel = cancel
+        with self._lock:
+            rec = self._jobs.get(job_id)
+            if rec is not None:
+                rec.cancel = cancel
 
     def get(self, job_id: str) -> JobRecord | None:
-        return self._jobs.get(job_id)
+        with self._lock:
+            rec = self._jobs.get(job_id)
+            return None if rec is None else self._copy_record(rec)
 
     def list(self) -> list[JobRecord]:
-        return sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
+        with self._lock:
+            records = sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
+            return [self._copy_record(r) for r in records]
 
     def clear(self) -> None:
-        self._jobs.clear()
+        with self._lock:
+            self._jobs.clear()
         if self._store is not None:
             self._store.clear()
+
+    def _copy_record(self, rec: JobRecord) -> JobRecord:
+        return replace(rec, logs=list(rec.logs))
 
     def _purge_if_needed(self) -> None:
         """Keep only the newest N jobs to avoid unbounded memory growth."""
@@ -125,25 +137,25 @@ class JobRegistry:
                 continue
 
             if t == "JobStarted":
-                self._on_started(JobStarted(job_id=job_id, name=name))
+                self._apply_started(JobStarted(job_id=job_id, name=name), persist=False)
             elif t == "JobProgress":
                 try:
                     progress = float(data.get("progress", 0.0))
                 except Exception:
                     progress = 0.0
                 msg = data.get("message")
-                self._on_progress(JobProgress(job_id=job_id, name=name, progress=progress, message=msg))
+                self._apply_progress(JobProgress(job_id=job_id, name=name, progress=progress, message=msg), persist=False)
             elif t == "JobLogLine":
                 line = str(data.get("line", ""))
                 if line:
-                    self._on_log(JobLogLine(job_id=job_id, name=name, line=line))
+                    self._apply_log(JobLogLine(job_id=job_id, name=name, line=line), persist=False)
             elif t == "JobFinished":
-                self._on_finished(JobFinished(job_id=job_id, name=name, result=None))
+                self._apply_finished(JobFinished(job_id=job_id, name=name, result=None), persist=False)
             elif t == "JobFailed":
                 err = str(data.get("error", ""))
-                self._on_failed(JobFailed(job_id=job_id, name=name, error=err))
+                self._apply_failed(JobFailed(job_id=job_id, name=name, error=err), persist=False)
             elif t == "JobCancelled":
-                self._on_cancelled(JobCancelled(job_id=job_id, name=name))
+                self._apply_cancelled(JobCancelled(job_id=job_id, name=name), persist=False)
             elif t == "JobRetrying":
                 try:
                     attempt = int(data.get("attempt", 1))
@@ -151,15 +163,19 @@ class JobRegistry:
                 except Exception:
                     attempt, max_attempts = 1, 1
                 err = str(data.get("error", ""))
-                self._on_retrying(JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=err))
+                self._apply_retrying(
+                    JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=err),
+                    persist=False,
+                )
             elif t == "JobTimedOut":
                 try:
                     timeout_sec = float(data.get("timeout_sec", 0.0))
                 except Exception:
                     timeout_sec = 0.0
-                self._on_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec))
+                self._apply_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec), persist=False)
 
-        self._purge_if_needed()
+        with self._lock:
+            self._purge_if_needed()
 
     # Event handlers
     def _ensure(self, job_id: str, name: str) -> JobRecord:
@@ -169,53 +185,93 @@ class JobRegistry:
             self._jobs[job_id] = rec
         return rec
 
+    def _apply_started(self, e: JobStarted, *, persist: bool) -> None:
+        with self._lock:
+            self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
+            self._purge_if_needed()
+        if persist:
+            self._persist(e)
+
+    def _apply_progress(self, e: JobProgress, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.progress = e.progress
+            rec.message = e.message
+        if persist:
+            self._persist(e)
+
+    def _apply_log(self, e: JobLogLine, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.logs.append(e.line)
+            if len(rec.logs) > self._max_log_lines:
+                rec.logs = rec.logs[-self._max_log_lines :]
+        if persist:
+            self._persist(e)
+
+    def _apply_finished(self, e: JobFinished, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "finished"
+            rec.progress = 1.0
+            rec.finished_at = datetime.utcnow()
+        if persist:
+            self._persist(e)
+
+    def _apply_failed(self, e: JobFailed, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "failed"
+            rec.error = e.error
+            rec.finished_at = datetime.utcnow()
+        if persist:
+            self._persist(e)
+
+    def _apply_retrying(self, e: JobRetrying, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "retrying"
+            rec.message = f"retry {e.attempt}/{e.max_attempts}: {e.error}"
+        if persist:
+            self._persist(e)
+
+    def _apply_timed_out(self, e: JobTimedOut, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "timed_out"
+            rec.error = f"timeout after {e.timeout_sec:.1f}s"
+            rec.finished_at = datetime.utcnow()
+        if persist:
+            self._persist(e)
+
+    def _apply_cancelled(self, e: JobCancelled, *, persist: bool) -> None:
+        with self._lock:
+            rec = self._ensure(e.job_id, e.name)
+            rec.status = "cancelled"
+            rec.finished_at = datetime.utcnow()
+        if persist:
+            self._persist(e)
+
     def _on_started(self, e: JobStarted) -> None:
-        self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
-        self._purge_if_needed()
-        self._persist(e)
+        self._apply_started(e, persist=True)
 
     def _on_progress(self, e: JobProgress) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.progress = e.progress
-        rec.message = e.message
-        self._persist(e)
+        self._apply_progress(e, persist=True)
 
     def _on_log(self, e: JobLogLine) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.logs.append(e.line)
-        if len(rec.logs) > self._max_log_lines:
-            rec.logs = rec.logs[-self._max_log_lines :]
-        self._persist(e)
+        self._apply_log(e, persist=True)
 
     def _on_finished(self, e: JobFinished) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "finished"
-        rec.progress = 1.0
-        rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        self._apply_finished(e, persist=True)
 
     def _on_failed(self, e: JobFailed) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "failed"
-        rec.error = e.error
-        rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        self._apply_failed(e, persist=True)
 
     def _on_retrying(self, e: JobRetrying) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "retrying"
-        rec.message = f"retry {e.attempt}/{e.max_attempts}: {e.error}"
-        self._persist(e)
+        self._apply_retrying(e, persist=True)
 
     def _on_timed_out(self, e: JobTimedOut) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "timed_out"
-        rec.error = f"timeout after {e.timeout_sec:.1f}s"
-        rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        self._apply_timed_out(e, persist=True)
 
     def _on_cancelled(self, e: JobCancelled) -> None:
-        rec = self._ensure(e.job_id, e.name)
-        rec.status = "cancelled"
-        rec.finished_at = datetime.utcnow()
-        self._persist(e)
+        self._apply_cancelled(e, persist=True)
