@@ -151,6 +151,7 @@ class ProcessJobRunner:
             started = time.time()
             result: T | None = None
             error: str | None = None
+            got_result = False
 
             while True:
                 if timeout_sec is not None and (time.time() - started) > timeout_sec:
@@ -189,6 +190,7 @@ class ProcessJobRunner:
                 elif kind == "result":
                     _, res = msg
                     result = cast(T, res)
+                    got_result = True
                     break
                 elif kind == "error":
                     _, err = msg
@@ -205,6 +207,8 @@ class ProcessJobRunner:
                 raise CancelledError("Job cancelled")
             if error is not None:
                 raise RuntimeError(error)
+            if not got_result:
+                raise RuntimeError("Job process exited without a result payload")
             return cast(T, result)
 
         def _run() -> T:
