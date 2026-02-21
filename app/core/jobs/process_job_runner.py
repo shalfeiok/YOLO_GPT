@@ -114,6 +114,15 @@ def _child_entry(
         q.put(("error", repr(e)))
 
 
+def _close_ipc_queue(q: Queue) -> None:
+    close = getattr(q, "close", None)
+    if callable(close):
+        close()
+    join_thread = getattr(q, "join_thread", None)
+    if callable(join_thread):
+        join_thread()
+
+
 class ProcessJobRunner:
     """Runs picklable jobs in a separate process."""
 
@@ -148,7 +157,7 @@ class ProcessJobRunner:
             p = self._ctx.Process(target=_child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True)
             p.start()
 
-            started = time.time()
+            started = time.monotonic()
             result: T | None = None
             error: str | None = None
             got_result = False
@@ -158,62 +167,69 @@ class ProcessJobRunner:
             # dropping a terminal payload that was already produced by the child.
             drain_deadline: float | None = None
 
-            while True:
-                if timeout_sec is not None and (time.time() - started) > timeout_sec:
-                    cancel_evt.set()
-                    if p.is_alive():
+            try:
+                while True:
+                    if timeout_sec is not None and (time.monotonic() - started) > timeout_sec:
+                        cancel_evt.set()
+                        if p.is_alive():
+                            p.terminate()
+                        p.join(timeout=1.0)
+                        self._bus.publish(JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec)))
+                        raise TimeoutError(f"Job timed out after {timeout_sec}s")
+
+                    if cancel_evt.is_set() and p.is_alive():
+                        # Cooperative cancel first; then hard terminate.
                         p.terminate()
-                    p.join(timeout=1.0)
-                    self._bus.publish(JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec)))
-                    raise TimeoutError(f"Job timed out after {timeout_sec}s")
+                        p.join(timeout=1.0)
+                        self._bus.publish(JobCancelled(job_id=job_id, name=name))
+                        raise CancelledError("Job cancelled")
 
-                if cancel_evt.is_set() and p.is_alive():
-                    # Cooperative cancel first; then hard terminate.
+                    alive = p.is_alive()
+                    if not alive and drain_deadline is None:
+                        drain_deadline = time.monotonic() + 0.3
+
+                    get_timeout = 0.15 if alive else 0.03
+                    try:
+                        msg = q.get(timeout=get_timeout)
+                    except queue.Empty:
+                        if alive:
+                            continue
+                        if drain_deadline is not None and time.monotonic() < drain_deadline:
+                            continue
+                        break
+
+                    kind = msg[0]
+                    if kind == "progress":
+                        _, prog, m = msg
+                        self._bus.publish(
+                            JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m))
+                        )
+                    elif kind == "log":
+                        _, line = msg
+                        ln = cast(str, line).rstrip("\n")
+                        if ln.strip():
+                            self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
+                    elif kind == "result":
+                        _, res = msg
+                        result = cast(T, res)
+                        got_result = True
+                        break
+                    elif kind == "error":
+                        _, err = msg
+                        error = cast(str, err)
+                        break
+                    elif kind == "cancelled":
+                        # Child cooperatively cancelled.
+                        self._bus.publish(JobCancelled(job_id=job_id, name=name))
+                        raise CancelledError("Job cancelled")
+            finally:
+                p.join(timeout=0.5)
+                if p.is_alive():
                     p.terminate()
-                    p.join(timeout=1.0)
-                    self._bus.publish(JobCancelled(job_id=job_id, name=name))
-                    raise CancelledError("Job cancelled")
+                    p.join(timeout=0.5)
+                with contextlib.suppress(Exception):
+                    _close_ipc_queue(q)
 
-                alive = p.is_alive()
-                if not alive and drain_deadline is None:
-                    drain_deadline = time.monotonic() + 0.3
-
-                get_timeout = 0.15 if alive else 0.03
-                try:
-                    msg = q.get(timeout=get_timeout)
-                except queue.Empty:
-                    if alive:
-                        continue
-                    if drain_deadline is not None and time.monotonic() < drain_deadline:
-                        continue
-                    break
-
-                kind = msg[0]
-                if kind == "progress":
-                    _, prog, m = msg
-                    self._bus.publish(
-                        JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m))
-                    )
-                elif kind == "log":
-                    _, line = msg
-                    ln = cast(str, line).rstrip("\n")
-                    if ln.strip():
-                        self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
-                elif kind == "result":
-                    _, res = msg
-                    result = cast(T, res)
-                    got_result = True
-                    break
-                elif kind == "error":
-                    _, err = msg
-                    error = cast(str, err)
-                    break
-                elif kind == "cancelled":
-                    # Child cooperatively cancelled.
-                    self._bus.publish(JobCancelled(job_id=job_id, name=name))
-                    raise CancelledError("Job cancelled")
-
-            p.join(timeout=0.5)
             if cancel_evt.is_set():
                 self._bus.publish(JobCancelled(job_id=job_id, name=name))
                 raise CancelledError("Job cancelled")

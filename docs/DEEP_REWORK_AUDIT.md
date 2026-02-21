@@ -135,7 +135,7 @@
 - **Symptom:** Supervisor can mark job as finished with `result=None` even when child process crashed before posting any terminal queue message.
 - **Root cause:** `_run_attempt` returned `cast(T, result)` without verifying that a `"result"` message was actually received.
 - **Failure scenario:** Child process exits early (spawn/import failure, abrupt interpreter exit) -> parent loop breaks on `not p.is_alive()` -> `error is None` and `result is None` -> false-positive success published to UI.
-- **Minimal fix:** track `got_result` flag, drain queue briefly after child exit, and raise runtime error when process exits without payload.
+- **Minimal fix:** track `got_result` flag, use monotonic timeout accounting, drain queue briefly after child exit, close IPC queue deterministically, and raise runtime error when process exits without payload.
 - **Proper fix:** formal parent/child protocol with explicit terminal envelope and exit-code verification, plus crash-reason telemetry.
 - **Regression test:** `tests/test_process_job_runner_exit_without_payload.py` ensures `JobFailed` is emitted when payload is missing and that late queue flush after child exit still produces `JobFinished`.
 

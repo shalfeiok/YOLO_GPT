@@ -111,3 +111,43 @@ def test_process_job_runner_reads_late_result_after_child_exit(monkeypatch) -> N
 
     assert len(finished) == 1
     assert failed == []
+
+
+class _TrackableQueue(_DelayedResultQueue):
+    def __init__(self) -> None:
+        super().__init__()
+        self.closed = False
+        self.joined = False
+
+    def close(self):
+        self.closed = True
+
+    def join_thread(self):
+        self.joined = True
+
+
+class _TrackableCtx(_FakeDrainCtx):
+    def __init__(self) -> None:
+        self.last_queue: _TrackableQueue | None = None
+
+    def Queue(self):
+        q = _TrackableQueue()
+        self.last_queue = q
+        return q
+
+
+def test_process_job_runner_closes_queue_on_exit(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    ctx = _TrackableCtx()
+    monkeypatch.setattr(runner, "_ctx", ctx)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("queue-cleanup", _dummy)
+    assert handle.future.result(timeout=2) == "ok"
+
+    assert ctx.last_queue is not None
+    assert ctx.last_queue.closed is True
+    assert ctx.last_queue.joined is True
