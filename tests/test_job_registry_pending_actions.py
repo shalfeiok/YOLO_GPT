@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.events import EventBus
-from app.core.events.job_events import JobStarted
+from app.core.events.job_events import JobLogLine, JobProgress, JobStarted
 from app.core.jobs import JobRegistry
 
 
@@ -67,3 +67,23 @@ def test_pending_callbacks_are_bounded_by_max_jobs() -> None:
 
     assert len(registry._pending_rerun) <= 2
     assert len(registry._pending_cancel) <= 2
+
+
+def test_duplicate_job_started_does_not_reset_state() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    bus.publish(JobStarted(job_id="dup", name="task"))
+    bus.publish(JobProgress(job_id="dup", name="task", progress=0.5, message="half"))
+    bus.publish(JobLogLine(job_id="dup", name="task", line="hello"))
+
+    # duplicate start should not wipe state
+    bus.publish(JobStarted(job_id="dup", name="task-renamed"))
+
+    rec = registry.get("dup")
+    assert rec is not None
+    assert rec.name == "task-renamed"
+    assert rec.status == "running"
+    assert rec.progress == 0.5
+    assert rec.message == "half"
+    assert rec.logs == ["hello"]

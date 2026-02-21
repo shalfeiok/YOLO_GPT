@@ -213,11 +213,20 @@ class JobRegistry:
 
     def _apply_started(self, e: JobStarted, *, persist: bool) -> None:
         with self._lock:
-            rec = JobRecord(job_id=e.job_id, name=e.name)
-            rec.rerun = self._pending_rerun.pop(e.job_id, None)
-            rec.cancel = self._pending_cancel.pop(e.job_id, None)
-            self._jobs[e.job_id] = rec
-            self._purge_if_needed()
+            rec = self._jobs.get(e.job_id)
+            if rec is None:
+                rec = JobRecord(job_id=e.job_id, name=e.name)
+                rec.rerun = self._pending_rerun.pop(e.job_id, None)
+                rec.cancel = self._pending_cancel.pop(e.job_id, None)
+                self._jobs[e.job_id] = rec
+                self._purge_if_needed()
+            else:
+                # Idempotency: repeated JobStarted must not reset accumulated progress/logs/state.
+                rec.name = e.name
+                if rec.rerun is None:
+                    rec.rerun = self._pending_rerun.pop(e.job_id, None)
+                if rec.cancel is None:
+                    rec.cancel = self._pending_cancel.pop(e.job_id, None)
         if persist:
             self._persist(e)
 
