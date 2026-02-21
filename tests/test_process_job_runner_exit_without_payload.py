@@ -219,3 +219,38 @@ def test_process_job_runner_fails_on_unknown_child_message_kind(monkeypatch) -> 
     assert len(failed) == 1
     assert "Unknown child message kind" in failed[0].error
     assert finished == []
+
+
+class _MalformedMessageQueue:
+    def get(self, timeout=None):
+        return None
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _MalformedMessageCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _MalformedMessageQueue()
+
+
+def test_process_job_runner_fails_on_malformed_child_message(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _MalformedMessageCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("malformed-message", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child message"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child message" in failed[0].error

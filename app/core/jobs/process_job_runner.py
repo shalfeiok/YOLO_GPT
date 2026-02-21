@@ -198,23 +198,42 @@ class ProcessJobRunner:
                             continue
                         break
 
+                    if not isinstance(msg, tuple) or len(msg) == 0:
+                        error = f"Malformed child message: {msg!r}"
+                        break
                     kind = msg[0]
+                    if not isinstance(kind, str):
+                        error = f"Malformed child message kind: {kind!r}"
+                        break
+
                     if kind == "progress":
+                        if len(msg) != 3:
+                            error = f"Malformed child progress message: {msg!r}"
+                            break
                         _, prog, m = msg
                         self._bus.publish(
                             JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m))
                         )
                     elif kind == "log":
+                        if len(msg) != 2:
+                            error = f"Malformed child log message: {msg!r}"
+                            break
                         _, line = msg
                         ln = cast(str, line).rstrip("\n")
                         if ln.strip():
                             self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
                     elif kind == "result":
+                        if len(msg) != 2:
+                            error = f"Malformed child result message: {msg!r}"
+                            break
                         _, res = msg
                         result = cast(T, res)
                         got_result = True
                         break
                     elif kind == "error":
+                        if len(msg) != 2:
+                            error = f"Malformed child error message: {msg!r}"
+                            break
                         _, err = msg
                         error = cast(str, err)
                         break
@@ -225,6 +244,7 @@ class ProcessJobRunner:
                     else:
                         error = f"Unknown child message kind: {kind!r}"
                         break
+
             finally:
                 p.join(timeout=0.5)
                 if p.is_alive():
