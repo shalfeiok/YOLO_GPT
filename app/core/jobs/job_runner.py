@@ -107,7 +107,6 @@ class JobRunner:
 
         def _run_once() -> T:
             if token.is_cancelled():
-                self._bus.publish(JobCancelled(job_id=job_id, name=name))
                 raise CancelledError("Job cancelled")
 
             stdout = _LineEmitter()
@@ -158,7 +157,6 @@ class JobRunner:
                 try:
                     result = _run_once()
                     if token.is_cancelled():
-                        self._bus.publish(JobCancelled(job_id=job_id, name=name))
                         raise CancelledError("Job cancelled")
                     progress(1.0, "finished")
                     self._bus.publish(JobFinished(job_id=job_id, name=name, result=result))

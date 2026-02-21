@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
 from typing import Any, TypeVar, cast
 from weakref import WeakMethod
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,5 +90,11 @@ class EventBus:
         # Copy handlers under lock, then execute outside the lock.
         with self._lock:
             handlers = list(self._subs.get(type(event), []))
-        for h in handlers:
-            h(event)
+        for handler in handlers:
+            try:
+                handler(event)
+            except Exception:
+                logger.exception(
+                    "Event handler failed",
+                    extra={"event_type": type(event).__name__, "handler": repr(handler)},
+                )
