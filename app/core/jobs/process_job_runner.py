@@ -211,15 +211,20 @@ class ProcessJobRunner:
                             error = f"Malformed child progress message: {msg!r}"
                             break
                         _, prog, m = msg
+                        try:
+                            prog_val = float(prog)
+                        except (TypeError, ValueError):
+                            error = f"Malformed child progress payload: {msg!r}"
+                            break
                         self._bus.publish(
-                            JobProgress(job_id=job_id, name=name, progress=float(prog), message=cast(str | None, m))
+                            JobProgress(job_id=job_id, name=name, progress=prog_val, message=cast(str | None, m))
                         )
                     elif kind == "log":
                         if len(msg) != 2:
                             error = f"Malformed child log message: {msg!r}"
                             break
                         _, line = msg
-                        ln = cast(str, line).rstrip("\n")
+                        ln = str(line).rstrip("\n")
                         if ln.strip():
                             self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
                     elif kind == "result":
@@ -235,7 +240,7 @@ class ProcessJobRunner:
                             error = f"Malformed child error message: {msg!r}"
                             break
                         _, err = msg
-                        error = cast(str, err)
+                        error = str(err)
                         break
                     elif kind == "cancelled":
                         # Child cooperatively cancelled.

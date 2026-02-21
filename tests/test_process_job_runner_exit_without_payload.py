@@ -254,3 +254,38 @@ def test_process_job_runner_fails_on_malformed_child_message(monkeypatch) -> Non
 
     assert len(failed) == 1
     assert "Malformed child message" in failed[0].error
+
+
+class _MalformedProgressQueue:
+    def get(self, timeout=None):
+        return ("progress", "not-a-number", None)
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _MalformedProgressCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _MalformedProgressQueue()
+
+
+def test_process_job_runner_fails_on_malformed_progress_payload(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _MalformedProgressCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("bad-progress", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child progress payload"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child progress payload" in failed[0].error
