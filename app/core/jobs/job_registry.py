@@ -55,6 +55,8 @@ class JobRegistry:
         self._max_log_lines = max_log_lines
         self._max_jobs = max_jobs
         self._jobs: dict[str, JobRecord] = {}
+        self._pending_rerun: dict[str, Callable[[], Any]] = {}
+        self._pending_cancel: dict[str, Callable[[], None]] = {}
         self._store = store
         self._lock = RLock()
 
@@ -77,12 +79,16 @@ class JobRegistry:
             rec = self._jobs.get(job_id)
             if rec is not None:
                 rec.rerun = rerun
+            else:
+                self._pending_rerun[job_id] = rerun
 
     def set_cancel(self, job_id: str, cancel: Callable[[], None]) -> None:
         with self._lock:
             rec = self._jobs.get(job_id)
             if rec is not None:
                 rec.cancel = cancel
+            else:
+                self._pending_cancel[job_id] = cancel
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._lock:
@@ -97,6 +103,8 @@ class JobRegistry:
     def clear(self) -> None:
         with self._lock:
             self._jobs.clear()
+            self._pending_rerun.clear()
+            self._pending_cancel.clear()
         if self._store is not None:
             self._store.clear()
 
@@ -187,7 +195,10 @@ class JobRegistry:
 
     def _apply_started(self, e: JobStarted, *, persist: bool) -> None:
         with self._lock:
-            self._jobs[e.job_id] = JobRecord(job_id=e.job_id, name=e.name)
+            rec = JobRecord(job_id=e.job_id, name=e.name)
+            rec.rerun = self._pending_rerun.pop(e.job_id, None)
+            rec.cancel = self._pending_cancel.pop(e.job_id, None)
+            self._jobs[e.job_id] = rec
             self._purge_if_needed()
         if persist:
             self._persist(e)
