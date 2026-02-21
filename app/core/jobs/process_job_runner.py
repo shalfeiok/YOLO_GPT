@@ -236,6 +236,9 @@ class ProcessJobRunner:
             if error is not None:
                 raise RuntimeError(error)
             if not got_result:
+                exitcode = getattr(p, "exitcode", None)
+                if isinstance(exitcode, int) and exitcode != 0:
+                    raise RuntimeError(f"Job process exited with code {exitcode} without a result payload")
                 raise RuntimeError("Job process exited without a result payload")
             return cast(T, result)
 

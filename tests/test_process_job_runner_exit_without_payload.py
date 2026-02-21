@@ -113,6 +113,36 @@ def test_process_job_runner_reads_late_result_after_child_exit(monkeypatch) -> N
     assert failed == []
 
 
+class _NonZeroExitProcess(_FakeProcess):
+    @property
+    def exitcode(self):
+        return 137
+
+
+class _NonZeroExitCtx(_FakeCtx):
+    def Process(self, target, args, daemon=True):
+        return _NonZeroExitProcess(target=target, args=args, daemon=daemon)
+
+
+def test_process_job_runner_reports_exit_code_when_payload_missing(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _NonZeroExitCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("exitcode-missing-payload", _dummy)
+    with pytest.raises(RuntimeError, match=r"exited with code 137"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "code 137" in failed[0].error
+
+
 class _TrackableQueue(_DelayedResultQueue):
     def __init__(self) -> None:
         super().__init__()
