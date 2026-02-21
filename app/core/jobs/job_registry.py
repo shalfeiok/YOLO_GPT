@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from threading import RLock
 from typing import Any
@@ -86,17 +86,22 @@ class JobRegistry:
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._lock:
-            return self._jobs.get(job_id)
+            rec = self._jobs.get(job_id)
+            return None if rec is None else self._copy_record(rec)
 
     def list(self) -> list[JobRecord]:
         with self._lock:
-            return sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
+            records = sorted(self._jobs.values(), key=lambda r: r.started_at, reverse=True)
+            return [self._copy_record(r) for r in records]
 
     def clear(self) -> None:
         with self._lock:
             self._jobs.clear()
         if self._store is not None:
             self._store.clear()
+
+    def _copy_record(self, rec: JobRecord) -> JobRecord:
+        return replace(rec, logs=list(rec.logs))
 
     def _purge_if_needed(self) -> None:
         """Keep only the newest N jobs to avoid unbounded memory growth."""
@@ -166,7 +171,8 @@ class JobRegistry:
                     timeout_sec = 0.0
                 self._on_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec))
 
-        self._purge_if_needed()
+        with self._lock:
+            self._purge_if_needed()
 
     # Event handlers
     def _ensure(self, job_id: str, name: str) -> JobRecord:
