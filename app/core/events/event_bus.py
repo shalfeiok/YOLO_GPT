@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
-from typing import Callable, DefaultDict, Type, TypeVar, cast
+from typing import Any, TypeVar, cast
 from weakref import WeakMethod
 
 
 @dataclass(frozen=True, slots=True)
 class Subscription:
-    event_type: Type[object]
+    event_type: type[object]
     handler: Callable[[object], None]
 
 
@@ -26,9 +27,9 @@ class EventBus:
 
     def __init__(self) -> None:
         self._lock = RLock()
-        self._subs: DefaultDict[Type[object], list[Callable[[object], None]]] = defaultdict(list)
+        self._subs: defaultdict[type[object], list[Callable[[object], None]]] = defaultdict(list)
 
-    def subscribe(self, event_type: Type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
+    def subscribe(self, event_type: type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
         # Internally we store object-based handlers; we adapt typed handlers
         # via a small wrapper so type-checking remains clean under stricter settings.
         def _wrapped(event: object) -> None:
@@ -38,7 +39,7 @@ class EventBus:
             self._subs[event_type].append(_wrapped)
         return Subscription(event_type=event_type, handler=_wrapped)
 
-    def subscribe_weak(self, event_type: Type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
+    def subscribe_weak(self, event_type: type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
         """Subscribe with a weak reference when possible.
 
         Intended for UI objects (Qt widgets/view-models). If the owner is garbage-collected,
@@ -48,7 +49,7 @@ class EventBus:
         wm: WeakMethod | None
         try:
             # Only bound methods are supported by WeakMethod; others raise TypeError.
-            wm = WeakMethod(handler)  # type: ignore[arg-type]
+            wm = WeakMethod(cast(Any, handler))
         except TypeError:
             wm = None
 
