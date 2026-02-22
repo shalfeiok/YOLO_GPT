@@ -1,6 +1,5 @@
 """Тесты доменных моделей интеграции Albumentations."""
 
-
 from app.features.albumentations_integration.domain import (
     STANDARD_TRANSFORM_NAMES,
     AlbumentationsConfig,

@@ -5,6 +5,8 @@ visualization backend, Start/Stop, FPS. Preview in separate OpenCV window (uncha
 
 from __future__ import annotations
 
+import contextlib
+import io
 import logging
 import time
 import uuid
@@ -72,7 +74,7 @@ if TYPE_CHECKING:
 from app.application.facades.capture import FrameSource
 from app.application.use_cases.start_detection import StartDetectionError, StartDetectionRequest
 from app.application.use_cases.stop_detection import StopDetectionRequest
-from app.core.events.job_events import JobCancelled, JobProgress, JobStarted
+from app.core.events.job_events import JobCancelled, JobLogLine, JobProgress, JobStarted
 from app.core.observability.run_manifest import register_run
 
 log = logging.getLogger(__name__)
@@ -163,12 +165,18 @@ class DetectionView(QWidget):
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
         self._build_ui()
-        # Defer potentially expensive window enumeration to keep tab opening responsive.
         QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:
         t = Tokens
-        layout = QVBoxLayout(self)
+        old_layout = self.layout()
+        if old_layout is not None:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.deleteLater()
+        layout = old_layout if isinstance(old_layout, QVBoxLayout) else QVBoxLayout(self)
         layout.setSpacing(t.space_lg)
         layout.setContentsMargins(t.space_lg, t.space_lg, t.space_lg, t.space_lg)
 
@@ -826,6 +834,7 @@ class DetectionView(QWidget):
         self._container.event_bus.publish(
             JobStarted(job_id=self._detection_job_id, name="detection")
         )
+        self._container.job_registry.set_cancel(self._detection_job_id, self._stop_detection)
         self._container.event_bus.publish(
             JobProgress(
                 job_id=self._detection_job_id, name="detection", progress=0.0, message="started"
@@ -912,7 +921,7 @@ class DetectionView(QWidget):
         self._detection_status_label.setText(
             f"Превью в окне «{CV2_WIN_NAME}». Нажмите Стоп или Q в окне превью для остановки."
         )
-        window_name = f"{CV2_WIN_NAME} {this_run_id}"
+        window_name = CV2_WIN_NAME
 
         def on_stop_cb() -> None:
             QTimer.singleShot(0, lambda: self._on_detection_stopped(this_run_id))
@@ -931,6 +940,11 @@ class DetectionView(QWidget):
             on_stop=on_stop_cb,
             on_q_key=lambda: QTimer.singleShot(0, self._stop_detection),
             on_render_metrics=on_render_metrics,
+        )
+        self._container.event_bus.publish(
+            JobProgress(
+                job_id=self._detection_job_id, name="detection", progress=0.1, message="running"
+            )
         )
         self._fps_timer.start(FPS_TICK_MS)
 
@@ -995,6 +1009,30 @@ class DetectionView(QWidget):
 
         def inference_loop() -> None:
             import numpy as np
+
+            class _LineEmitter(io.TextIOBase):
+                def __init__(self) -> None:
+                    self._buf = ""
+
+                def write(self, s: str) -> int:
+                    self._buf += s
+                    while "\n" in self._buf:
+                        line, self._buf = self._buf.split("\n", 1)
+                        _publish_log_line(line)
+                    return len(s)
+
+                def flush(self) -> None:
+                    if self._buf:
+                        _publish_log_line(self._buf)
+                    self._buf = ""
+
+            def _publish_log_line(line: str) -> None:
+                clean = str(line).strip()
+                if not clean or self._detection_job_id is None:
+                    return
+                self._container.event_bus.publish(
+                    JobLogLine(job_id=self._detection_job_id, name="detection", line=clean)
+                )
 
             live_annotators: list = []
 
@@ -1109,64 +1147,73 @@ class DetectionView(QWidget):
                 self._preview_buffer.put_nowait(payload)
 
             # Part 1: Create model in this thread and pre-warm before loop (no lazy creation in predict)
-            getattr(self._active_detector, "ensure_model_ready", lambda: None)()
+            stdout = _LineEmitter()
+            stderr = _LineEmitter()
             try:
-                while self._run_event.is_set() and self._active_detector.is_loaded:
-                    try:
-                        frame = self._frame_slot.get(timeout=FRAME_QUEUE_GET_TIMEOUT_S)
-                    except Empty:
-                        continue
-                    t_infer_start = time.perf_counter()
-                    try:
-                        annotated, _ = self._active_detector.predict(frame, conf=conf_f, iou=iou_f)
-                    except Exception:
-                        log.warning("predict failed", exc_info=True)
-                        annotated = frame
-                    self._metrics.set_inference_ms((time.perf_counter() - t_infer_start) * 1000.0)
-                    if (
-                        annotated is None
-                        or not hasattr(annotated, "shape")
-                        or len(annotated.shape) < 3
-                    ):
-                        continue
-                    _ensure_annotators()
-                    for sol_name, annotator in live_annotators:
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    getattr(self._active_detector, "ensure_model_ready", lambda: None)()
+                    while self._run_event.is_set() and self._active_detector.is_loaded:
                         try:
-                            res = annotator(frame)
-                            if res is None:
-                                continue
-                            if (
-                                hasattr(res, "plot_im")
-                                and getattr(res, "plot_im", None) is not None
-                            ):
-                                plot_im = res.plot_im
-                                if isinstance(plot_im, np.ndarray) and len(plot_im.shape) == 3:
-                                    annotated = plot_im
-                            elif (
-                                isinstance(res, np.ndarray)
-                                and len(res.shape) == 3
-                                and res.dtype == np.uint8
-                            ):
-                                annotated = res
-                        except Exception:
-                            log.exception("annotator %s", sol_name)
-                    _put_preview(annotated)
-                    frame_count += 1
-                    elapsed = time.perf_counter() - fps_t0
-                    if elapsed >= 1.0:
+                            frame = self._frame_slot.get(timeout=FRAME_QUEUE_GET_TIMEOUT_S)
+                        except Empty:
+                            continue
+                        t_infer_start = time.perf_counter()
                         try:
-                            self._fps_queue.put_nowait(("fps", frame_count / elapsed))
-                        except Exception:
-                            import logging
-
-                            logging.getLogger(__name__).debug(
-                                "Detection view update failed", exc_info=True
+                            annotated, _ = self._active_detector.predict(
+                                frame, conf=conf_f, iou=iou_f
                             )
-                        frame_count = 0
-                        fps_t0 = time.perf_counter()
+                        except Exception:
+                            log.warning("predict failed", exc_info=True)
+                            annotated = frame
+                        self._metrics.set_inference_ms(
+                            (time.perf_counter() - t_infer_start) * 1000.0
+                        )
+                        if (
+                            annotated is None
+                            or not hasattr(annotated, "shape")
+                            or len(annotated.shape) < 3
+                        ):
+                            continue
+                        _ensure_annotators()
+                        for sol_name, annotator in live_annotators:
+                            try:
+                                res = annotator(frame)
+                                if res is None:
+                                    continue
+                                if (
+                                    hasattr(res, "plot_im")
+                                    and getattr(res, "plot_im", None) is not None
+                                ):
+                                    plot_im = res.plot_im
+                                    if isinstance(plot_im, np.ndarray) and len(plot_im.shape) == 3:
+                                        annotated = plot_im
+                                elif (
+                                    isinstance(res, np.ndarray)
+                                    and len(res.shape) == 3
+                                    and res.dtype == np.uint8
+                                ):
+                                    annotated = res
+                            except Exception:
+                                log.exception("annotator %s", sol_name)
+                        _put_preview(annotated)
+                        frame_count += 1
+                        elapsed = time.perf_counter() - fps_t0
+                        if elapsed >= 1.0:
+                            try:
+                                self._fps_queue.put_nowait(("fps", frame_count / elapsed))
+                            except Exception:
+                                import logging
+
+                                logging.getLogger(__name__).debug(
+                                    "Detection view update failed", exc_info=True
+                                )
+                            frame_count = 0
+                            fps_t0 = time.perf_counter()
             except Exception:
                 log.exception("inference_loop")
             finally:
+                stdout.flush()
+                stderr.flush()
                 QTimer.singleShot(0, lambda: self._on_detection_stopped(this_run_id))
 
         self._inference_thread = Thread(target=inference_loop, daemon=True)
@@ -1236,6 +1283,15 @@ class DetectionView(QWidget):
                 msg = self._fps_queue.get_nowait()
                 if msg[0] == "fps" and self._run_event.is_set():
                     self._fps_label.setText(f"FPS: {msg[1]:.1f}")
+                    if self._detection_job_id is not None:
+                        self._container.event_bus.publish(
+                            JobProgress(
+                                job_id=self._detection_job_id,
+                                name="detection",
+                                progress=0.5,
+                                message=f"fps {msg[1]:.1f}",
+                            )
+                        )
             except Empty:
                 break
 
@@ -1315,3 +1371,11 @@ class DetectionView(QWidget):
                 JobCancelled(job_id=self._detection_job_id, name="detection")
             )
             self._detection_job_id = None
+
+    def shutdown(self) -> None:
+        if self._run_event.is_set() or self._visualization_backend is not None:
+            self._stop_detection()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)
