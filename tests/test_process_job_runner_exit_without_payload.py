@@ -374,3 +374,38 @@ def test_process_job_runner_closes_queue_when_process_start_fails(monkeypatch) -
     assert ctx.last_queue is not None
     assert ctx.last_queue.closed is True
     assert ctx.last_queue.joined is True
+
+
+class _NanProgressQueue:
+    def get(self, timeout=None):
+        return ("progress", float("nan"), "nan-progress")
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _NanProgressCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _NanProgressQueue()
+
+
+def test_process_job_runner_fails_on_non_finite_progress_payload(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _NanProgressCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("nan-progress", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child progress payload"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child progress payload" in failed[0].error

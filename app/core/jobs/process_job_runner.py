@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import math
 import queue
 import random
 import time
@@ -216,6 +217,9 @@ class ProcessJobRunner:
                         try:
                             raw_progress = float(prog)
                         except (TypeError, ValueError):
+                            error = f"Malformed child progress payload: {msg!r}"
+                            break
+                        if not math.isfinite(raw_progress):
                             error = f"Malformed child progress payload: {msg!r}"
                             break
                         prog_val = 0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
