@@ -80,6 +80,7 @@ from app.application.facades.capture import FrameSource
 from app.application.use_cases.start_detection import StartDetectionError, StartDetectionRequest
 from app.application.use_cases.stop_detection import StopDetectionRequest
 from app.core.events.job_events import JobCancelled, JobProgress, JobStarted
+from app.core.observability.run_manifest import register_run
 
 log = logging.getLogger(__name__)
 
@@ -766,6 +767,21 @@ class DetectionView(QWidget):
         self._container.event_bus.publish(
             JobProgress(job_id=self._detection_job_id, name="detection", progress=0.0, message="started")
         )
+        try:
+            register_run(
+                job_id=self._detection_job_id,
+                run_type="detection",
+                spec={
+                    "weights_path": path,
+                    "source": source_choice,
+                    "confidence": self._conf_edit.text(),
+                    "iou": self._iou_edit.text(),
+                    "backend_id": backend_id,
+                },
+                artifacts={"project_root": str(self._container.project_root)},
+            )
+        except Exception:
+            log.exception("Failed to create detection run manifest")
         conf_f, iou_f = res.confidence, res.iou
 
         # Part 3.4: ONNX export may be async; poll until loaded then start pipeline (no UI freeze)

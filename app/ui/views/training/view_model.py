@@ -18,6 +18,7 @@ from PySide6.QtCore import QObject, QTimer
 from app.console_redirect import strip_ansi
 from app.training_metrics import parse_metrics_line, parse_progress_line
 from app.application.use_cases.train_model import TrainModelRequest
+from app.core.observability.run_manifest import register_run
 from app.core.events import TrainingCancelled, TrainingFailed, TrainingFinished, TrainingProgress
 from app.core.events.job_events import JobCancelled, JobFailed, JobFinished, JobLogLine, JobProgress, JobStarted
 
@@ -136,6 +137,28 @@ class TrainingViewModel(QObject):
         self._last_log_repeat_count = 0
         self._container.event_bus.publish(JobStarted(job_id=self._active_job_id, name="training"))
         self._container.event_bus.publish(JobProgress(job_id=self._active_job_id, name="training", progress=0.0, message="started"))
+        try:
+            register_run(
+                job_id=self._active_job_id,
+                run_type="training",
+                spec={
+                    "data_yaml": str(data_yaml),
+                    "model_name": model_name,
+                    "epochs": epochs,
+                    "batch": batch,
+                    "imgsz": imgsz,
+                    "device": device,
+                    "patience": patience,
+                    "project": str(project),
+                    "weights_path": None if weights_path is None else str(weights_path),
+                    "workers": workers,
+                    "optimizer": optimizer,
+                    "advanced_options": advanced_options or {},
+                },
+                artifacts={"project_dir": str(project), "log_path": None if log_path is None else str(log_path)},
+            )
+        except Exception:
+            log.exception("Failed to create training run manifest")
 
         def run() -> None:
             try:

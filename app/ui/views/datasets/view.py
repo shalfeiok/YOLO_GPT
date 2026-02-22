@@ -51,6 +51,7 @@ from app.ui.components.photo_preview import show_scrollable_photo_dialog
 from app.ui.theme.tokens import Tokens
 from app.ui.views.datasets.worker import DatasetWorker
 from app.core.events.job_events import JobFailed, JobFinished, JobProgress, JobStarted
+from app.core.observability.run_manifest import register_run
 
 PREVIEW_PHOTOS_COUNT = 6
 EFFECT_LABELS: dict[str, str] = {
@@ -114,6 +115,17 @@ class DatasetsView(QWidget):
         self._current_job_id = uuid.uuid4().hex
         self._bus.publish(JobStarted(job_id=self._current_job_id, name=f"dataset:{row_id}"))
         self._bus.publish(JobProgress(job_id=self._current_job_id, name=f"dataset:{row_id}", progress=0.0, message="started"))
+        try:
+            register_run(
+                job_id=self._current_job_id,
+                run_type="dataset",
+                spec={"action": row_id},
+                artifacts={"source": self._src_edit.text().strip(), "output": self._out_edit.text().strip()},
+            )
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Failed to create dataset run manifest")
 
     def _publish_job_done(self, *, success: bool, message: str) -> None:
         if self._bus is None or self._current_job_id is None or self._current_row_id is None:
