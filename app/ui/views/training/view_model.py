@@ -290,6 +290,8 @@ class TrainingViewModel(QObject):
         )
         self._training_job_handle = handle
         self._active_job_id = handle.job_id
+        reg = self._container.job_registry
+        reg.set_cancel(handle.job_id, handle.cancel)
 
         try:
             register_run(

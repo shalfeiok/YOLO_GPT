@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.ports.metrics import MetricsPort
+from app.core.events.job_events import JobLogLine, JobProgress
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -58,6 +59,7 @@ class TrainingView(QWidget):
         self._trained_choices: list[tuple[str, Path]] = []
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
+        self._bus_subs: list[object] = []
         self._root_layout = QVBoxLayout(self)
         self._loading_label = QLabel("Загрузка вкладки обучения…")
         self._root_layout.addWidget(self._loading_label)
@@ -69,6 +71,7 @@ class TrainingView(QWidget):
             self._loading_label = None
         self._build_ui()
         self._connect_signals()
+        self._subscribe_job_logs()
 
     def _build_ui(self) -> None:
         build_training_ui(self)
@@ -364,6 +367,21 @@ class TrainingView(QWidget):
             self._timer_eta_epoch.setText("—")
             self._timer_eta_total.setText("—")
 
+    def _subscribe_job_logs(self) -> None:
+        bus = self._container.event_bus
+        self._bus_subs.append(bus.subscribe_weak(JobLogLine, self._on_job_log_line))
+        self._bus_subs.append(bus.subscribe_weak(JobProgress, self._on_job_progress))
+
+    def _on_job_progress(self, event: JobProgress) -> None:
+        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
+            return
+        self._on_progress(event.progress, event.message or "")
+
+    def _on_job_log_line(self, event: JobLogLine) -> None:
+        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
+            return
+        self._on_console_lines_batch(event.line.splitlines())
+
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
@@ -545,3 +563,14 @@ class TrainingView(QWidget):
 
     def _optimizer_value(self) -> str:
         return self._optimizer_edit.text().strip()
+
+    def shutdown(self) -> None:
+        self._vm.stop_training()
+        bus = self._container.event_bus
+        for sub in self._bus_subs:
+            bus.unsubscribe(sub)
+        self._bus_subs.clear()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)

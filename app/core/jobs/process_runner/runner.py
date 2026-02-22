@@ -237,3 +237,6 @@ class ProcessJobRunner:
             self._bus.publish(JobCancelled(job_id=job_id, name=name))
             return "cancelled"
         return f"Unknown child message kind: {kind!r}"
+
+    def shutdown(self) -> None:
+        self._supervisor.shutdown(wait=False, cancel_futures=True)

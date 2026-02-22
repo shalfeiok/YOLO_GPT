@@ -1327,3 +1327,11 @@ class DetectionView(QWidget):
                 JobCancelled(job_id=self._detection_job_id, name="detection")
             )
             self._detection_job_id = None
+
+    def shutdown(self) -> None:
+        if self._run_event.is_set() or self._visualization_backend is not None:
+            self._stop_detection()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)
