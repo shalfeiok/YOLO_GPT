@@ -96,3 +96,4 @@ def test_coerce_timeout_sec() -> None:
     assert _coerce_timeout_sec(0) is None
     assert _coerce_timeout_sec(-5) is None
     assert _coerce_timeout_sec("12.5") == 12.5
+

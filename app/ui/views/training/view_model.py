@@ -237,6 +237,8 @@ class TrainingViewModel(QObject):
     ) -> None:
         """Start training in background. Progress and console lines are emitted via signals."""
         self._console_queue = Queue()
+        if not self._console_timer.isActive():
+            self._console_timer.start(CONSOLE_POLL_MS)
         if log_path:
             try:
                 log_path.parent.mkdir(parents=True, exist_ok=True)

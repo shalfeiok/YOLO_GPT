@@ -6,6 +6,7 @@ the application layer and wires up concrete implementations.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 from app.application.ports.capture import CapturePort, FrameSource, FrameSourceSpec
@@ -193,6 +194,11 @@ class Container:
     @property
     def dataset_config_builder(self) -> IDatasetConfigBuilder:
         """Backward-compatible alias used by legacy training view code."""
+        warnings.warn(
+            "Container.dataset_config_builder is deprecated; use dataset_builder instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.dataset_builder
 
     # --- Paths ---
@@ -244,3 +250,7 @@ class Container:
             self._job_runner.shutdown()
         if self._process_job_runner is not None:
             self._process_job_runner.shutdown()
+        if self._job_registry is not None:
+            self._job_registry.close()
+        if self._event_bus is not None:
+            self._event_bus.clear()
