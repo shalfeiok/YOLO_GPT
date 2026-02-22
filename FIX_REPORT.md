@@ -1,27 +1,33 @@
 # FIX_REPORT
 
 ## Summary
-Исправлен краш при закрытии окна/экрана задач: причиной были отложенные UI-callback'и (`QTimer.singleShot`) из job events, которые могли срабатывать уже во время уничтожения `JobsView`. Добавлен безопасный lifecycle-guard и weakref-диспетчер, чтобы никакие обновления UI не выполнялись после начала закрытия виджета.
+Закрыты критические замечания по `JobRunner`: устранена небезопасная глобальная подмена stdout/stderr для многопоточного пула и убран механизм timeout через вложенный поток, который создавал риск thread leaks. Взамен реализован поток-локальный роутер вывода и кооперативный timeout без создания дополнительных потоков.
 
 ## Issues Found
 
-### Crash
-- `JobsView` продолжал принимать асинхронные события и отложенные callbacks в момент закрытия, что приводило к обращению к закрывающемуся UI.
+### 1) Потокобезопасность `redirect_stdout` в ThreadPool
+- Старый код подменял `sys.stdout/sys.stderr` через `contextlib.redirect_stdout`, что в многопоточной среде могло смешивать логи разных jobs.
+
+### 2) Thread leaks при timeout
+- Старый код создавал вложенный `Thread` для timeout-ожидания; при зависании в I/O/C-extension поток мог остаться жить в фоне после timeout.
 
 ## Fixes Applied
-- `app/ui/views/jobs/view.py`
-  - добавлен флаг жизненного цикла `_is_closing`;
-  - в `closeEvent` флаг выставляется до отписки от bus;
-  - `_on_job_event` теперь использует `weakref` + проверку `_is_closing` перед диспатчем в UI thread;
-  - `_on_job_event_ui` также дополнительно guard'ится `_is_closing`.
+- `app/core/jobs/job_runner.py`
+  - добавлен `_ThreadLocalTextRouter` с маршрутизацией вывода по `thread id`;
+  - stdout/stderr для конкретной job bind/unbind в рамках worker-thread;
+  - сохраняется совместимость с `print(...)` внутри job-функций;
+  - удалён вложенный timeout-thread;
+  - timeout теперь кооперативный: проверяется до/после выполнения и на каждом progress callback, при превышении публикуется `JobTimedOut` и выставляется cancel token.
+- `tests/test_job_runner_thread_local_stdout.py`
+  - добавлен тест конкурентного запуска двух jobs с `print(...)`, проверяющий, что логи разделяются по `job_id` и не смешиваются.
 
 ## Verification Checklist
 - `ruff check .`
 - `pytest -q`
-- `python -m compileall app/ui/views/jobs/view.py`
+- `python -m compileall .`
+- `pytest -q tests/test_job_runner_log_batching.py tests/test_job_runner_thread_local_stdout.py`
 
 ## Manual QA
-1. Запустить приложение, перейти во вкладку Jobs.
-2. Запустить любую задачу, чтобы шли progress/log events.
-3. Во время поступления событий закрыть окно приложения (или закрыть экран задач, если он открыт отдельно).
-4. Убедиться, что краша нет.
+1. Запустить 2+ jobs с активным `print(...)` внутри.
+2. Проверить Jobs view: лог каждой задачи содержит только свои строки.
+3. Запустить job с timeout и убедиться, что статус timeout выставляется, без появления дополнительных зависших потоков от timeout-обертки.
