@@ -229,3 +229,6 @@ class JobRunner:
 
         fut = self._pool.submit(_run)
         return JobHandle(job_id=job_id, name=name, future=fut, cancel_token=token)
+
+    def shutdown(self) -> None:
+        self._pool.shutdown(wait=False, cancel_futures=True)

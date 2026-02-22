@@ -163,12 +163,18 @@ class DetectionView(QWidget):
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
         self._build_ui()
-        # Defer potentially expensive window enumeration to keep tab opening responsive.
         QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:
         t = Tokens
-        layout = QVBoxLayout(self)
+        old_layout = self.layout()
+        if old_layout is not None:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.deleteLater()
+        layout = old_layout if isinstance(old_layout, QVBoxLayout) else QVBoxLayout(self)
         layout.setSpacing(t.space_lg)
         layout.setContentsMargins(t.space_lg, t.space_lg, t.space_lg, t.space_lg)
 
@@ -826,6 +832,7 @@ class DetectionView(QWidget):
         self._container.event_bus.publish(
             JobStarted(job_id=self._detection_job_id, name="detection")
         )
+        self._container.job_registry.set_cancel(self._detection_job_id, self._stop_detection)
         self._container.event_bus.publish(
             JobProgress(
                 job_id=self._detection_job_id, name="detection", progress=0.0, message="started"
@@ -931,6 +938,11 @@ class DetectionView(QWidget):
             on_stop=on_stop_cb,
             on_q_key=lambda: QTimer.singleShot(0, self._stop_detection),
             on_render_metrics=on_render_metrics,
+        )
+        self._container.event_bus.publish(
+            JobProgress(
+                job_id=self._detection_job_id, name="detection", progress=0.1, message="running"
+            )
         )
         self._fps_timer.start(FPS_TICK_MS)
 
@@ -1236,6 +1248,15 @@ class DetectionView(QWidget):
                 msg = self._fps_queue.get_nowait()
                 if msg[0] == "fps" and self._run_event.is_set():
                     self._fps_label.setText(f"FPS: {msg[1]:.1f}")
+                    if self._detection_job_id is not None:
+                        self._container.event_bus.publish(
+                            JobProgress(
+                                job_id=self._detection_job_id,
+                                name="detection",
+                                progress=0.5,
+                                message=f"fps {msg[1]:.1f}",
+                            )
+                        )
             except Empty:
                 break
 
@@ -1315,3 +1336,11 @@ class DetectionView(QWidget):
                 JobCancelled(job_id=self._detection_job_id, name="detection")
             )
             self._detection_job_id = None
+
+    def shutdown(self) -> None:
+        if self._run_event.is_set() or self._visualization_backend is not None:
+            self._stop_detection()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)

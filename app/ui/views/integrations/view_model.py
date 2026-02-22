@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING, Any
 
 from app.application.ports.integrations import IntegrationsPort
 from app.core.jobs import JobHandle, ProcessJobHandle
-from app.ui.views.integrations.view_model_parts import IntegrationsActionsMixin, IntegrationsConfigMixin
+from app.ui.views.integrations.view_model_parts import (
+    IntegrationsActionsMixin,
+    IntegrationsConfigMixin,
+)
 
 try:  # Optional in headless test environments.
     from PySide6.QtCore import QObject, Signal
@@ -21,6 +24,7 @@ except Exception:  # pragma: no cover
 
         def emit(self, *_: object, **__: object) -> None:
             return
+
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container

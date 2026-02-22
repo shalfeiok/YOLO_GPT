@@ -34,7 +34,6 @@ from app.core.paths import PROJECT_ROOT
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.cards import Card
 from app.ui.components.inputs import NoWheelSpinBox
-from app.ui.components.log_view import LogView
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
 from app.ui.views.metrics.dashboard import MetricsDashboardWidget
@@ -45,7 +44,14 @@ if TYPE_CHECKING:
 
 def build_training_ui(view: TrainingView) -> None:
     t = Tokens
-    layout = QVBoxLayout(view)
+    old_layout = view.layout()
+    if old_layout is not None:
+        while old_layout.count():
+            item = old_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+    layout = old_layout if isinstance(old_layout, QVBoxLayout) else QVBoxLayout(view)
     layout.setContentsMargins(t.space_lg, t.space_lg, t.space_lg, t.space_lg)
     scroll = QScrollArea()
     scroll.setWidgetResizable(True)
@@ -298,11 +304,9 @@ def build_training_ui(view: TrainingView) -> None:
     metrics_wrap_layout.addWidget(view._metrics_dashboard)
     main_layout.addWidget(metrics_wrap)
 
-    # Log (replaces console)
-    main_layout.addWidget(QLabel("Лог обучения:"))
-    view._log_view = LogView(view)
-    view._log_view.setMinimumHeight(200)
-    main_layout.addWidget(view._log_view)
+    logs_hint = QLabel("Логи обучения доступны во вкладке «Задачи».")
+    logs_hint.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
+    main_layout.addWidget(logs_hint)
 
     main_layout.addStretch()
     scroll.setWidget(content)

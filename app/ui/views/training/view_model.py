@@ -150,7 +150,6 @@ class TrainingViewModel(QObject):
             self._active_job_id = None
         self._emit_on_ui_thread(lambda: self._signals.training_finished.emit(None, ev.message))
 
-
     def _resolve_run_spec(
         self,
         *,
@@ -194,7 +193,9 @@ class TrainingViewModel(QObject):
     def _on_training_job_progress(self, ev: JobProgress) -> None:
         if not self._is_active_training_job(ev.job_id, ev.name):
             return
-        self._emit_on_ui_thread(lambda: self._signals.progress_updated.emit(ev.progress, ev.message))
+        self._emit_on_ui_thread(
+            lambda: self._signals.progress_updated.emit(ev.progress, ev.message)
+        )
 
     def _on_training_job_finished(self, ev: JobFinished) -> None:
         if not self._is_active_training_job(ev.job_id, ev.name):
@@ -289,6 +290,8 @@ class TrainingViewModel(QObject):
         )
         self._training_job_handle = handle
         self._active_job_id = handle.job_id
+        reg = self._container.job_registry
+        reg.set_cancel(handle.job_id, handle.cancel)
 
         try:
             register_run(
