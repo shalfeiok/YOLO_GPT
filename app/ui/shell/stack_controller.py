@@ -50,7 +50,7 @@ def _default_factory(tab_id: str) -> QWidget:
     )
 
 
-class _TabLoadErrorWidget(QWidget):
+class ErrorWidget(QWidget):
     def __init__(self, tab_id: str, exc: BaseException, tb_text: str) -> None:
         super().__init__()
         self._traceback = tb_text
@@ -130,7 +130,7 @@ class StackController:
             except Exception as exc:
                 tb_text = traceback.format_exc()
                 log.exception("Failed to create tab '%s'", tab_id)
-                widget = _TabLoadErrorWidget(tab_id=tab_id, exc=exc, tb_text=tb_text)
+                widget = ErrorWidget(tab_id=tab_id, exc=exc, tb_text=tb_text)
             old_widget = self._stack.widget(index)
             self._stack.removeWidget(old_widget)
             old_widget.deleteLater()
