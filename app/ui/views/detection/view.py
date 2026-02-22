@@ -168,7 +168,6 @@ class DetectionView(QWidget):
 
     def _init_ui_async(self) -> None:
         self._build_ui()
-        # Defer potentially expensive window enumeration to keep tab opening responsive.
         QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:

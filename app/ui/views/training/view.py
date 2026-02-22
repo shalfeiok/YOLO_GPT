@@ -60,15 +60,6 @@ class TrainingView(QWidget):
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
         self._bus_subs: list[object] = []
-        self._root_layout = QVBoxLayout(self)
-        self._loading_label = QLabel("Загрузка вкладки обучения…")
-        self._root_layout.addWidget(self._loading_label)
-        QTimer.singleShot(0, self._init_ui_async)
-
-    def _init_ui_async(self) -> None:
-        if self._loading_label is not None:
-            self._loading_label.deleteLater()
-            self._loading_label = None
         self._build_ui()
         self._connect_signals()
         self._subscribe_job_logs()
@@ -293,8 +284,6 @@ class TrainingView(QWidget):
             QMessageBox.information(self, "Готово", "Содержимое папки runs удалено.")
 
     def _start_metrics_timer(self) -> None:
-        from PySide6.QtCore import QTimer
-
         self._metrics_timer = QTimer(self)
         self._metrics_timer.timeout.connect(self._tick_system_metrics)
         self._metrics_timer.start(METRICS_UPDATE_MS)

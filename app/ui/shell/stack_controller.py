@@ -141,6 +141,12 @@ class StackController:
         # doesn't freeze UI on first open and the placeholder can render.
         QTimer.singleShot(0, _create)
 
+    def preload_tabs(self, tab_ids: list[str], *, stagger_ms: int = 25) -> None:
+        for idx, tab_id in enumerate(tab_ids):
+            if tab_id not in TAB_IDS or tab_id in self._created or tab_id in self._pending_create:
+                continue
+            QTimer.singleShot(max(0, idx * stagger_ms), lambda t=tab_id: self._schedule_create(t))
+
     def tab_index(self, tab_id: str) -> int:
         if tab_id not in TAB_IDS:
             return 0

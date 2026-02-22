@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QByteArray
+from PySide6.QtCore import QByteArray, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QStatusBar, QWidget
 
@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
         self._setup_shortcuts()
         self._restore_geometry()
+        QTimer.singleShot(80, self._preload_tabs)
 
     def _setup_shortcuts(self) -> None:
         for i, tab_id in enumerate(TAB_IDS):
@@ -122,6 +123,11 @@ class MainWindow(QMainWindow):
         w = self._stack.currentWidget()
         if w is not None and hasattr(w, "refresh_theme"):
             w.refresh_theme()
+
+    def _preload_tabs(self) -> None:
+        # Warm up non-active tabs so first switch feels instant.
+        others = [tab_id for tab_id in TAB_IDS if tab_id != TAB_IDS[0]]
+        self._stack_controller.preload_tabs(others, stagger_ms=30)
 
     def _restore_geometry(self) -> None:
         geom = self._settings.get_main_window_geometry()
