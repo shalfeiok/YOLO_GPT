@@ -43,6 +43,8 @@ from app.core.events.job_events import (
 )
 
 T = TypeVar("T")
+LOG_BATCH_INTERVAL_SEC = 0.15
+LOG_BATCH_MAX_LINES = 40
 
 
 class ProcessCancelToken:
@@ -166,6 +168,21 @@ class ProcessJobRunner:
             result: T | None = None
             error: str | None = None
             got_result = False
+            pending_log_lines: list[str] = []
+            last_log_flush_ts = 0.0
+
+            def flush_logs(*, force: bool = False) -> None:
+                nonlocal last_log_flush_ts
+                if not pending_log_lines:
+                    return
+                now = time.monotonic()
+                if not force and (now - last_log_flush_ts) < LOG_BATCH_INTERVAL_SEC:
+                    return
+                while pending_log_lines:
+                    chunk = pending_log_lines[:LOG_BATCH_MAX_LINES]
+                    del pending_log_lines[:LOG_BATCH_MAX_LINES]
+                    self._bus.publish(JobLogLine(job_id=job_id, name=name, line="\n".join(chunk)))
+                last_log_flush_ts = now
 
             # Queue feeder threads in multiprocessing can flush messages shortly after
             # the child process is already reported as dead. Keep polling briefly to avoid
@@ -244,7 +261,8 @@ class ProcessJobRunner:
                         _, line = msg
                         ln = str(line).rstrip("\n")
                         if ln.strip():
-                            self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
+                            pending_log_lines.append(ln)
+                            flush_logs()
                     elif kind == "result":
                         if len(msg) != 2:
                             error = f"Malformed child result message: {msg!r}"
@@ -259,6 +277,7 @@ class ProcessJobRunner:
                             break
                         _, err = msg
                         error = str(err)
+                        flush_logs(force=True)
                         break
                     elif kind == "cancelled":
                         if len(msg) != 2:
@@ -266,10 +285,14 @@ class ProcessJobRunner:
                             break
                         # Child cooperatively cancelled.
                         self._bus.publish(JobCancelled(job_id=job_id, name=name))
+                        flush_logs(force=True)
                         raise CancelledError("Job cancelled")
                     else:
                         error = f"Unknown child message kind: {kind!r}"
+                        flush_logs(force=True)
                         break
+
+                flush_logs(force=not alive)
 
             finally:
                 if process_started:
@@ -283,6 +306,7 @@ class ProcessJobRunner:
             if cancel_evt.is_set():
                 self._bus.publish(JobCancelled(job_id=job_id, name=name))
                 raise CancelledError("Job cancelled")
+            flush_logs(force=True)
             if error is not None:
                 raise RuntimeError(error)
             if not got_result:

@@ -11,7 +11,7 @@ def test_job_registry_replays_persisted_events(tmp_path: Path) -> None:
     bus = EventBus()
     store = JsonlJobEventStore(tmp_path / "jobs.jsonl")
 
-    reg1 = JobRegistry(bus, store=store, replay_on_start=False)
+    JobRegistry(bus, store=store, replay_on_start=False)
     bus.publish(JobStarted(job_id="1", name="task"))
     bus.publish(JobProgress(job_id="1", name="task", progress=0.5, message="half"))
     bus.publish(JobLogLine(job_id="1", name="task", line="hello"))
