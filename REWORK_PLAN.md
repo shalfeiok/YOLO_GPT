@@ -13,7 +13,7 @@
 - [x] ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - [x] ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
 - [x] ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
-- [ ] Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
+- [x] ✅ Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
 - [x] ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - [x] ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - [x] ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
@@ -50,6 +50,7 @@
 - ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
 - ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
+- ✅ Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
 - ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
@@ -89,4 +90,10 @@
 
 - 2026-02-22 — db6b7fe — fix(train): align manifest job id with process handle and coerce timeout
 
-- 2026-02-22 — SHA_LASTPLAN — chore(plan): fix latest training-fix changelog hash
+- 2026-02-22 — 479dc73 — chore(plan): fix latest training-fix changelog hash
+
+- 2026-02-22 — 0997dc0 — test(process): add malformed log/cancelled IPC payload coverage
+
+- 2026-02-22 — 1a06f09 — chore(plan): fix C2 changelog hash after amend
+
+- 2026-02-22 — SHA_FINALPLAN — chore(plan): correct plan hash references
