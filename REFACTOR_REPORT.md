@@ -6,30 +6,35 @@
 |---|---:|---|---:|
 | `app/core/jobs/process_job_runner.py` | 375 | `app/core/jobs/process_runner/{types.py,child_worker.py,log_buffer.py,runner.py,__init__.py}` + compatibility shim `process_job_runner.py` | 11 (shim) + 337 (new package) |
 | `app/core/jobs/job_registry.py` | 333 | `app/core/jobs/job_registry_replay.py` (event replay extracted) | 216 + 69 |
+| `app/services/yolo_prep_service.py` | 581 | `app/services/yolo_prep/{common.py,voc.py,prepare.py,class_ops.py,__init__.py}` + compatibility shim `yolo_prep_service.py` | 20 (shim) + 493 (package) |
 
 ## 2. Architectural Changes
 
-- Монолит `process_job_runner.py` разделён на отдельные слои ответственности:
-  - IPC/child execution (`child_worker.py`),
-  - batching логов (`log_buffer.py`),
-  - типы и handle/token (`types.py`),
-  - orchestration/retry/timeout (`runner.py`).
-- `job_registry.py` декомпозирован: логика replay из persistent store вынесена в отдельный модуль `job_registry_replay.py`.
-- Сохранена обратная совместимость через тонкий re-export модуль `process_job_runner.py`.
+- Jobs subsystem decomposed into dedicated modules for process orchestration, child IPC, log buffering and type contracts.
+- Job registry replay logic extracted into a standalone replay module to isolate persistence replay from runtime state transitions.
+- YOLO dataset preparation moved from a monolithic service into feature-focused modules:
+  - shared parsing/constants (`common.py`),
+  - VOC conversion (`voc.py`),
+  - dataset discovery/split preparation (`prepare.py`),
+  - class remapping operations (`class_ops.py`).
+- Backward compatibility preserved via thin facade shims (`process_job_runner.py`, `yolo_prep_service.py`).
 
 ## 3. Dependency Improvements
 
-- Уменьшена связность между жизненным циклом процесса и кодом бизнес-обработки сообщений.
-- Логика replay из event store больше не смешана с live-event обработчиками реестра.
-- Публичный контракт `ProcessJobRunner` стабилизирован через отдельный пакет `process_runner`.
+- Reduced coupling between process lifecycle code and message parsing/log transport in jobs runner.
+- Removed replay/persistence concerns from runtime `JobRegistry` event handlers.
+- Separated dataset-IO concerns from class-remapping concerns in YOLO prep service to avoid mixed responsibilities.
+- Preserved upstream imports through stable facade modules while introducing internal package boundaries.
 
 ## 4. Code Quality Improvements
 
-- Улучшена читаемость: каждый модуль отвечает за одну задачу.
-- Улучшена тестируемость: child-entry, буфер логов и replay можно тестировать изолированно.
-- Улучшена расширяемость: новые политики логирования/обработки IPC можно добавлять без изменения core orchestration.
+- Improved readability by reducing cognitive load per module.
+- Improved testability through smaller units (IPC child entry, log batching, replay logic, class-ops).
+- Improved maintainability by minimizing risk of regressions during future changes to isolated submodules.
+- Eliminated >300-line monolith in services layer (`yolo_prep_service.py`).
 
 ## 5. Future Scalability
 
-- Разделение на package-level модули упрощает дальнейший рост подсистемы jobs (новые runner implementations, telemetry hooks, transport adapters).
-- Отдельный replay слой позволяет масштабировать persistence/recovery независимо от runtime JobRegistry.
+- Jobs package now supports easier addition of new runner policies or transport adapters without modifying a single large file.
+- Dataset preparation package now supports adding new dataset formats/export strategies without growing one monolithic service.
+- Facade-based public API enables gradual internal evolution while keeping callers stable.
