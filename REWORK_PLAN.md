@@ -11,9 +11,9 @@
 - [x] ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
 - [x] ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - [x] ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
-- [ ] Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
+- [x] ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
 - [ ] Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
-- [ ] Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
+- [x] ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - [x] ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - [x] ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - [x] ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
@@ -47,7 +47,9 @@
 - ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
 - ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
+- ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
 - ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
+- ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
 - ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
@@ -75,4 +77,10 @@
 
 - 2026-02-22 — c81584c — chore(ci): stabilize workflow lint scope and checks
 
-- 2026-02-22 — eb2a221 — chore(plan): fix amended ci commit hash in changelog
+- 2026-02-22 — 5620209 — chore(plan): fix amended ci commit hash in changelog
+
+- 2026-02-22 — 06f4915 — feat(train): persist resolved TrainingRunSpec in run manifest
+
+- 2026-02-22 — 6441401 — feat(train): use process runner by default for training execution
+
+- 2026-02-22 — 1c0d18e — chore(plan): fix amended C1 hash in changelog
