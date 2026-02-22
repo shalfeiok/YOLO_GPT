@@ -16,6 +16,11 @@ class YOLOModelId(str, Enum):
     YOLO11M = "yolo11m.pt"
     YOLO11L = "yolo11l.pt"
     YOLO11X = "yolo11x.pt"
+    YOLO26N = "yolo26n.pt"
+    YOLO26S = "yolo26s.pt"
+    YOLO26M = "yolo26m.pt"
+    YOLO26L = "yolo26l.pt"
+    YOLO26X = "yolo26x.pt"
     YOLO10N = "yolo10n.pt"
     YOLO10S = "yolo10s.pt"
     YOLO10M = "yolo10m.pt"
@@ -50,6 +55,12 @@ YOLO_MODEL_CHOICES: list[ModelChoice] = [
     ModelChoice("YOLO11 Medium", "yolo11m.pt"),
     ModelChoice("YOLO11 Large", "yolo11l.pt"),
     ModelChoice("YOLO11 XLarge", "yolo11x.pt"),
+    # YOLO26
+    ModelChoice("YOLO26 Nano", "yolo26n.pt"),
+    ModelChoice("YOLO26 Small", "yolo26s.pt"),
+    ModelChoice("YOLO26 Medium", "yolo26m.pt"),
+    ModelChoice("YOLO26 Large", "yolo26l.pt"),
+    ModelChoice("YOLO26 XLarge", "yolo26x.pt"),
     # YOLO10
     ModelChoice("YOLO10 Nano", "yolo10n.pt"),
     ModelChoice("YOLO10 Small", "yolo10s.pt"),
@@ -77,7 +88,11 @@ YOLO_MODEL_CHOICES: list[ModelChoice] = [
 MODEL_HINTS: dict[str, str] = {}
 for _m in YOLO_MODEL_CHOICES:
     mid = _m.model_id
-    if "yolo11" in mid:
+    if "yolo26" in mid:
+        MODEL_HINTS[mid] = (
+            "Экспериментальная линейка. Используйте локальные веса/совместимую сборку Ultralytics."
+        )
+    elif "yolo11" in mid:
         MODEL_HINTS[mid] = (
             "Актуальная модель. Рекомендуется 100–300 эпох. Универсально для любого числа классов."
         )

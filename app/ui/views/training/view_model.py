@@ -86,6 +86,7 @@ class TrainingViewModel(QObject):
         self._subs.append(bus.subscribe(TrainingFailed, self._on_training_failed))
         self._subs.append(bus.subscribe(TrainingCancelled, self._on_training_cancelled))
         self._subs.append(bus.subscribe(JobProgress, self._on_training_job_progress))
+        self._subs.append(bus.subscribe(JobLogLine, self._on_training_job_log))
         self._subs.append(bus.subscribe(JobFinished, self._on_training_job_finished))
         self._subs.append(bus.subscribe(JobFailed, self._on_training_job_failed))
         self._subs.append(bus.subscribe(JobCancelled, self._on_training_job_cancelled))
@@ -197,6 +198,22 @@ class TrainingViewModel(QObject):
             lambda: self._signals.progress_updated.emit(ev.progress, ev.message)
         )
 
+    def _on_training_job_log(self, ev: JobLogLine) -> None:
+        if not self._is_active_training_job(ev.job_id, ev.name):
+            return
+        clean_line = strip_ansi(str(ev.line))
+        if not clean_line:
+            return
+        if self._log_file:
+            try:
+                self._log_file.write(clean_line + "\n")
+                self._log_file.flush()
+            except Exception:
+                log.debug("Training view-model cleanup failed", exc_info=True)
+        self._emit_on_ui_thread(
+            lambda line=clean_line: self._signals.console_lines_batch.emit([line])
+        )
+
     def _on_training_job_finished(self, ev: JobFinished) -> None:
         if not self._is_active_training_job(ev.job_id, ev.name):
             return
@@ -237,6 +254,8 @@ class TrainingViewModel(QObject):
     ) -> None:
         """Start training in background. Progress and console lines are emitted via signals."""
         self._console_queue = Queue()
+        if not self._console_timer.isActive():
+            self._console_timer.start(CONSOLE_POLL_MS)
         if log_path:
             try:
                 log_path.parent.mkdir(parents=True, exist_ok=True)
