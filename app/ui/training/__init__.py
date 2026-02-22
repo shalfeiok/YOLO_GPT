@@ -1,4 +1,5 @@
 """Training tab: constants, helpers, and UI (SOLID: Single Responsibility)."""
+
 from app.ui.training.constants import (
     CONSOLE_MAX_LINES,
     MAX_DATASETS,

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.errors import IntegrationError, ValidationError
 from app.core.events import EventBus
 from app.core.events.job_events import JobFailed, JobRetrying
-from app.core.errors import IntegrationError, ValidationError
 from app.core.jobs.job_runner import JobRunner
 
 

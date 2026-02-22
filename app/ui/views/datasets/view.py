@@ -2,24 +2,29 @@
 Вкладка «Датасет»: вверху исходная папка и папка сохранения, ниже — функции по мере надобности,
 у каждой параметры и кнопка «Применить», прогресс и уведомление. Тяжёлые задачи в отдельном потоке.
 """
+
 from __future__ import annotations
 
-import numpy as np
 import uuid
 from pathlib import Path
 from typing import Any
+
+import numpy as np
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
-from PIL import Image
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
 
+
+from PIL import Image
 from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -37,21 +42,21 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.config import PROJECT_ROOT
 from app.application.facades.datasets import (
     AUGMENT_OPTIONS,
+    draw_boxes,
     get_labels_path_for_image,
     get_sample_image_paths,
     load_classes_from_dataset,
-    draw_boxes,
 )
+from app.config import PROJECT_ROOT
+from app.core.events.job_events import JobFailed, JobFinished, JobProgress, JobStarted
+from app.core.observability.run_manifest import register_run
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.inputs import NoWheelSlider
 from app.ui.components.photo_preview import show_scrollable_photo_dialog
 from app.ui.theme.tokens import Tokens
 from app.ui.views.datasets.worker import DatasetWorker
-from app.core.events.job_events import JobFailed, JobFinished, JobProgress, JobStarted
-from app.core.observability.run_manifest import register_run
 
 PREVIEW_PHOTOS_COUNT = 6
 EFFECT_LABELS: dict[str, str] = {
@@ -106,7 +111,9 @@ class DatasetsView(QWidget):
         self._worker.finished.connect(self._on_worker_finished)
         self._current_row_id: str | None = None
         self._current_job_id: str | None = None
-        self._row_widgets: dict[str, tuple[Any, QLabel, Any]] = {}  # row_id -> (progress_bar, status_label, apply_btn)
+        self._row_widgets: dict[
+            str, tuple[Any, QLabel, Any]
+        ] = {}  # row_id -> (progress_bar, status_label, apply_btn)
         self._build_ui()
 
     def _publish_job_start(self, row_id: str) -> None:
@@ -114,13 +121,23 @@ class DatasetsView(QWidget):
             return
         self._current_job_id = uuid.uuid4().hex
         self._bus.publish(JobStarted(job_id=self._current_job_id, name=f"dataset:{row_id}"))
-        self._bus.publish(JobProgress(job_id=self._current_job_id, name=f"dataset:{row_id}", progress=0.0, message="started"))
+        self._bus.publish(
+            JobProgress(
+                job_id=self._current_job_id,
+                name=f"dataset:{row_id}",
+                progress=0.0,
+                message="started",
+            )
+        )
         try:
             register_run(
                 job_id=self._current_job_id,
                 run_type="dataset",
                 spec={"action": row_id},
-                artifacts={"source": self._src_edit.text().strip(), "output": self._out_edit.text().strip()},
+                artifacts={
+                    "source": self._src_edit.text().strip(),
+                    "output": self._out_edit.text().strip(),
+                },
             )
         except Exception:
             import logging
@@ -132,7 +149,9 @@ class DatasetsView(QWidget):
             return
         name = f"dataset:{self._current_row_id}"
         if success:
-            self._bus.publish(JobProgress(job_id=self._current_job_id, name=name, progress=1.0, message=message))
+            self._bus.publish(
+                JobProgress(job_id=self._current_job_id, name=name, progress=1.0, message=message)
+            )
             self._bus.publish(JobFinished(job_id=self._current_job_id, name=name, result=None))
         else:
             self._bus.publish(JobFailed(job_id=self._current_job_id, name=name, error=message))
@@ -153,10 +172,14 @@ class DatasetsView(QWidget):
         row_src = QHBoxLayout()
         lbl_src = QLabel("Исходная папка:")
         lbl_src.setMinimumWidth(LABEL_WIDTH)
-        lbl_src.setToolTip("Папка с исходными изображениями и метками (или только картинками). Используется всеми функциями ниже.")
+        lbl_src.setToolTip(
+            "Папка с исходными изображениями и метками (или только картинками). Используется всеми функциями ниже."
+        )
         self._src_edit = QLineEdit()
         self._src_edit.setPlaceholderText("Путь к датасету или папке с изображениями")
-        self._src_edit.setToolTip("Путь к исходному датасету. Поддерживаются разные структуры папок (images, img, labels, annotations и т.д.).")
+        self._src_edit.setToolTip(
+            "Путь к исходному датасету. Поддерживаются разные структуры папок (images, img, labels, annotations и т.д.)."
+        )
         self._src_edit.setText(str(PROJECT_ROOT / "dataset"))
         self._src_edit.setStyleSheet(_edit_style(t))
         row_src.addWidget(lbl_src)
@@ -170,10 +193,14 @@ class DatasetsView(QWidget):
         row_out = QHBoxLayout()
         lbl_out = QLabel("Куда сохранять:")
         lbl_out.setMinimumWidth(LABEL_WIDTH)
-        lbl_out.setToolTip("Папка для сохранения результатов: конвертация в YOLO, аугментация, экспорт по классам.")
+        lbl_out.setToolTip(
+            "Папка для сохранения результатов: конвертация в YOLO, аугментация, экспорт по классам."
+        )
         self._out_edit = QLineEdit()
         self._out_edit.setPlaceholderText("Выходная папка для конвертации, аугментации, экспорта")
-        self._out_edit.setToolTip("Путь, куда будут сохраняться сконвертированные или новые датасеты.")
+        self._out_edit.setToolTip(
+            "Путь, куда будут сохраняться сконвертированные или новые датасеты."
+        )
         self._out_edit.setText(str(PROJECT_ROOT / "dataset_yolo"))
         self._out_edit.setStyleSheet(_edit_style(t))
         row_out.addWidget(lbl_out)
@@ -196,20 +223,24 @@ class DatasetsView(QWidget):
         main.setSpacing(t.space_md)
 
         # ---- 1. Привести к YOLO ----
-        main.addWidget(self._make_row(
-            "1. Привести к формату YOLO",
-            None,
-            "prepare_yolo",
-            self._on_apply_prepare,
-        ))
+        main.addWidget(
+            self._make_row(
+                "1. Привести к формату YOLO",
+                None,
+                "prepare_yolo",
+                self._on_apply_prepare,
+            )
+        )
 
         # ---- 2. Превью с метками ----
-        main.addWidget(self._make_row(
-            "2. Превью датасета (фото с метками)",
-            None,
-            "preview",
-            self._on_apply_preview,
-        ))
+        main.addWidget(
+            self._make_row(
+                "2. Превью датасета (фото с метками)",
+                None,
+                "preview",
+                self._on_apply_preview,
+            )
+        )
 
         # ---- 3. Аугментация (эффекты в два ряда для адаптивности) ----
         aug_params = QWidget()
@@ -249,22 +280,26 @@ class DatasetsView(QWidget):
         row2.addWidget(effects_preview_btn)
         row2.addStretch()
         aug_ly.addLayout(row2)
-        main.addWidget(self._make_row(
-            "3. Создать варианты датасета (размытие, яркость и т.д.)",
-            aug_params,
-            "augment",
-            self._on_apply_augment,
-        ))
+        main.addWidget(
+            self._make_row(
+                "3. Создать варианты датасета (размытие, яркость и т.д.)",
+                aug_params,
+                "augment",
+                self._on_apply_augment,
+            )
+        )
 
         # ---- 4. Загрузить классы ----
         load_classes_btn = SecondaryButton("Загрузить классы")
         load_classes_btn.clicked.connect(self._load_classes)
-        main.addWidget(self._make_row(
-            "4. Загрузить классы датасета",
-            load_classes_btn,
-            "load_classes",
-            None,
-        ))
+        main.addWidget(
+            self._make_row(
+                "4. Загрузить классы датасета",
+                load_classes_btn,
+                "load_classes",
+                None,
+            )
+        )
 
         # ---- Блок: классы для превью и экспорта (виден у превью и у экспорта) ----
         classes_card = QFrame()
@@ -280,12 +315,14 @@ class DatasetsView(QWidget):
         main.addWidget(classes_card)
 
         # ---- 5. Превью с выбранными классами ----
-        main.addWidget(self._make_row(
-            "5. Превью с выбранными классами",
-            None,
-            "preview_classes",
-            self._on_apply_preview_classes,
-        ))
+        main.addWidget(
+            self._make_row(
+                "5. Превью с выбранными классами",
+                None,
+                "preview_classes",
+                self._on_apply_preview_classes,
+            )
+        )
 
         # ---- 6. Переименовать класс ----
         rename_row = QHBoxLayout()
@@ -307,22 +344,26 @@ class DatasetsView(QWidget):
         rename_row.addStretch()
         rename_w = QWidget()
         rename_w.setLayout(rename_row)
-        main.addWidget(self._make_row(
-            "6. Переименовать класс",
-            rename_w,
-            "rename_class",
-            self._on_apply_rename,
-        ))
+        main.addWidget(
+            self._make_row(
+                "6. Переименовать класс",
+                rename_w,
+                "rename_class",
+                self._on_apply_rename,
+            )
+        )
 
         # ---- 7. Экспорт по классам (используются классы из блока выше) ----
         export_hint = QLabel("Используются классы, отмеченные в блоке «Классы» выше.")
         export_hint.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
-        main.addWidget(self._make_row(
-            "7. Экспорт датасета (только выбранные классы)",
-            export_hint,
-            "export_classes",
-            self._on_apply_export,
-        ))
+        main.addWidget(
+            self._make_row(
+                "7. Экспорт датасета (только выбранные классы)",
+                export_hint,
+                "export_classes",
+                self._on_apply_export,
+            )
+        )
 
         # ---- 8. Объединить классы ----
         merge_row = QHBoxLayout()
@@ -343,12 +384,14 @@ class DatasetsView(QWidget):
         merge_row.addWidget(self._merge_name_edit)
         merge_w = QWidget()
         merge_w.setLayout(merge_row)
-        main.addWidget(self._make_row(
-            "8. Объединить классы в один",
-            merge_w,
-            "merge_classes",
-            self._on_apply_merge,
-        ))
+        main.addWidget(
+            self._make_row(
+                "8. Объединить классы в один",
+                merge_w,
+                "merge_classes",
+                self._on_apply_merge,
+            )
+        )
 
         main.addStretch()
         scroll.setWidget(content)
@@ -450,7 +493,8 @@ class DatasetsView(QWidget):
             t = Tokens
             status_lbl.setText("Готово." if success else "Ошибка.")
             status_lbl.setStyleSheet(
-                f"color: {t.success}; font-size: 12px;" if success
+                f"color: {t.success}; font-size: 12px;"
+                if success
                 else f"color: {t.error}; font-size: 12px;"
             )
         if btn is not None:
@@ -536,12 +580,17 @@ class DatasetsView(QWidget):
             if transformed is not None:
                 if t < 1.0:
                     blended = (
-                        img.astype(np.float32) * (1 - t) + transformed.astype(np.float32) * t
-                    ).clip(0, 255).astype(np.uint8)
+                        (img.astype(np.float32) * (1 - t) + transformed.astype(np.float32) * t)
+                        .clip(0, 255)
+                        .astype(np.uint8)
+                    )
                 else:
                     blended = transformed
                 items.append(
-                    (EFFECT_LABELS.get(key, key), Image.fromarray(cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)))
+                    (
+                        EFFECT_LABELS.get(key, key),
+                        Image.fromarray(cv2.cvtColor(blended, cv2.COLOR_BGR2RGB)),
+                    )
                 )
         if len(items) <= 1:
             QMessageBox.warning(self, "Эффекты", "Отметьте хотя бы один эффект.")
@@ -610,7 +659,9 @@ class DatasetsView(QWidget):
     def _on_apply_preview_classes(self) -> None:
         p = Path(self._src_edit.text().strip())
         if not p.is_dir():
-            QMessageBox.warning(self, "Ошибка", "Укажите исходную папку и при необходимости «Загрузить классы».")
+            QMessageBox.warning(
+                self, "Ошибка", "Укажите исходную папку и при необходимости «Загрузить классы»."
+            )
             return
         selected = None
         if self._class_check_vars:
@@ -640,9 +691,15 @@ class DatasetsView(QWidget):
         src = self._src_edit.text().strip()
         old_name = self._rename_combo.currentText().strip()
         new_name = self._rename_new_edit.text().strip()
-        self._start_worker("rename_class", "rename_class", {
-            "src": src, "old_name": old_name, "new_name": new_name,
-        })
+        self._start_worker(
+            "rename_class",
+            "rename_class",
+            {
+                "src": src,
+                "old_name": old_name,
+                "new_name": new_name,
+            },
+        )
 
     def _on_apply_export(self) -> None:
         p = Path(self._src_edit.text().strip())
@@ -654,13 +711,22 @@ class DatasetsView(QWidget):
             QMessageBox.warning(self, "Ошибка", "Укажите папку «Куда сохранять».")
             return
         classes = load_classes_from_dataset(p)
-        selected = {i for i, cb in enumerate(self._class_check_vars) if i < len(classes) and cb.isChecked()}
+        selected = {
+            i for i, cb in enumerate(self._class_check_vars) if i < len(classes) and cb.isChecked()
+        }
         if not selected:
             QMessageBox.warning(self, "Экспорт", "Загрузите классы и отметьте хотя бы один.")
             return
-        self._start_worker("export_classes", "export_classes", {
-            "src": str(p), "out": str(out), "selected": selected, "classes": classes,
-        })
+        self._start_worker(
+            "export_classes",
+            "export_classes",
+            {
+                "src": str(p),
+                "out": str(out),
+                "selected": selected,
+                "classes": classes,
+            },
+        )
 
     def _on_apply_merge(self) -> None:
         p = Path(self._src_edit.text().strip())
@@ -674,12 +740,24 @@ class DatasetsView(QWidget):
         class_names = load_classes_from_dataset(p)
         to_merge = {i for i, cb in enumerate(self._merge_check_vars) if cb.isChecked()}
         if len(to_merge) < 2:
-            QMessageBox.warning(self, "Объединение", "Загрузите классы (п.4) и отметьте хотя бы два для объединения.")
+            QMessageBox.warning(
+                self,
+                "Объединение",
+                "Загрузите классы (п.4) и отметьте хотя бы два для объединения.",
+            )
             return
         new_name = self._merge_name_edit.text().strip() or "merged"
-        self._start_worker("merge_classes", "merge_classes", {
-            "src": str(p), "out": str(out), "to_merge": to_merge, "new_name": new_name, "class_names": class_names,
-        })
+        self._start_worker(
+            "merge_classes",
+            "merge_classes",
+            {
+                "src": str(p),
+                "out": str(out),
+                "to_merge": to_merge,
+                "new_name": new_name,
+                "class_names": class_names,
+            },
+        )
 
     def _load_merge_classes(self) -> None:
         """Вызывать при смене пути или отдельной кнопкой — классы для объединения."""

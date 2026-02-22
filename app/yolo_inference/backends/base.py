@@ -1,9 +1,10 @@
 """Abstract model backend for detection inference (Part 4.10). IDetector is unchanged; services delegate here."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -22,7 +23,7 @@ class AbstractModelBackend(ABC):
         frame: np.ndarray,
         conf: float = 0.45,
         iou: float = 0.45,
-    ) -> Tuple[np.ndarray, List[Any]]:
+    ) -> tuple[np.ndarray, list[Any]]:
         """Run detection. Returns (annotated_frame, results)."""
         ...
 

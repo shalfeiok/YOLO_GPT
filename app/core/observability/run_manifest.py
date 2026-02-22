@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +23,9 @@ class RunManifest:
 
 def _safe_git_commit() -> str | None:
     try:
-        out = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL).strip()
+        out = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
         return out or None
     except Exception:
         return None
@@ -55,21 +57,25 @@ def _runs_root() -> Path:
     return root
 
 
-def register_run(job_id: str, run_type: str, spec: dict[str, Any], artifacts: dict[str, Any]) -> Path:
+def register_run(
+    job_id: str, run_type: str, spec: dict[str, Any], artifacts: dict[str, Any]
+) -> Path:
     root = _runs_root()
     run_dir = root / job_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     manifest = RunManifest(
         run_type=run_type,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         job_id=job_id,
         spec=spec,
         env=_python_env(),
         git_commit=_safe_git_commit(),
         artifacts=artifacts,
     )
-    (run_dir / "run_manifest.json").write_text(json.dumps(asdict(manifest), ensure_ascii=False, indent=2), encoding="utf-8")
+    (run_dir / "run_manifest.json").write_text(
+        json.dumps(asdict(manifest), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     index_path = root / "index.json"
     index: dict[str, str] = {}

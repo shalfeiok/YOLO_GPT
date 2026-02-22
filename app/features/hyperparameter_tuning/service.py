@@ -6,8 +6,8 @@ Ref: https://docs.ultralytics.com/ru/guides/hyperparameter-tuning/
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.features.hyperparameter_tuning.domain import TuningConfig
 

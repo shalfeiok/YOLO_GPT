@@ -5,6 +5,7 @@ Uses the official API: InferenceSession (path, providers, sess_options),
 session.run(output_names, input_feed), get_providers(), get_inputs().
 See: https://onnxruntime.ai/docs/api/python/api_summary.html
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,17 +13,21 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
 
 from app.yolo_inference.backends.base import AbstractModelBackend
@@ -32,16 +37,86 @@ log = logging.getLogger(__name__)
 DEFAULT_INPUT_SIZE = 640
 
 COCO_NAMES = (
-    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog",
-    "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
-    "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite",
-    "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle",
-    "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich",
-    "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-    "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
-    "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator",
-    "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
+    "person",
+    "bicycle",
+    "car",
+    "motorcycle",
+    "airplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "couch",
+    "potted plant",
+    "bed",
+    "dining table",
+    "toilet",
+    "tv",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
 )
 
 
@@ -49,8 +124,12 @@ def _prepend_cuda_paths_windows() -> None:
     """Prepend common CUDA/cuDNN bin paths to PATH so onnxruntime-gpu can load DLLs."""
     if sys.platform != "win32":
         return
-    paths_to_add: List[str] = []
-    cuda_root = Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "NVIDIA GPU Computing Toolkit" / "CUDA"
+    paths_to_add: list[str] = []
+    cuda_root = (
+        Path(os.environ.get("ProgramFiles", "C:\\Program Files"))
+        / "NVIDIA GPU Computing Toolkit"
+        / "CUDA"
+    )
     if cuda_root.is_dir():
         for v in sorted(cuda_root.iterdir(), key=lambda p: p.name, reverse=True):
             bin_dir = v / "bin"
@@ -84,7 +163,7 @@ def _is_cuda_dll_in_path() -> bool:
     return False
 
 
-def _get_provider_candidates(skip_cuda_if_unavailable: bool = False) -> Tuple[List[str], List[str]]:
+def _get_provider_candidates(skip_cuda_if_unavailable: bool = False) -> tuple[list[str], list[str]]:
     """
     Return (gpu_providers, cpu_providers) using ort.get_available_providers().
     If skip_cuda_if_unavailable is True (e.g. on Windows when CUDA DLL not in PATH),
@@ -92,6 +171,7 @@ def _get_provider_candidates(skip_cuda_if_unavailable: bool = False) -> Tuple[Li
     """
     try:
         import onnxruntime as ort
+
         available = ort.get_available_providers()
     except ImportError:
         return ([], ["CPUExecutionProvider"])
@@ -120,14 +200,15 @@ def _parse_input_size(session: Any) -> int:
                     return dim
     except Exception:
         import logging
-        logging.getLogger(__name__).debug('ONNX backend operation failed', exc_info=True)
+
+        logging.getLogger(__name__).debug("ONNX backend operation failed", exc_info=True)
     return DEFAULT_INPUT_SIZE
 
 
 def _letterbox(
     img: np.ndarray,
     target_size: int,
-) -> Tuple[np.ndarray, float, float, float, int, int, int, int]:
+) -> tuple[np.ndarray, float, float, float, int, int, int, int]:
     h, w = img.shape[:2]
     scale = min(target_size / w, target_size / h)
     new_w = int(round(w * scale))
@@ -140,14 +221,20 @@ def _letterbox(
     pad_right = pad_w - pad_left
     pad_bottom = pad_h - pad_top
     padded = cv2.copyMakeBorder(
-        resized, pad_top, pad_bottom, pad_left, pad_right,
-        cv2.BORDER_CONSTANT, value=(114, 114, 114),
+        resized,
+        pad_top,
+        pad_bottom,
+        pad_left,
+        pad_right,
+        cv2.BORDER_CONSTANT,
+        value=(114, 114, 114),
     )
     return padded, scale, pad_left, pad_top, new_w, new_h, h, w
 
 
 def _export_pt_to_onnx(weights_path: Path, imgsz: int = DEFAULT_INPUT_SIZE) -> Path:
     from ultralytics import YOLO
+
     model = YOLO(str(weights_path))
     out_path = model.export(
         format="onnx",
@@ -160,7 +247,7 @@ def _export_pt_to_onnx(weights_path: Path, imgsz: int = DEFAULT_INPUT_SIZE) -> P
     return Path(out_path)
 
 
-def _get_color(class_id: int) -> Tuple[int, int, int]:
+def _get_color(class_id: int) -> tuple[int, int, int]:
     np.random.seed(class_id)
     return tuple(int(x) for x in np.random.uniform(0, 255, size=3))
 
@@ -174,15 +261,15 @@ class ONNXBackend(AbstractModelBackend):
     """
 
     def __init__(self) -> None:
-        self._onnx_path: Optional[Path] = None
+        self._onnx_path: Path | None = None
         self._session: Any = None
-        self._input_name: Optional[str] = None
+        self._input_name: str | None = None
         self._input_size: int = DEFAULT_INPUT_SIZE
-        self._providers: List[str] = []
-        self._class_names: Tuple[str, ...] = COCO_NAMES
+        self._providers: list[str] = []
+        self._class_names: tuple[str, ...] = COCO_NAMES
         self._session_lock = threading.Lock()
         self._export_in_progress = False
-        self._export_error: Optional[str] = None
+        self._export_error: str | None = None
 
     def load(self, weights_path: Path) -> None:
         path = Path(weights_path)
@@ -266,7 +353,7 @@ class ONNXBackend(AbstractModelBackend):
     def is_exporting(self) -> bool:
         return self._export_in_progress
 
-    def get_export_error(self) -> Optional[str]:
+    def get_export_error(self) -> str | None:
         return self._export_error
 
     def unload_model(self) -> None:
@@ -289,7 +376,7 @@ class ONNXBackend(AbstractModelBackend):
         frame: np.ndarray,
         conf: float = 0.45,
         iou: float = 0.45,
-    ) -> Tuple[np.ndarray, List[Any]]:
+    ) -> tuple[np.ndarray, list[Any]]:
         with self._session_lock:
             if self._session is None:
                 return frame, []
@@ -318,9 +405,9 @@ class ONNXBackend(AbstractModelBackend):
             num_proposals = sh[2]
             output = np.transpose(out, (0, 2, 1))[0]
 
-        boxes_list: List[List[float]] = []
-        scores_list: List[float] = []
-        class_ids_list: List[int] = []
+        boxes_list: list[list[float]] = []
+        scores_list: list[float] = []
+        class_ids_list: list[int] = []
 
         for i in range(num_proposals):
             row = output[i]
@@ -352,7 +439,9 @@ class ONNXBackend(AbstractModelBackend):
             return frame, []
 
         nms_out = cv2.dnn.NMSBoxes(boxes_list, scores_list, conf, iou, 0.5)
-        indices = np.array(nms_out).flatten() if nms_out is not None else np.array([], dtype=np.int32)
+        indices = (
+            np.array(nms_out).flatten() if nms_out is not None else np.array([], dtype=np.int32)
+        )
         if len(indices) == 0:
             return frame, []
 
@@ -374,13 +463,21 @@ class ONNXBackend(AbstractModelBackend):
                 continue
             score = scores_list[idx]
             class_id = class_ids_list[idx]
-            name = self._class_names[class_id] if class_id < len(self._class_names) else str(class_id)
+            name = (
+                self._class_names[class_id] if class_id < len(self._class_names) else str(class_id)
+            )
             label = f"{name} {score:.2f}"
             color = _get_color(class_id)
             cv2.rectangle(annotated, (x1_i, y1_i), (x2_i, y2_i), color, 2)
             cv2.putText(
-                annotated, label, (x1_i, y1_i - 6),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA,
+                annotated,
+                label,
+                (x1_i, y1_i - 6),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+                cv2.LINE_AA,
             )
 
         results = [{"boxes": boxes_list, "scores": scores_list, "class_ids": class_ids_list}]

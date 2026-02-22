@@ -20,50 +20,72 @@ except Exception:  # pragma: no cover
     QFileDialog = None
 
 
-def get_open_json_path(parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None) -> Path | None:
+def get_open_json_path(
+    parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None
+) -> Path | None:
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getOpenFileName(parent, title, start, "JSON (*.json);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getOpenFileName(
+        parent, title, start, "JSON (*.json);;All files (*.*)"
+    )
     return Path(path) if path else None
 
 
-def get_save_json_path(parent: QWidget | None = None, *, title: str = "Save", start_dir: Path | None = None) -> Path | None:
+def get_save_json_path(
+    parent: QWidget | None = None, *, title: str = "Save", start_dir: Path | None = None
+) -> Path | None:
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getSaveFileName(parent, title, start, "JSON (*.json);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getSaveFileName(
+        parent, title, start, "JSON (*.json);;All files (*.*)"
+    )
     return Path(path) if path else None
 
 
-def get_open_yaml_path(parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None) -> Path | None:
+def get_open_yaml_path(
+    parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None
+) -> Path | None:
     """Open a YAML file."""
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getOpenFileName(parent, title, start, "YAML (*.yaml *.yml);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getOpenFileName(
+        parent, title, start, "YAML (*.yaml *.yml);;All files (*.*)"
+    )
     return Path(path) if path else None
 
 
-def get_open_pt_path(parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None) -> Path | None:
+def get_open_pt_path(
+    parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None
+) -> Path | None:
     """Open a PyTorch weights file (.pt)."""
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getOpenFileName(parent, title, start, "PyTorch (*.pt);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getOpenFileName(
+        parent, title, start, "PyTorch (*.pt);;All files (*.*)"
+    )
     return Path(path) if path else None
 
 
-def get_open_model_or_yaml_path(parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None) -> Path | None:
+def get_open_model_or_yaml_path(
+    parent: QWidget | None = None, *, title: str = "Open", start_dir: Path | None = None
+) -> Path | None:
     """Open a model config/weights file (pt or yaml)."""
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getOpenFileName(parent, title, start, "PyTorch (*.pt);;YAML (*.yaml *.yml);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getOpenFileName(
+        parent, title, start, "PyTorch (*.pt);;YAML (*.yaml *.yml);;All files (*.*)"
+    )
     return Path(path) if path else None
 
 
-def get_existing_dir(parent: QWidget | None = None, *, title: str = "Select folder", start_dir: Path | None = None) -> Path | None:
+def get_existing_dir(
+    parent: QWidget | None = None, *, title: str = "Select folder", start_dir: Path | None = None
+) -> Path | None:
     """Select an existing directory."""
     if QFileDialog is None:
         return None
@@ -72,9 +94,13 @@ def get_existing_dir(parent: QWidget | None = None, *, title: str = "Select fold
     return Path(path) if path else None
 
 
-def get_save_zip_path(parent: QWidget | None = None, *, title: str = "Save", start_dir: Path | None = None) -> Path | None:
+def get_save_zip_path(
+    parent: QWidget | None = None, *, title: str = "Save", start_dir: Path | None = None
+) -> Path | None:
     if QFileDialog is None:
         return None
     start = str(start_dir or Path.home())
-    path, _ = cast(Any, QFileDialog).getSaveFileName(parent, title, start, "ZIP (*.zip);;All files (*.*)")
+    path, _ = cast(Any, QFileDialog).getSaveFileName(
+        parent, title, start, "ZIP (*.zip);;All files (*.*)"
+    )
     return Path(path) if path else None

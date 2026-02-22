@@ -7,10 +7,10 @@ from __future__ import annotations
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-from app.features.ultralytics_solutions.domain import SolutionsConfig, SOLUTION_TYPES
+from app.features.ultralytics_solutions.domain import SOLUTION_TYPES, SolutionsConfig
 
 
 def _script_content(cfg: SolutionsConfig) -> str:
@@ -26,7 +26,7 @@ def _script_content(cfg: SolutionsConfig) -> str:
     except Exception:
         region_expr = "[(20, 400), (1260, 400)]"
 
-    base = f'''
+    base = f"""
 import sys
 try:
     import cv2  # type: ignore
@@ -61,42 +61,42 @@ if output_path:
     from pathlib import Path
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     writer = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
-'''
+"""
     stype = cfg.solution_type
     if stype == "DistanceCalculation":
-        init = f'''
+        init = """
 obj = solutions.DistanceCalculation(model=model_path, show=True)
-'''
+"""
     elif stype == "Heatmap":
         cmap_name = cfg.colormap.replace("cv2.", "").strip() or "COLORMAP_JET"
-        init = f'''
+        init = f"""
 obj = solutions.Heatmap(model=model_path, show=True, colormap=getattr(cv2, {repr(cmap_name)}))
-'''
+"""
     elif stype == "ObjectCounter":
-        init = f'''
+        init = f"""
 region = {region_expr}
 obj = solutions.ObjectCounter(model=model_path, region=region, show=True)
-'''
+"""
     elif stype == "RegionCounter":
-        init = f'''
+        init = f"""
 region = {region_expr}
 obj = solutions.RegionCounter(model=model_path, region=region, show=True)
-'''
+"""
     elif stype == "SpeedEstimator":
-        init = f'''
+        init = f"""
 obj = solutions.SpeedEstimator(model=model_path, fps={cfg.fps}, show=True)
-'''
+"""
     elif stype == "TrackZone":
-        init = f'''
+        init = f"""
 region = {region_expr}
 obj = solutions.TrackZone(model=model_path, region=region, show=True)
-'''
+"""
     else:
-        init = f'''
+        init = """
 obj = solutions.ObjectCounter(model=model_path, show=True)
-'''
+"""
 
-    loop = '''
+    loop = """
 while cap.isOpened():
     ok, frame = cap.read()
     if not ok:
@@ -111,7 +111,7 @@ if writer is not None:
     writer.release()
 cv2.destroyAllWindows()
 print("Done.")
-'''
+"""
     return base + init + loop
 
 

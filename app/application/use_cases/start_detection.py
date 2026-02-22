@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.interfaces import IDetector
 from app.application.ports.detection import DetectionPort
+from app.interfaces import IDetector
 
 
 class StartDetectionError(RuntimeError):

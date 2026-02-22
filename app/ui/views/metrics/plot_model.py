@@ -1,6 +1,7 @@
 """
 Model for metrics curves: buffers for x and y per metric. Append-only, used by dashboard.
 """
+
 from __future__ import annotations
 
 from collections import deque

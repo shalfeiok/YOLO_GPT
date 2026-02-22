@@ -104,7 +104,6 @@ class Container:
             self._validate_model_uc = ValidateModelUseCase(DefaultModelValidator())
         return self._validate_model_uc
 
-
     @property
     def start_detection_use_case(self) -> StartDetectionUseCase:
         """Application-layer API for starting detection (validate inputs + load model)."""
@@ -118,6 +117,7 @@ class Container:
         if self._stop_detection_uc is None:
             self._stop_detection_uc = StopDetectionUseCase()
         return self._stop_detection_uc
+
     @property
     def integrations_config_repo(self) -> DefaultIntegrationsConfigRepository:
         if self._integrations_cfg_repo is None:
@@ -127,13 +127,17 @@ class Container:
     @property
     def export_integrations_config_use_case(self) -> ExportIntegrationsConfigUseCase:
         if self._export_integrations_cfg_uc is None:
-            self._export_integrations_cfg_uc = ExportIntegrationsConfigUseCase(self.integrations_config_repo)
+            self._export_integrations_cfg_uc = ExportIntegrationsConfigUseCase(
+                self.integrations_config_repo
+            )
         return self._export_integrations_cfg_uc
 
     @property
     def import_integrations_config_use_case(self) -> ImportIntegrationsConfigUseCase:
         if self._import_integrations_cfg_uc is None:
-            self._import_integrations_cfg_uc = ImportIntegrationsConfigUseCase(self.integrations_config_repo)
+            self._import_integrations_cfg_uc = ImportIntegrationsConfigUseCase(
+                self.integrations_config_repo
+            )
         return self._import_integrations_cfg_uc
 
     @property

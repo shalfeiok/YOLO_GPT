@@ -7,8 +7,8 @@ Ref: https://docs.ultralytics.com/ru/integrations/amazon-sagemaker/
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.config import PROJECT_ROOT
 

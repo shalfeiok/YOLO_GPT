@@ -2,9 +2,10 @@
 Окно с вертикальным скроллом и списком изображений (PIL).
 Используется для превью датасета с метками и примеров с эффектами аугментации.
 """
+
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from PIL import Image
 from PySide6.QtCore import Qt
@@ -28,6 +29,7 @@ def _pil_to_qpixmap(pil: Image.Image, max_width: int = PREVIEW_DISPLAY_WIDTH) ->
         img = img.resize((max_width, new_h), Image.Resampling.LANCZOS)
     data = img.tobytes("raw", "RGB")
     from PySide6.QtGui import QImage
+
     qimg = QImage(data, img.width, img.height, img.width * 3, QImage.Format.Format_RGB888)
     return QPixmap.fromImage(qimg)
 
@@ -61,7 +63,9 @@ def show_scrollable_photo_dialog(
         if isinstance(item, tuple):
             label_text, pil = item
             lbl_cap = QLabel(label_text)
-            lbl_cap.setStyleSheet("background: #2b2b2b; color: #ccc; font-weight: bold; font-size: 11pt; padding: 8px;")
+            lbl_cap.setStyleSheet(
+                "background: #2b2b2b; color: #ccc; font-weight: bold; font-size: 11pt; padding: 8px;"
+            )
             inner_layout.addWidget(lbl_cap)
             img_to_show = pil
         else:

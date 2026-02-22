@@ -2,30 +2,35 @@
 Бэкенд визуализации: классический путь OpenCV — ресайз на CPU или cv2.cuda (если
 собран с CUDA), затем imshow. Захват — GDI/mss/камера вне этого модуля.
 """
+
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Callable, Optional
+from typing import Any
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
 
 from app.features.detection_visualization.backends.base import IVisualizationBackend
 from app.features.detection_visualization.domain import (
     BACKEND_OPENCV,
     BACKEND_OPENCV_CPU_RESIZE,
-    BACKEND_OPENCV_CUDA_RESIZE,
     VISUALIZATION_BACKEND_DISPLAY_NAMES,
     default_visualization_config,
     get_config_section,
@@ -65,7 +70,8 @@ def _resize_for_preview_opencv(
                 return gpu_resized.download()
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('OpenCV window operation failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("OpenCV window operation failed", exc_info=True)
     return cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LINEAR)
 
 
@@ -73,21 +79,31 @@ class OpenCVBackend(IVisualizationBackend):
     """Отрисовка через OpenCV: resize (CPU или cv2.cuda) + imshow. Варианты по backend_id."""
 
     def __init__(self, backend_id: str = BACKEND_OPENCV) -> None:
-        self._backend_id = backend_id if backend_id in VISUALIZATION_BACKEND_DISPLAY_NAMES else BACKEND_OPENCV
+        self._backend_id = (
+            backend_id if backend_id in VISUALIZATION_BACKEND_DISPLAY_NAMES else BACKEND_OPENCV
+        )
         section = get_config_section(self._backend_id)
         self._settings = default_visualization_config().get(section, {}).copy()
-        self._display_thread: Optional[Thread] = None
+        self._display_thread: Thread | None = None
         self._running = False
 
     def get_id(self) -> str:
         return self._backend_id
 
     def get_display_name(self) -> str:
-        return VISUALIZATION_BACKEND_DISPLAY_NAMES.get(self._backend_id, "OpenCV (GDI/mss + imshow)")
+        return VISUALIZATION_BACKEND_DISPLAY_NAMES.get(
+            self._backend_id, "OpenCV (GDI/mss + imshow)"
+        )
 
     def get_default_settings(self) -> dict[str, Any]:
         use_cuda = self._backend_id != BACKEND_OPENCV_CPU_RESIZE
-        capture = "gdi" if self._backend_id == BACKEND_OPENCV_GDI else "mss" if self._backend_id == BACKEND_OPENCV_MSS else "gdi"
+        capture = (
+            "gdi"
+            if self._backend_id == BACKEND_OPENCV_GDI
+            else "mss"
+            if self._backend_id == BACKEND_OPENCV_MSS
+            else "gdi"
+        )
         return {
             "preview_max_w": 0,
             "preview_max_h": 0,
@@ -97,10 +113,35 @@ class OpenCVBackend(IVisualizationBackend):
 
     def get_settings_schema(self) -> list[dict[str, Any]]:
         return [
-            {"key": "preview_max_w", "type": "int", "label": "Ширина превью (px)", "default": 0, "min": 0, "max": 7680},
-            {"key": "preview_max_h", "type": "int", "label": "Высота превью (px)", "default": 0, "min": 0, "max": 4320},
-            {"key": "use_cuda_resize", "type": "bool", "label": "Ресайз на GPU (cv2.cuda)", "default": True},
-            {"key": "capture_method", "type": "choice", "label": "Метод захвата", "default": "gdi", "choices": ["gdi", "mss", "imshow"]},
+            {
+                "key": "preview_max_w",
+                "type": "int",
+                "label": "Ширина превью (px)",
+                "default": 0,
+                "min": 0,
+                "max": 7680,
+            },
+            {
+                "key": "preview_max_h",
+                "type": "int",
+                "label": "Высота превью (px)",
+                "default": 0,
+                "min": 0,
+                "max": 4320,
+            },
+            {
+                "key": "use_cuda_resize",
+                "type": "bool",
+                "label": "Ресайз на GPU (cv2.cuda)",
+                "default": True,
+            },
+            {
+                "key": "capture_method",
+                "type": "choice",
+                "label": "Метод захвата",
+                "default": "gdi",
+                "choices": ["gdi", "mss", "imshow"],
+            },
         ]
 
     def get_settings(self) -> dict[str, Any]:
@@ -118,9 +159,9 @@ class OpenCVBackend(IVisualizationBackend):
         max_h: int,
         is_running_getter: Callable[[], bool],
         run_id_getter: Callable[[], int],
-        on_stop: Optional[Callable[[], None]] = None,
-        on_q_key: Optional[Callable[[], None]] = None,
-        on_render_metrics: Optional[Callable[[float], None]] = None,
+        on_stop: Callable[[], None] | None = None,
+        on_q_key: Callable[[], None] | None = None,
+        on_render_metrics: Callable[[float], None] | None = None,
     ) -> None:
         # Как в appv2: всегда запускаем поток отрисовки; при отсутствии GUI ошибка будет в display_loop
         max_w = self._settings.get("preview_max_w", max_w)
@@ -137,12 +178,18 @@ class OpenCVBackend(IVisualizationBackend):
                     cv2.startWindowThread()
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('OpenCV window operation failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "OpenCV window operation failed", exc_info=True
+                    )
                 try:
                     cv2.destroyWindow(cv2_window_name)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('OpenCV window operation failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "OpenCV window operation failed", exc_info=True
+                    )
                 cv2.namedWindow(cv2_window_name, cv2.WINDOW_NORMAL)
                 if max_w > 0 and max_h > 0:
                     cv2.resizeWindow(cv2_window_name, max_w, max_h)
@@ -190,7 +237,10 @@ class OpenCVBackend(IVisualizationBackend):
                         cv2.destroyAllWindows()
                     except Exception:
                         import logging
-                        logging.getLogger(__name__).debug('OpenCV window operation failed', exc_info=True)
+
+                        logging.getLogger(__name__).debug(
+                            "OpenCV window operation failed", exc_info=True
+                        )
                 self._running = False
                 if on_stop:
                     on_stop()

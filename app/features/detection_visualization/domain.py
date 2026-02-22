@@ -2,6 +2,7 @@
 Домен настроек визуализации детекции: выбор бэкенда отрисовки (OpenCV, D3DShot+PyTorch, ONNX) и настройки по умолчанию.
 Инференс определяется бэкендом: ONNX — detector_onnx, остальные — Ultralytics (PyTorch).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -146,24 +147,28 @@ def default_visualization_config() -> dict[str, Any]:
 
 def builtin_visualization_presets() -> list[tuple[str, dict[str, Any]]]:
     """Встроенные пресеты: (название, полный конфиг). 0×0 = без ресайза."""
+
     def make_config(backend: str, max_w: int, max_h: int) -> dict[str, Any]:
         d = default_visualization_config()
         return {
             "backend_id": backend,
             "opencv": {
-                "preview_max_w": max_w, "preview_max_h": max_h,
+                "preview_max_w": max_w,
+                "preview_max_h": max_h,
                 "use_cuda_resize": d["opencv"]["use_cuda_resize"],
                 "capture_method": d["opencv"].get("capture_method", "gdi"),
             },
             "d3dshot_pytorch": {
-                "preview_max_w": max_w, "preview_max_h": max_h,
+                "preview_max_w": max_w,
+                "preview_max_h": max_h,
                 "use_d3dshot_capture": d["d3dshot_pytorch"]["use_d3dshot_capture"],
                 "force_cpu": d["d3dshot_pytorch"].get("force_cpu", False),
                 "use_fp16": d["d3dshot_pytorch"].get("use_fp16", False),
                 "use_torchscript": d["d3dshot_pytorch"].get("use_torchscript", False),
             },
             "onnx": {
-                "preview_max_w": max_w, "preview_max_h": max_h,
+                "preview_max_w": max_w,
+                "preview_max_h": max_h,
                 "use_cuda_resize": d["onnx"]["use_cuda_resize"],
                 "execution_provider": d["onnx"].get("execution_provider", "auto"),
                 "use_directml": d["onnx"].get("use_directml", False),
@@ -171,6 +176,7 @@ def builtin_visualization_presets() -> list[tuple[str, dict[str, Any]]]:
             },
             "presets": d.get("presets", []),
         }
+
     return [
         ("Исходное качество (без ресайза)", make_config(BACKEND_D3DSHOT_PYTORCH, 0, 0)),
         ("854×480", make_config(BACKEND_D3DSHOT_PYTORCH, 854, 480)),

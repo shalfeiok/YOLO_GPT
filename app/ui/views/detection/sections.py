@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -19,7 +19,6 @@ from app.features.detection_visualization import list_backends
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.theme.tokens import Tokens
 
-
 RowLabelFn = Callable[[str], QLabel]
 
 
@@ -30,8 +29,12 @@ def build_model_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Row
     model_layout.addWidget(row_label("Модель (.pt):"))
     view._weights_edit = QLineEdit()
     view._weights_edit.setPlaceholderText("Путь к весам .pt или .onnx")
-    view._weights_edit.setToolTip("Путь к файлу весов YOLO (.pt) или модели ONNX (.onnx). Для ONNX движка .pt экспортируется в .onnx при первом запуске.")
-    view._weights_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
+    view._weights_edit.setToolTip(
+        "Путь к файлу весов YOLO (.pt) или модели ONNX (.onnx). Для ONNX движка .pt экспортируется в .onnx при первом запуске."
+    )
+    view._weights_edit.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+    )
     model_layout.addWidget(view._weights_edit, 1)
     view._browse_weights_btn = SecondaryButton("Обзор…")
     view._browse_weights_btn.setToolTip("Выбрать файл весов (.pt)")
@@ -42,7 +45,6 @@ def build_model_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Row
     layout.addLayout(model_layout)
 
 
-
 def build_source_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn) -> None:
     """Source combo row (screen/window/camera/video) + refresh windows."""
     # Источник — одна строка: подпись + комбо + Обновить окна
@@ -50,8 +52,12 @@ def build_source_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Ro
     src_layout.addWidget(row_label("Источник:"))
     view._source_combo = QComboBox()
     view._source_combo.setMinimumHeight(32)
-    view._source_combo.setToolTip("Источник видеопотока: экран, окно приложения, веб-камера или видеофайл.")
-    view._source_combo.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;")
+    view._source_combo.setToolTip(
+        "Источник видеопотока: экран, окно приложения, веб-камера или видеофайл."
+    )
+    view._source_combo.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;"
+    )
     view._source_combo.currentTextChanged.connect(view._on_source_changed)
     src_layout.addWidget(view._source_combo, 1)
     view._refresh_windows_btn = SecondaryButton("Обновить окна")
@@ -61,7 +67,6 @@ def build_source_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Ro
     layout.addLayout(src_layout)
 
 
-
 def build_video_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn) -> None:
     """Video file row (path + browse)."""
     # Видеофайл — одна строка: подпись + поле + кнопка «Обзор…» (как в старом UI)
@@ -69,8 +74,12 @@ def build_video_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Row
     video_layout.addWidget(row_label("Видео (.mp4 и др.):"))
     view._video_edit = QLineEdit()
     view._video_edit.setPlaceholderText("Путь к видео или нажмите «Обзор…»")
-    view._video_edit.setToolTip("Путь к видеофайлу (.mp4 и др.). Используется при выборе источника «Видеофайл».")
-    view._video_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
+    view._video_edit.setToolTip(
+        "Путь к видеофайлу (.mp4 и др.). Используется при выборе источника «Видеофайл»."
+    )
+    view._video_edit.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+    )
     video_layout.addWidget(view._video_edit, 1)
     view._browse_video_btn = SecondaryButton("Обзор…")
     view._browse_video_btn.setObjectName("detection_browse_video")
@@ -81,8 +90,9 @@ def build_video_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Row
     layout.addLayout(video_layout)
 
 
-
-def build_thresholds_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn) -> None:
+def build_thresholds_row(
+    view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn
+) -> None:
     """Confidence/IoU row and Output settings button."""
     # Confidence / IOU — слева; справа кнопка «Настройки вывода»
     conf_layout = QHBoxLayout()
@@ -90,15 +100,23 @@ def build_thresholds_row(view: object, t: Tokens, layout: QVBoxLayout, row_label
     view._conf_edit = QLineEdit()
     view._conf_edit.setText(str(DEFAULT_CONFIDENCE))
     view._conf_edit.setFixedWidth(70)
-    view._conf_edit.setToolTip("Порог уверенности детекции (0–1). Выше — меньше срабатываний, но меньше ложных.")
-    view._conf_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
+    view._conf_edit.setToolTip(
+        "Порог уверенности детекции (0–1). Выше — меньше срабатываний, но меньше ложных."
+    )
+    view._conf_edit.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+    )
     conf_layout.addWidget(view._conf_edit)
     conf_layout.addWidget(row_label("IOU:", 50))
     view._iou_edit = QLineEdit()
     view._iou_edit.setText(str(DEFAULT_IOU_THRESH))
     view._iou_edit.setFixedWidth(70)
-    view._iou_edit.setToolTip("Порог IoU для NMS (0–1). Пересечение боксов выше этого порога объединяется.")
-    view._iou_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
+    view._iou_edit.setToolTip(
+        "Порог IoU для NMS (0–1). Пересечение боксов выше этого порога объединяется."
+    )
+    view._iou_edit.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+    )
     conf_layout.addWidget(view._iou_edit)
     conf_layout.addStretch()
     view._output_settings_btn = SecondaryButton("Настройки вывода…")
@@ -107,7 +125,6 @@ def build_thresholds_row(view: object, t: Tokens, layout: QVBoxLayout, row_label
     view._output_settings_btn.clicked.connect(view._open_output_settings)
     conf_layout.addWidget(view._output_settings_btn)
     layout.addLayout(conf_layout)
-
 
 
 def build_render_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn) -> None:
@@ -119,7 +136,9 @@ def build_render_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Ro
     view._vis_combo.addItems([name for _, name in list_backends()])
     view._vis_combo.setMinimumHeight(32)
     view._vis_combo.setToolTip("Бэкенд отрисовки боксов и меток (OpenCV, D3D и др.).")
-    view._vis_combo.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;")
+    view._vis_combo.setStyleSheet(
+        f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;"
+    )
     view._vis_combo.currentTextChanged.connect(view._on_vis_backend_changed)
     view._sync_vis_combo()
     vis_layout.addWidget(view._vis_combo, 1)
@@ -134,7 +153,6 @@ def build_render_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Ro
     layout.addLayout(vis_layout)
 
 
-
 def build_realtime_features(view: object, t: Tokens, layout: QVBoxLayout) -> None:
     """Realtime features group box (solutions toggles + region/FPS/colormap controls)."""
     # Фичи в реальном времени + настройки (region, FPS, colormap)
@@ -144,14 +162,16 @@ def build_realtime_features(view: object, t: Tokens, layout: QVBoxLayout) -> Non
     live_inner = QWidget()
     grid = QGridLayout(live_inner)
     view._live_vars: dict[str, QCheckBox] = {}
-    for i, (sol_id, label) in enumerate([
-        ("DistanceCalculation", "Distance"),
-        ("Heatmap", "Heatmap"),
-        ("ObjectCounter", "ObjectCounter"),
-        ("RegionCounter", "RegionCounter"),
-        ("SpeedEstimator", "Speed"),
-        ("TrackZone", "TrackZone"),
-    ]):
+    for i, (sol_id, label) in enumerate(
+        [
+            ("DistanceCalculation", "Distance"),
+            ("Heatmap", "Heatmap"),
+            ("ObjectCounter", "ObjectCounter"),
+            ("RegionCounter", "RegionCounter"),
+            ("SpeedEstimator", "Speed"),
+            ("TrackZone", "TrackZone"),
+        ]
+    ):
         cb = QCheckBox(label)
         view._live_vars[sol_id] = cb
         grid.addWidget(cb, i // 4, i % 4)
@@ -163,7 +183,6 @@ def build_realtime_features(view: object, t: Tokens, layout: QVBoxLayout) -> Non
     live_btn_row.addStretch()
     live_layout.addLayout(live_btn_row)
     layout.addWidget(view._live_group)
-
 
 
 def build_buttons_fps_row(view: object, t: Tokens, layout: QVBoxLayout) -> None:
@@ -185,8 +204,11 @@ def build_buttons_fps_row(view: object, t: Tokens, layout: QVBoxLayout) -> None:
     btn_layout.addWidget(view._stop_btn)
     btn_layout.addWidget(view._fps_label)
     layout.addLayout(btn_layout)
-    view._detection_status_label = QLabel("Загрузите модель и нажмите «Старт». Превью откроется в отдельном окне «YOLO Detection».")
-    view._detection_status_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px; padding: 4px 0;")
+    view._detection_status_label = QLabel(
+        "Загрузите модель и нажмите «Старт». Превью откроется в отдельном окне «YOLO Detection»."
+    )
+    view._detection_status_label.setStyleSheet(
+        f"color: {t.text_secondary}; font-size: 12px; padding: 4px 0;"
+    )
     layout.addWidget(view._detection_status_label)
     layout.addStretch()
-

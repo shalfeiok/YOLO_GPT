@@ -1,7 +1,7 @@
 """Read/write Comet section from integrations config."""
 
-from app.features.integrations_config import load_config, save_config
 from app.features.comet_integration.domain import CometConfig
+from app.features.integrations_config import load_config, save_config
 
 
 def load_comet_config() -> CometConfig:

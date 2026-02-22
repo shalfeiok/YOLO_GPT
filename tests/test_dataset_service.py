@@ -1,4 +1,5 @@
 """Тесты сборки объединённого data.yaml (DatasetConfigBuilder)."""
+
 from pathlib import Path
 
 import pytest

@@ -1,5 +1,5 @@
 """Тесты разбора строк лога обучения (training_metrics)."""
-import pytest
+
 
 from app.training_metrics import parse_metrics_line, parse_progress_line
 

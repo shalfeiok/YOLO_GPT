@@ -1,6 +1,7 @@
 """
 Metrics dashboard: PyQtGraph plot with streaming loss curves, zoom/pan, crosshair, hover values.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,8 @@ from app.ui.views.metrics.plot_model import PLOT_KEYS, MetricsPlotModel
 
 try:
     import pyqtgraph as pg
-    from pyqtgraph import PlotDataItem, PlotWidget, InfiniteLine
+    from pyqtgraph import InfiniteLine, PlotDataItem, PlotWidget
+
     _HAS_PYQTGRAPH = True
 except ImportError:
     _HAS_PYQTGRAPH = False
@@ -53,6 +55,7 @@ class MetricsDashboardWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         if not _HAS_PYQTGRAPH:
             from PySide6.QtWidgets import QLabel
+
             layout.addWidget(QLabel("Установите pyqtgraph для графиков метрик."))
             self._curves = {}
             return
@@ -77,11 +80,21 @@ class MetricsDashboardWidget(QWidget):
             curve = pg.PlotDataItem(pen=pg.mkPen(color, width=2), name=key)
             self._plot_widget.addItem(curve)
             self._curves[key] = curve
-        self._vline = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen(t.text_secondary, width=1, style=Qt.PenStyle.DashLine))
-        self._hline = pg.InfiniteLine(angle=0, movable=False, pen=pg.mkPen(t.text_secondary, width=1, style=Qt.PenStyle.DashLine))
+        self._vline = pg.InfiniteLine(
+            angle=90,
+            movable=False,
+            pen=pg.mkPen(t.text_secondary, width=1, style=Qt.PenStyle.DashLine),
+        )
+        self._hline = pg.InfiniteLine(
+            angle=0,
+            movable=False,
+            pen=pg.mkPen(t.text_secondary, width=1, style=Qt.PenStyle.DashLine),
+        )
         self._plot_widget.addItem(self._vline, ignoreBounds=True)
         self._plot_widget.addItem(self._hline, ignoreBounds=True)
-        self._label = pg.TextItem("", anchor=(0, 1), color=t.text_primary, fill=pg.mkColor(t.surface))
+        self._label = pg.TextItem(
+            "", anchor=(0, 1), color=t.text_primary, fill=pg.mkColor(t.surface)
+        )
         self._plot_widget.addItem(self._label, ignoreBounds=True)
         self._label.setZValue(100)
         self._plot_widget.getViewBox().scene().sigMouseMoved.connect(self._on_mouse_moved)
@@ -177,7 +190,9 @@ class MetricsDashboardWidget(QWidget):
 
     def _export_csv(self) -> None:
         """Save curve data to CSV. Uses longest curve for step count."""
-        path, _ = QFileDialog.getSaveFileName(self, "Экспорт метрик", "", "CSV (*.csv);;Все файлы (*.*)")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Экспорт метрик", "", "CSV (*.csv);;Все файлы (*.*)"
+        )
         if not path:
             return
         data = self._model.get_all_curves()

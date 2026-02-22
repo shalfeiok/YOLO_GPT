@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.use_cases.train_model import (
-    TrainModelRequest,
     TrainingProfile,
+    TrainModelRequest,
     build_training_run_spec,
 )
 

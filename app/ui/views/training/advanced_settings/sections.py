@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import webbrowser
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -24,7 +24,11 @@ if TYPE_CHECKING:
     from .advanced_settings_dialog import AdvancedTrainingSettingsDialog
 
 
-def build_preset_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout, presets: list[tuple[str, str, dict[str, Any]]]) -> None:
+def build_preset_section(
+    dlg: AdvancedTrainingSettingsDialog,
+    form: QVBoxLayout,
+    presets: list[tuple[str, str, dict[str, Any]]],
+) -> None:
     t = Tokens
     grp = QGroupBox("Пресеты")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -53,7 +57,7 @@ def build_preset_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayou
     dlg._update_preset_description()
 
 
-def build_profile_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_profile_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Профиль")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -63,7 +67,9 @@ def build_profile_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayo
     dlg._profile_combo = QComboBox()
     dlg._profile_combo.setEditable(False)
     dlg._profile_combo.setStyleSheet(edit_style())
-    dlg._profile_combo.setToolTip("Выберите сохранённый профиль или «Стандартный» для значений по умолчанию.")
+    dlg._profile_combo.setToolTip(
+        "Выберите сохранённый профиль или «Стандартный» для значений по умолчанию."
+    )
     dlg._profile_combo.currentTextChanged.connect(dlg._on_profile_selected)
     pro_ly.addWidget(dlg._profile_combo, 1)
 
@@ -80,7 +86,7 @@ def build_profile_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayo
     form.addWidget(grp)
 
 
-def build_albumentations_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_albumentations_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Аугментация (Albumentations)")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -121,7 +127,9 @@ def build_albumentations_section(dlg: 'AdvancedTrainingSettingsDialog', form: QV
     btn_row = QHBoxLayout()
     doc_btn = SecondaryButton("Подробнее")
     doc_btn.setToolTip("Документация Ultralytics по Albumentations.")
-    doc_btn.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/albumentations/"))
+    doc_btn.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/albumentations/")
+    )
     reset_btn = SecondaryButton("Сбросить по умолчанию")
     reset_btn.setToolTip("Включить «Стандартные», p=50%, отключить аугментацию.")
     reset_btn.clicked.connect(dlg._reset_albumentations_default)
@@ -135,7 +143,7 @@ def build_albumentations_section(dlg: 'AdvancedTrainingSettingsDialog', form: QV
     dlg._load_albumentations_into_form()
 
 
-def build_performance_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_performance_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Производительность и память")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -143,20 +151,24 @@ def build_performance_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBox
 
     dlg._cache_cb = QCheckBox("Кэшировать датасет в RAM")
     dlg._cache_cb.setChecked(dlg._values["cache"])
-    dlg._cache_cb.setToolTip("Загрузить все изображения в оперативную память. Ускоряет эпохи, но требует много RAM.")
+    dlg._cache_cb.setToolTip(
+        "Загрузить все изображения в оперативную память. Ускоряет эпохи, но требует много RAM."
+    )
     dlg._widgets["cache"] = dlg._cache_cb
     ly.addRow(dlg._cache_cb)
 
     dlg._amp_cb = QCheckBox("Смешанная точность (AMP)")
     dlg._amp_cb.setChecked(dlg._values["amp"])
-    dlg._amp_cb.setToolTip("Использовать автоматическую смешанную точность (FP16) на GPU. Обычно оставлять включённым.")
+    dlg._amp_cb.setToolTip(
+        "Использовать автоматическую смешанную точность (FP16) на GPU. Обычно оставлять включённым."
+    )
     dlg._widgets["amp"] = dlg._amp_cb
     ly.addRow(dlg._amp_cb)
 
     form.addWidget(grp)
 
 
-def build_lr_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_lr_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Learning rate")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -168,7 +180,9 @@ def build_lr_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -
     dlg._lr0.setSingleStep(0.001)
     dlg._lr0.setValue(dlg._values["lr0"])
     dlg._lr0.setStyleSheet(edit_style())
-    dlg._lr0.setToolTip("Начальный learning rate. При optimizer=auto может игнорироваться (подбор авто).")
+    dlg._lr0.setToolTip(
+        "Начальный learning rate. При optimizer=auto может игнорироваться (подбор авто)."
+    )
     dlg._widgets["lr0"] = dlg._lr0
     ly.addRow("Начальный (lr0):", dlg._lr0)
 
@@ -184,7 +198,9 @@ def build_lr_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -
     form.addWidget(grp)
 
 
-def build_yolo_augmentation_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_yolo_augmentation_section(
+    dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout
+) -> None:
     t = Tokens
     grp = QGroupBox("Встроенная аугментация YOLO")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -213,7 +229,9 @@ def build_yolo_augmentation_section(dlg: 'AdvancedTrainingSettingsDialog', form:
     dlg._close_mosaic.setRange(0, 1000)
     dlg._close_mosaic.setValue(dlg._values["close_mosaic"])
     dlg._close_mosaic.setStyleSheet(edit_style())
-    dlg._close_mosaic.setToolTip("За сколько эпох до конца отключить mosaic (стабилизация в конце).")
+    dlg._close_mosaic.setToolTip(
+        "За сколько эпох до конца отключить mosaic (стабилизация в конце)."
+    )
     dlg._widgets["close_mosaic"] = dlg._close_mosaic
     ly.addRow("Отключить mosaic за (эпох):", dlg._close_mosaic)
 
@@ -238,7 +256,7 @@ def build_yolo_augmentation_section(dlg: 'AdvancedTrainingSettingsDialog', form:
     form.addWidget(grp)
 
 
-def build_repro_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_repro_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Воспроизводимость")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -248,14 +266,16 @@ def build_repro_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout
     dlg._seed.setRange(0, 2**31 - 1)
     dlg._seed.setValue(dlg._values["seed"])
     dlg._seed.setStyleSheet(edit_style())
-    dlg._seed.setToolTip("Seed для генератора случайных чисел. 0 — случайный seed при каждом запуске.")
+    dlg._seed.setToolTip(
+        "Seed для генератора случайных чисел. 0 — случайный seed при каждом запуске."
+    )
     dlg._widgets["seed"] = dlg._seed
     ly.addRow("Seed (0 = случайный):", dlg._seed)
 
     form.addWidget(grp)
 
 
-def build_loss_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_loss_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Веса потерь (advanced)")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
@@ -291,7 +311,7 @@ def build_loss_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout)
     form.addWidget(grp)
 
 
-def build_geom_hsv_section(dlg: 'AdvancedTrainingSettingsDialog', form: QVBoxLayout) -> None:
+def build_geom_hsv_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Геометрия и цвет (HSV)")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")

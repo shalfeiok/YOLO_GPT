@@ -11,5 +11,6 @@ __all__ = ["DetectionView"]
 def __getattr__(name: str):
     if name == "DetectionView":
         from .view import DetectionView
+
         return DetectionView
     raise AttributeError(name)

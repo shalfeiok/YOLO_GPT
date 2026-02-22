@@ -5,7 +5,6 @@ Ref: https://docs.ultralytics.com/ru/integrations/comet/
 """
 
 import os
-from typing import Any
 
 from app.features.comet_integration.domain import CometConfig
 

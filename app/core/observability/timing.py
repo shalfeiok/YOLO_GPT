@@ -5,10 +5,9 @@ from __future__ import annotations
 import functools
 import logging
 import time
-from contextlib import contextmanager
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any, TypeVar
-
 
 T = TypeVar("T")
 

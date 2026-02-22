@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.application.use_cases.stop_detection import StopDetectionError, StopDetectionRequest, StopDetectionUseCase
+from app.application.use_cases.stop_detection import (
+    StopDetectionError,
+    StopDetectionRequest,
+    StopDetectionUseCase,
+)
 
 
 class DummyDetector:

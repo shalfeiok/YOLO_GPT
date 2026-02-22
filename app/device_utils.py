@@ -1,10 +1,9 @@
 """Device selection: prefer GPU; fall back to CPU only on runtime error (e.g. RTX 50xx sm_120)."""
+
 from __future__ import annotations
 
 # PyTorch 2.6 stable supports up to sm_90. RTX 5060 (sm_120) needs PyTorch nightly.
-PYTORCH_NIGHTLY_HINT = (
-    "Для GPU на RTX 50xx: pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128"
-)
+PYTORCH_NIGHTLY_HINT = "Для GPU на RTX 50xx: pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128"
 
 # Full hint with network troubleshooting (getaddrinfo failed / no connection).
 PYTORCH_NIGHTLY_HINT_FULL = """Для GPU на RTX 50xx нужен PyTorch nightly (cu128).
@@ -33,6 +32,7 @@ def is_cuda_unsupported_capability() -> bool:
     """True if GPU is present but has capability not supported by this PyTorch (e.g. sm_120)."""
     try:
         import torch
+
         if not torch.cuda.is_available():
             return False
         cap = torch.cuda.get_device_capability(0)

@@ -5,11 +5,11 @@ This wraps the low-level trainer service behind a stable, UI-friendly API.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-import logging
 from pathlib import Path
-from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.core.events import (
@@ -21,7 +21,6 @@ from app.core.events import (
     TrainingStarted,
 )
 from app.core.observability.timing import timed
-
 
 log = logging.getLogger(__name__)
 
@@ -46,11 +45,9 @@ class TrainerPort(Protocol):
         workers: int,
         optimizer: str,
         advanced_options: dict[str, Any],
-    ) -> Path | None:
-        ...
+    ) -> Path | None: ...
 
-    def stop(self) -> None:
-        ...
+    def stop(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +111,9 @@ class TrainingRunSpec:
         }
 
 
-def build_training_run_spec(request: TrainModelRequest, profile: TrainingProfile | None = None) -> TrainingRunSpec:
+def build_training_run_spec(
+    request: TrainModelRequest, profile: TrainingProfile | None = None
+) -> TrainingRunSpec:
     adv = dict(request.advanced_options)
     cache: bool | str = adv.get("cache", False)
     deterministic = bool(adv.get("deterministic", False))
@@ -170,8 +169,16 @@ class TrainModelUseCase:
         on_progress: Callable[[float, str], None] | None = None,
         console_queue: Any = None,
     ) -> Path | None:
-        profile_raw = request.advanced_options.get("run_profile") if isinstance(request.advanced_options, dict) else None
-        profile = TrainingProfile(profile_raw) if profile_raw in {p.value for p in TrainingProfile} else None
+        profile_raw = (
+            request.advanced_options.get("run_profile")
+            if isinstance(request.advanced_options, dict)
+            else None
+        )
+        profile = (
+            TrainingProfile(profile_raw)
+            if profile_raw in {p.value for p in TrainingProfile}
+            else None
+        )
         spec = build_training_run_spec(request, profile=profile)
 
         log.info(
@@ -186,7 +193,9 @@ class TrainModelUseCase:
         )
         if self._bus is not None:
             self._bus.publish(
-                TrainingStarted(model_name=spec.model_name, epochs=spec.epochs, project=spec.project)
+                TrainingStarted(
+                    model_name=spec.model_name, epochs=spec.epochs, project=spec.project
+                )
             )
 
         cancelled = False
@@ -226,21 +235,33 @@ class TrainModelUseCase:
                 self._bus.publish(TrainingFailed(error=e))
             log.exception(
                 "Training failed",
-                extra={"event": "training_failed", "model": request.model_name, "project": str(request.project)},
+                extra={
+                    "event": "training_failed",
+                    "model": request.model_name,
+                    "project": str(request.project),
+                },
             )
             raise
         else:
             if cancelled:
                 log.info(
                     "Training cancelled",
-                    extra={"event": "training_cancelled", "model": request.model_name, "project": str(request.project)},
+                    extra={
+                        "event": "training_cancelled",
+                        "model": request.model_name,
+                        "project": str(request.project),
+                    },
                 )
                 return None
             if self._bus is not None:
                 self._bus.publish(TrainingFinished(best_weights_path=best))
             log.info(
                 "Training finished",
-                extra={"event": "training_finished", "model": request.model_name, "project": str(request.project)},
+                extra={
+                    "event": "training_finished",
+                    "model": request.model_name,
+                    "project": str(request.project),
+                },
             )
             return best
 

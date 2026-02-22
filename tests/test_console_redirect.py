@@ -1,5 +1,5 @@
 """Тесты редиректа stdout/stderr и удаления ANSI-последовательностей."""
-import pytest
+
 
 from app.console_redirect import strip_ansi
 
@@ -29,6 +29,7 @@ class TestStdoutStderrRedirect:
     def test_nested_redirect_restore_is_safe(self, monkeypatch):
         import sys
         from queue import Queue
+
         from app.console_redirect import redirect_stdout_stderr_to_queue, restore_stdout_stderr
 
         q1, q2 = Queue(), Queue()

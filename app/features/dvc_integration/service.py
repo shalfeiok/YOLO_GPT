@@ -7,8 +7,8 @@ Ref: https://docs.ultralytics.com/ru/integrations/dvc/
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.config import PROJECT_ROOT
 
@@ -85,7 +85,10 @@ def run_dvc_plots_diff(
         )
         names = (list_cmd.stdout or "").strip().splitlines() if list_cmd.returncode == 0 else []
         if not names:
-            return False, "Нет экспериментов (dvc exp list пуст). Запустите обучение с включённым DVC."
+            return (
+                False,
+                "Нет экспериментов (dvc exp list пуст). Запустите обучение с включённым DVC.",
+            )
         cmd = ["dvc", "plots", "diff"] + names
         if on_output:
             on_output(" ".join(cmd) + "\n")

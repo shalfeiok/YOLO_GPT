@@ -1,9 +1,10 @@
 """
 Toast notification: show message, auto-hide after delay. Non-modal overlay.
 """
+
 from __future__ import annotations
 
-from PySide6.QtCore import QPropertyAnimation, QTimer, Qt
+from PySide6.QtCore import QPropertyAnimation, Qt, QTimer
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QWidget
 
 from app.ui.theme.tokens import Tokens

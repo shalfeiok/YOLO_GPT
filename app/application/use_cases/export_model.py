@@ -12,8 +12,7 @@ from app.features.model_export.service import run_export
 class ModelExporterPort(Protocol):
     """Port the application layer needs for model export."""
 
-    def export(self, config: ModelExportConfig) -> Path | None:
-        ...
+    def export(self, config: ModelExportConfig) -> Path | None: ...
 
 
 class DefaultModelExporter:

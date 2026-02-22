@@ -2,12 +2,12 @@
 Training ViewModel: starts/stops training via ITrainer, bridges progress and console to signals.
 Does not hold UI; View subscribes to signals and calls start_training/stop_training.
 """
+
 from __future__ import annotations
 
 import logging
 import time
 import uuid
-
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
@@ -15,12 +15,19 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer
 
-from app.console_redirect import strip_ansi
-from app.training_metrics import parse_metrics_line, parse_progress_line
 from app.application.use_cases.train_model import TrainModelRequest
-from app.core.observability.run_manifest import register_run
+from app.console_redirect import strip_ansi
 from app.core.events import TrainingCancelled, TrainingFailed, TrainingFinished, TrainingProgress
-from app.core.events.job_events import JobCancelled, JobFailed, JobFinished, JobLogLine, JobProgress, JobStarted
+from app.core.events.job_events import (
+    JobCancelled,
+    JobFailed,
+    JobFinished,
+    JobLogLine,
+    JobProgress,
+    JobStarted,
+)
+from app.core.observability.run_manifest import register_run
+from app.training_metrics import parse_metrics_line, parse_progress_line
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -74,30 +81,49 @@ class TrainingViewModel(QObject):
             )
             if should_emit:
                 self._container.event_bus.publish(
-                    JobProgress(job_id=self._active_job_id, name="training", progress=ev.fraction, message=ev.message)
+                    JobProgress(
+                        job_id=self._active_job_id,
+                        name="training",
+                        progress=ev.fraction,
+                        message=ev.message,
+                    )
                 )
                 self._last_job_progress_ts = now
                 self._last_job_progress_key = progress_key
-        self._emit_on_ui_thread(lambda: self._signals.progress_updated.emit(ev.fraction, ev.message))
+        self._emit_on_ui_thread(
+            lambda: self._signals.progress_updated.emit(ev.fraction, ev.message)
+        )
 
     def _on_training_finished(self, ev: TrainingFinished) -> None:
         if self._active_job_id:
-            self._container.event_bus.publish(JobProgress(job_id=self._active_job_id, name="training", progress=1.0, message="finished"))
-            self._container.event_bus.publish(JobFinished(job_id=self._active_job_id, name="training", result=None))
+            self._container.event_bus.publish(
+                JobProgress(
+                    job_id=self._active_job_id, name="training", progress=1.0, message="finished"
+                )
+            )
+            self._container.event_bus.publish(
+                JobFinished(job_id=self._active_job_id, name="training", result=None)
+            )
             self._active_job_id = None
-        self._emit_on_ui_thread(lambda: self._signals.training_finished.emit(ev.best_weights_path, None))
+        self._emit_on_ui_thread(
+            lambda: self._signals.training_finished.emit(ev.best_weights_path, None)
+        )
 
     def _on_training_failed(self, ev: TrainingFailed) -> None:
         self._join_training_thread_async()
         if self._active_job_id:
-            self._container.event_bus.publish(JobFailed(job_id=self._active_job_id, name="training", error=str(ev.error)))
+            self._container.event_bus.publish(
+                JobFailed(job_id=self._active_job_id, name="training", error=str(ev.error))
+            )
             self._active_job_id = None
         self._emit_on_ui_thread(lambda: self._signals.training_finished.emit(None, str(ev.error)))
 
     def _on_training_cancelled(self, ev: TrainingCancelled) -> None:
         self._join_training_thread_async()
         if self._active_job_id:
-            self._container.event_bus.publish(JobCancelled(job_id=self._active_job_id, name="training"))
+            self._container.event_bus.publish(
+                JobCancelled(job_id=self._active_job_id, name="training")
+            )
             self._active_job_id = None
         self._emit_on_ui_thread(lambda: self._signals.training_finished.emit(None, ev.message))
 
@@ -136,7 +162,11 @@ class TrainingViewModel(QObject):
         self._last_log_line = None
         self._last_log_repeat_count = 0
         self._container.event_bus.publish(JobStarted(job_id=self._active_job_id, name="training"))
-        self._container.event_bus.publish(JobProgress(job_id=self._active_job_id, name="training", progress=0.0, message="started"))
+        self._container.event_bus.publish(
+            JobProgress(
+                job_id=self._active_job_id, name="training", progress=0.0, message="started"
+            )
+        )
         try:
             register_run(
                 job_id=self._active_job_id,
@@ -155,7 +185,10 @@ class TrainingViewModel(QObject):
                     "optimizer": optimizer,
                     "advanced_options": advanced_options or {},
                 },
-                artifacts={"project_dir": str(project), "log_path": None if log_path is None else str(log_path)},
+                artifacts={
+                    "project_dir": str(project),
+                    "log_path": None if log_path is None else str(log_path),
+                },
             )
         except Exception:
             log.exception("Failed to create training run manifest")
@@ -186,18 +219,24 @@ class TrainingViewModel(QObject):
                     self._console_queue.put(None)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('Training view-model cleanup failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "Training view-model cleanup failed", exc_info=True
+                    )
             finally:
                 # Ensure console polling can stop.
                 try:
                     self._console_queue.put(None)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('Training view-model cleanup failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "Training view-model cleanup failed", exc_info=True
+                    )
+
         self._training_thread = Thread(target=run, daemon=False)
         self._training_thread.start()
         self._console_timer.start(CONSOLE_POLL_MS)
-
 
     def _join_training_thread_async(self) -> None:
         """Join the training thread without blocking the UI thread."""
@@ -231,7 +270,10 @@ class TrainingViewModel(QObject):
                             self._log_file.close()
                         except Exception:
                             import logging
-                            logging.getLogger(__name__).debug('Training view-model cleanup failed', exc_info=True)
+
+                            logging.getLogger(__name__).debug(
+                                "Training view-model cleanup failed", exc_info=True
+                            )
                         self._log_file = None
                     self._console_queue = None
                     if batch:
@@ -249,7 +291,10 @@ class TrainingViewModel(QObject):
                         self._log_file.flush()
                     except Exception:
                         import logging
-                        logging.getLogger(__name__).debug('Training view-model cleanup failed', exc_info=True)
+
+                        logging.getLogger(__name__).debug(
+                            "Training view-model cleanup failed", exc_info=True
+                        )
         except Empty:
             pass
         if batch:

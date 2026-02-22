@@ -2,9 +2,10 @@
 Validated numeric input: min/max, tooltip, optional suffix. Uses theme.
 NoWheelSpinBox: QSpinBox без изменения значения колёсиком мыши.
 """
+
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QSlider, QSpinBox, QWidget
 
