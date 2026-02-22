@@ -375,12 +375,13 @@ class TrainingView(QWidget):
     def _on_job_progress(self, event: JobProgress) -> None:
         if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
             return
-        self._on_progress(event.progress, event.message or "")
+        QTimer.singleShot(0, lambda e=event: self._on_progress(e.progress, e.message or ""))
 
     def _on_job_log_line(self, event: JobLogLine) -> None:
         if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
             return
-        self._on_console_lines_batch(event.line.splitlines())
+        lines = event.line.splitlines()
+        QTimer.singleShot(0, lambda ls=lines: self._on_console_lines_batch(ls))
 
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)

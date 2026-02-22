@@ -184,7 +184,10 @@ class JobsView(QWidget):
         super().closeEvent(event)
 
     def _on_job_event(self, event) -> None:
-        # Job events can arrive from worker threads
+        # Job events can arrive from worker threads.
+        QTimer.singleShot(0, lambda e=event: self._on_job_event_ui(e))
+
+    def _on_job_event_ui(self, event) -> None:
         if isinstance(event, JobLogLine) and event.job_id == self._selected_job_id:
             self._append_log_lines(event.line.splitlines())
         if self._refresh_scheduled:
