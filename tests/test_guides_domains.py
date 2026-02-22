@@ -1,6 +1,5 @@
 """Тесты доменных моделей гайдов: сегментация, валидация, Solutions."""
 
-
 from app.features.model_validation.domain import ModelValidationConfig
 from app.features.segmentation_isolation.domain import SegIsolationConfig
 from app.features.ultralytics_solutions.domain import (

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from app.core.events.job_events import (
     JobCancelled,
     JobFailed,
@@ -11,8 +13,11 @@ from app.core.events.job_events import (
     JobTimedOut,
 )
 
+if TYPE_CHECKING:
+    from app.core.jobs.job_registry import JobRegistry
 
-def replay_records(registry: "JobRegistry") -> None:
+
+def replay_records(registry: JobRegistry) -> None:
     assert registry._store is not None
     for rec in registry._store.load():
         t = rec.get("type")
@@ -32,7 +37,9 @@ def replay_records(registry: "JobRegistry") -> None:
             except Exception:
                 progress = 0.0
             registry._apply_progress(
-                JobProgress(job_id=job_id, name=name, progress=progress, message=data.get("message")),
+                JobProgress(
+                    job_id=job_id, name=name, progress=progress, message=data.get("message")
+                ),
                 persist=False,
             )
         elif t == "JobLogLine":
@@ -40,9 +47,13 @@ def replay_records(registry: "JobRegistry") -> None:
             if line:
                 registry._apply_log(JobLogLine(job_id=job_id, name=name, line=line), persist=False)
         elif t == "JobFinished":
-            registry._apply_finished(JobFinished(job_id=job_id, name=name, result=None), persist=False)
+            registry._apply_finished(
+                JobFinished(job_id=job_id, name=name, result=None), persist=False
+            )
         elif t == "JobFailed":
-            registry._apply_failed(JobFailed(job_id=job_id, name=name, error=str(data.get("error", ""))), persist=False)
+            registry._apply_failed(
+                JobFailed(job_id=job_id, name=name, error=str(data.get("error", ""))), persist=False
+            )
         elif t == "JobCancelled":
             registry._apply_cancelled(JobCancelled(job_id=job_id, name=name), persist=False)
         elif t == "JobRetrying":
@@ -52,7 +63,13 @@ def replay_records(registry: "JobRegistry") -> None:
             except Exception:
                 attempt, max_attempts = 1, 1
             registry._apply_retrying(
-                JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=str(data.get("error", ""))),
+                JobRetrying(
+                    job_id=job_id,
+                    name=name,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    error=str(data.get("error", "")),
+                ),
                 persist=False,
             )
         elif t == "JobTimedOut":

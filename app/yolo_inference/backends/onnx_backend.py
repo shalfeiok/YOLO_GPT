@@ -126,7 +126,7 @@ def _prepend_cuda_paths_windows() -> None:
         return
     paths_to_add: list[str] = []
     cuda_root = (
-        Path(os.environ.get("ProgramFiles", "C:\\Program Files"))
+        Path(os.environ.get("PROGRAMFILES", "C:\\Program Files"))
         / "NVIDIA GPU Computing Toolkit"
         / "CUDA"
     )

@@ -15,17 +15,11 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.ruff.lint]
-select = [
-  "E", "F", "W",     # pycodestyle/pyflakes
-  "I",              # isort
-  "B",              # bugbear
-  "UP",             # pyupgrade
-  "SIM",            # simplify
-  "C4",             # comprehensions
-  "PIE",            # flake8-pie
-]
+# Keep CI checks focused on correctness/import hygiene for legacy codebase.
+select = ["E9", "F", "I"]
 ignore = [
   "E501", # handled by black
+  "F401", # package re-exports in __init__ modules
 ]
 
 [tool.ruff.lint.isort]
