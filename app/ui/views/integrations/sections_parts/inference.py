@@ -1,15 +1,34 @@
 from __future__ import annotations
 
 import webbrowser
+from pathlib import Path
 
-from PySide6.QtWidgets import QCheckBox, QComboBox, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QVBoxLayout,
+)
 
-from app.application.ports.integrations import EXPORT_FORMATS, ModelExportConfig, SahiConfig, SegIsolationConfig
+from app.application.ports.integrations import (
+    EXPORT_FORMATS,
+    ModelExportConfig,
+    SahiConfig,
+    SegIsolationConfig,
+)
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.theme import Tokens
-from app.ui.infrastructure.file_dialogs import get_open_model_or_yaml_path
+from app.ui.infrastructure.file_dialogs import (
+    get_existing_dir,
+    get_open_model_or_yaml_path,
+    get_open_pt_path,
+)
 
 from .common import SectionsCtx, edit_style
+
 
 def build_export(ctx: SectionsCtx) -> QGroupBox:
     t = Tokens

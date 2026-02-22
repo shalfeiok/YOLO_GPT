@@ -10,7 +10,14 @@ from app.application.jobs.risky_job_fns import (
     sahi_predict_job,
     tune_job,
 )
-from app.application.ports.integrations import KFoldConfig, ModelExportConfig, ModelValidationConfig, SahiConfig, SegIsolationConfig, TuningConfig
+from app.application.ports.integrations import (
+    KFoldConfig,
+    ModelExportConfig,
+    ModelValidationConfig,
+    SahiConfig,
+    SegIsolationConfig,
+    TuningConfig,
+)
 from app.application.use_cases.export_model import DefaultModelExporter, ExportModelUseCase
 from app.application.use_cases.validate_model import DefaultModelValidator, ValidateModelUseCase
 from app.core.errors import CancelledError
@@ -18,17 +25,29 @@ from app.core.errors import CancelledError
 
 class IntegrationsActionsMixin:
     def run_export(self, *, model_path: str, export_format: str, output_dir: str) -> str:
-        return self.export_model_async(ModelExportConfig(weights_path=model_path, format=export_format, output_dir=output_dir))
+        return self.export_model_async(
+            ModelExportConfig(weights_path=model_path, format=export_format, output_dir=output_dir)
+        )
 
     def run_validation(self, *, model_path: str, data_yaml: str) -> str:
-        return self.validate_model_async(ModelValidationConfig(weights_path=model_path, data_yaml=data_yaml))
+        return self.validate_model_async(
+            ModelValidationConfig(weights_path=model_path, data_yaml=data_yaml)
+        )
 
     def export_model(self, cfg: ModelExportConfig) -> Path | None:
-        uc = self._container.export_model_use_case if self._container else ExportModelUseCase(DefaultModelExporter())
+        uc = (
+            self._container.export_model_use_case
+            if self._container
+            else ExportModelUseCase(DefaultModelExporter())
+        )
         return uc.execute(cfg)
 
     def validate_model(self, cfg: ModelValidationConfig) -> dict[str, Any]:
-        uc = self._container.validate_model_use_case if self._container else ValidateModelUseCase(DefaultModelValidator())
+        uc = (
+            self._container.validate_model_use_case
+            if self._container
+            else ValidateModelUseCase(DefaultModelValidator())
+        )
         return uc.execute(cfg)
 
     def kfold_split(self, cfg: KFoldConfig) -> list[Path]:
@@ -79,7 +98,9 @@ class IntegrationsActionsMixin:
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.process_job_runner.submit(name, fn, **kwargs))
+        reg.set_rerun(
+            h.job_id, lambda: self._container.process_job_runner.submit(name, fn, **kwargs)
+        )
         return h.job_id
 
     def export_model_async(self, cfg: ModelExportConfig) -> str:
@@ -93,7 +114,9 @@ class IntegrationsActionsMixin:
             progress(0.95, "finalizing")
             return out
 
-        return self._submit_thread_job("export_model", _fn, **self._policy_kwargs(min_timeout_sec=600))
+        return self._submit_thread_job(
+            "export_model", _fn, **self._policy_kwargs(min_timeout_sec=600)
+        )
 
     def validate_model_async(self, cfg: ModelValidationConfig) -> str:
         if not self._container:
@@ -106,7 +129,9 @@ class IntegrationsActionsMixin:
             progress(0.95, "finalizing")
             return res
 
-        return self._submit_thread_job("validate_model", _fn, **self._policy_kwargs(min_timeout_sec=900))
+        return self._submit_thread_job(
+            "validate_model", _fn, **self._policy_kwargs(min_timeout_sec=900)
+        )
 
     def kfold_split_async(self, cfg: KFoldConfig) -> str:
         if not self._container:
@@ -142,13 +167,19 @@ class IntegrationsActionsMixin:
         if not self._container:
             self.tune(cfg)
             return ""
-        return self._submit_process_job("tune", partial(tune_job, cfg=cfg), **self._policy_kwargs(min_timeout_sec=1200))
+        return self._submit_process_job(
+            "tune", partial(tune_job, cfg=cfg), **self._policy_kwargs(min_timeout_sec=1200)
+        )
 
     def sahi_predict_async(self, cfg: SahiConfig) -> str:
         if not self._container:
             self.sahi_predict(cfg)
             return ""
-        return self._submit_process_job("sahi_predict", partial(sahi_predict_job, cfg=cfg), **self._policy_kwargs(min_timeout_sec=900))
+        return self._submit_process_job(
+            "sahi_predict",
+            partial(sahi_predict_job, cfg=cfg),
+            **self._policy_kwargs(min_timeout_sec=900),
+        )
 
     def seg_isolate_async(self, cfg: SegIsolationConfig) -> str:
         if not self._container:
@@ -169,13 +200,21 @@ class IntegrationsActionsMixin:
         if not self._container:
             self.sagemaker_clone_template(base_dir)
             return ""
-        return self._submit_process_job("sagemaker_clone_template", partial(sagemaker_clone_template_job, base_dir=base_dir), **self._policy_kwargs(min_timeout_sec=600, min_retries=1, min_backoff_sec=2.0))
+        return self._submit_process_job(
+            "sagemaker_clone_template",
+            partial(sagemaker_clone_template_job, base_dir=base_dir),
+            **self._policy_kwargs(min_timeout_sec=600, min_retries=1, min_backoff_sec=2.0),
+        )
 
     def sagemaker_cdk_deploy_async(self, template_dir: Path) -> str:
         if not self._container:
             self.sagemaker_cdk_deploy(template_dir)
             return ""
-        return self._submit_process_job("sagemaker_cdk_deploy", partial(sagemaker_cdk_deploy_job, template_dir=template_dir), **self._policy_kwargs(min_timeout_sec=1800, min_retries=2, min_backoff_sec=3.0))
+        return self._submit_process_job(
+            "sagemaker_cdk_deploy",
+            partial(sagemaker_cdk_deploy_job, template_dir=template_dir),
+            **self._policy_kwargs(min_timeout_sec=1800, min_retries=2, min_backoff_sec=3.0),
+        )
 
     def cancel_job(self, job_id: str) -> bool:
         h = self._jobs.get(job_id)
