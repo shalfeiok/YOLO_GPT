@@ -59,19 +59,43 @@ class _ThreadLocalTextRouter(io.TextIOBase):
 
 _STDOUT_ROUTER: _ThreadLocalTextRouter | None = None
 _STDERR_ROUTER: _ThreadLocalTextRouter | None = None
+_ORIGINAL_STDOUT: io.TextIOBase | None = None
+_ORIGINAL_STDERR: io.TextIOBase | None = None
+_ROUTER_USERS = 0
+_ROUTER_LOCK = RLock()
 
 
 def _ensure_stdio_routers() -> tuple[_ThreadLocalTextRouter, _ThreadLocalTextRouter]:
-    global _STDOUT_ROUTER, _STDERR_ROUTER
-    if _STDOUT_ROUTER is None:
-        out = _ThreadLocalTextRouter(cast(io.TextIOBase, sys.stdout))
-        sys.stdout = out
-        _STDOUT_ROUTER = out
-    if _STDERR_ROUTER is None:
-        err = _ThreadLocalTextRouter(cast(io.TextIOBase, sys.stderr))
-        sys.stderr = err
-        _STDERR_ROUTER = err
-    return _STDOUT_ROUTER, _STDERR_ROUTER
+    global _STDOUT_ROUTER, _STDERR_ROUTER, _ORIGINAL_STDOUT, _ORIGINAL_STDERR, _ROUTER_USERS
+    with _ROUTER_LOCK:
+        if _STDOUT_ROUTER is None:
+            _ORIGINAL_STDOUT = cast(io.TextIOBase, sys.stdout)
+            out = _ThreadLocalTextRouter(_ORIGINAL_STDOUT)
+            sys.stdout = out
+            _STDOUT_ROUTER = out
+        if _STDERR_ROUTER is None:
+            _ORIGINAL_STDERR = cast(io.TextIOBase, sys.stderr)
+            err = _ThreadLocalTextRouter(_ORIGINAL_STDERR)
+            sys.stderr = err
+            _STDERR_ROUTER = err
+        _ROUTER_USERS += 1
+        return _STDOUT_ROUTER, _STDERR_ROUTER
+
+
+def _release_stdio_routers() -> None:
+    global _STDOUT_ROUTER, _STDERR_ROUTER, _ORIGINAL_STDOUT, _ORIGINAL_STDERR, _ROUTER_USERS
+    with _ROUTER_LOCK:
+        _ROUTER_USERS = max(0, _ROUTER_USERS - 1)
+        if _ROUTER_USERS != 0:
+            return
+        if _ORIGINAL_STDOUT is not None:
+            sys.stdout = _ORIGINAL_STDOUT
+        if _ORIGINAL_STDERR is not None:
+            sys.stderr = _ORIGINAL_STDERR
+        _STDOUT_ROUTER = None
+        _STDERR_ROUTER = None
+        _ORIGINAL_STDOUT = None
+        _ORIGINAL_STDERR = None
 
 
 class CancelToken:
@@ -272,3 +296,4 @@ class JobRunner:
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+        _release_stdio_routers()

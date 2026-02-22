@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 from app.core.events import (
     EventBus,
@@ -21,33 +21,9 @@ from app.core.events import (
     TrainingStarted,
 )
 from app.core.observability.timing import timed
+from app.interfaces import ITrainer
 
 log = logging.getLogger(__name__)
-
-
-class TrainerPort(Protocol):
-    """Port the application layer needs from the training service."""
-
-    def train(
-        self,
-        *,
-        data_yaml: Path,
-        model_name: str,
-        epochs: int,
-        batch: int,
-        imgsz: int,
-        device: str,
-        patience: int,
-        project: Path,
-        on_progress: Callable[[float, str], None],
-        console_queue: Any,
-        weights_path: Path | None,
-        workers: int,
-        optimizer: str,
-        advanced_options: dict[str, Any],
-    ) -> Path | None: ...
-
-    def stop(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,7 +133,7 @@ def build_training_run_spec(
 class TrainModelUseCase:
     """Orchestrates model training."""
 
-    def __init__(self, trainer: TrainerPort, event_bus: EventBus | None = None) -> None:
+    def __init__(self, trainer: ITrainer, event_bus: EventBus | None = None) -> None:
         self._trainer = trainer
         self._bus = event_bus
 
