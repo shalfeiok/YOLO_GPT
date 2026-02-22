@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -66,7 +66,7 @@ def register_run(
 
     manifest = RunManifest(
         run_type=run_type,
-        timestamp=datetime.now(UTC).isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),  # noqa: UP017 (py310 compat)
         job_id=job_id,
         spec=spec,
         env=_python_env(),
