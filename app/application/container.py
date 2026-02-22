@@ -1,3 +1,4 @@
+#commit и версия
 """Composition root / DI container.
 
 UI should not import infrastructure services directly. This container lives in

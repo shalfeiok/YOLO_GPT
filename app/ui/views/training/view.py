@@ -1,3 +1,4 @@
+#commit и версия
 """
 Training View: parameters, progress, metrics, console. Binds to TrainingViewModel and signals.
 """

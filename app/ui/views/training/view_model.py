@@ -1,3 +1,4 @@
+#commit и версия
 """
 Training ViewModel: starts/stops training via ITrainer, bridges progress and console to signals.
 Does not hold UI; View subscribes to signals and calls start_training/stop_training.
