@@ -99,3 +99,8 @@ class EventBus:
                     "Event handler failed",
                     extra={"event_type": type(event).__name__, "handler": repr(handler)},
                 )
+
+    def clear(self) -> None:
+        """Remove all subscriptions."""
+        with self._lock:
+            self._subs.clear()

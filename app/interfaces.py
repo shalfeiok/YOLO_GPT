@@ -7,15 +7,14 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 
 
-class ITrainer(ABC):
+class ITrainer(Protocol):
     """Интерфейс обучения YOLO: запуск обучения и остановка по запросу."""
 
-    @abstractmethod
     def train(
         self,
         *,
@@ -37,7 +36,6 @@ class ITrainer(ABC):
         """Run training. Returns path to best weights. If weights_path is set, load from it instead of model_name."""
         ...
 
-    @abstractmethod
     def stop(self) -> None:
         """Request stop of current training."""
         ...

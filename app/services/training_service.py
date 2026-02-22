@@ -126,6 +126,7 @@ class TrainingService(ITrainer):
                 train_kw["augmentations"] = augmentations_list
             # Расширенные настройки из диалога (cache, lr0, lrf, mosaic, mixup, seed, box, cls, dfl и др.)
             if advanced_options:
+                ignored_advanced_options: list[str] = []
                 for k, v in advanced_options.items():
                     if k in (
                         "cache",
@@ -155,6 +156,13 @@ class TrainingService(ITrainer):
                         "weight_decay",
                     ):
                         train_kw[k] = v
+                    else:
+                        ignored_advanced_options.append(str(k))
+                if ignored_advanced_options:
+                    log.warning(
+                        "Unknown advanced training options were ignored: %s",
+                        ", ".join(sorted(ignored_advanced_options)),
+                    )
             # При cache=True на Windows spawn воркеров приводит к сериализации кэша в память → MemoryError.
             # Загрузка из кэша в одном процессе (workers=0) стабильна и быстра.
             if train_kw.get("cache"):

@@ -87,3 +87,13 @@ def test_duplicate_job_started_does_not_reset_state() -> None:
     assert rec.progress == 0.5
     assert rec.message == "half"
     assert rec.logs == ["hello"]
+
+
+def test_close_unsubscribes_registry_handlers() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    registry.close()
+    bus.publish(JobStarted(job_id="closed", name="task"))
+
+    assert registry.get("closed") is None
