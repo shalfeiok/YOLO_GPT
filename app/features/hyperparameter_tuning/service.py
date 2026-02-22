@@ -39,7 +39,7 @@ def run_tune(
         on_progress("Запуск настройки гиперпараметров…")
 
     model = YOLO(model_path, task="detect")
-    result = model.tune(
+    model.tune(
         data=cfg.data_yaml,
         epochs=cfg.epochs,
         iterations=cfg.iterations,

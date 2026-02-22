@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.ports.metrics import MetricsPort
+from app.core.events.job_events import JobLogLine, JobProgress
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -57,8 +59,19 @@ class TrainingView(QWidget):
         self._trained_choices: list[tuple[str, Path]] = []
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
+        self._bus_subs: list[object] = []
+        self._root_layout = QVBoxLayout(self)
+        self._loading_label = QLabel("Загрузка вкладки обучения…")
+        self._root_layout.addWidget(self._loading_label)
+        QTimer.singleShot(0, self._init_ui_async)
+
+    def _init_ui_async(self) -> None:
+        if self._loading_label is not None:
+            self._loading_label.deleteLater()
+            self._loading_label = None
         self._build_ui()
         self._connect_signals()
+        self._subscribe_job_logs()
 
     def _build_ui(self) -> None:
         build_training_ui(self)
@@ -125,8 +138,6 @@ class TrainingView(QWidget):
                 f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;"
             )
         self._metrics_dashboard.refresh_theme()
-        if hasattr(self._log_view, "refresh_theme"):
-            self._log_view.refresh_theme()
 
     def _add_dataset_row(self, layout: QVBoxLayout, num: int, initial: str = "") -> None:
         row = QWidget()
@@ -356,6 +367,22 @@ class TrainingView(QWidget):
             self._timer_eta_epoch.setText("—")
             self._timer_eta_total.setText("—")
 
+    def _subscribe_job_logs(self) -> None:
+        bus = self._container.event_bus
+        self._bus_subs.append(bus.subscribe_weak(JobLogLine, self._on_job_log_line))
+        self._bus_subs.append(bus.subscribe_weak(JobProgress, self._on_job_progress))
+
+    def _on_job_progress(self, event: JobProgress) -> None:
+        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
+            return
+        QTimer.singleShot(0, lambda e=event: self._on_progress(e.progress, e.message or ""))
+
+    def _on_job_log_line(self, event: JobLogLine) -> None:
+        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
+            return
+        lines = event.line.splitlines()
+        QTimer.singleShot(0, lambda ls=lines: self._on_console_lines_batch(ls))
+
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
@@ -372,8 +399,6 @@ class TrainingView(QWidget):
             if parsed:
                 self._current_metrics.update(parsed)
                 self._update_metrics_display()
-        if lines:
-            self._log_view.append_batch([(line, None) for line in lines])
 
     def _update_metrics_display(self) -> None:
         m = self._current_metrics
@@ -518,9 +543,6 @@ class TrainingView(QWidget):
         self._epoch_start_time = None
         self._last_epoch = None
         self._metrics_dashboard.clear()
-        self._log_view.clear()
-        self._log_view.append_line("Запуск обучения…")
-        self._log_view.append_line(f"Лог записывается в: {log_path}")
         self._vm.start_training(
             data_yaml=out_yaml,
             model_name=model_id or "yolo11n.pt",
@@ -542,3 +564,14 @@ class TrainingView(QWidget):
 
     def _optimizer_value(self) -> str:
         return self._optimizer_edit.text().strip()
+
+    def shutdown(self) -> None:
+        self._vm.stop_training()
+        bus = self._container.event_bus
+        for sub in self._bus_subs:
+            bus.unsubscribe(sub)
+        self._bus_subs.clear()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)

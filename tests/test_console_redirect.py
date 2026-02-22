@@ -1,6 +1,5 @@
 """Тесты редиректа stdout/stderr и удаления ANSI-последовательностей."""
 
-
 from app.console_redirect import strip_ansi
 
 

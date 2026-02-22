@@ -329,9 +329,7 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_rect_gdi(
-        self, left: int, top: int, width: int, height: int
-    ) -> np.ndarray | None:
+    def _capture_rect_gdi(self, left: int, top: int, width: int, height: int) -> np.ndarray | None:
         """Захват прямоугольной области экрана через GDI (для fallback при захвате окна)."""
         if self._win32 is None or width <= 0 or height <= 0:
             return None
