@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Event, Lock, Thread
@@ -78,6 +79,7 @@ if TYPE_CHECKING:
 from app.application.facades.capture import FrameSource
 from app.application.use_cases.start_detection import StartDetectionError, StartDetectionRequest
 from app.application.use_cases.stop_detection import StopDetectionRequest
+from app.core.events.job_events import JobCancelled, JobProgress, JobStarted
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +159,7 @@ class DetectionView(QWidget):
         # Double-buffer preview: no numpy.copy(), producer/consumer use different slots (Part 1.1)
         self._preview_buffer: PreviewBuffer = PreviewBuffer()
         self._run_id = 0
+        self._detection_job_id: str | None = None
         self._visualization_backend = None
         self._active_detector = None  # устанавливается при Старт: detector или detector_onnx
         self._metrics = DetectionMetrics()
@@ -758,6 +761,11 @@ class DetectionView(QWidget):
             return
 
         self._active_detector = res.detector
+        self._detection_job_id = uuid.uuid4().hex
+        self._container.event_bus.publish(JobStarted(job_id=self._detection_job_id, name="detection"))
+        self._container.event_bus.publish(
+            JobProgress(job_id=self._detection_job_id, name="detection", progress=0.0, message="started")
+        )
         conf_f, iou_f = res.confidence, res.iou
 
         # Part 3.4: ONNX export may be async; poll until loaded then start pipeline (no UI freeze)
@@ -1121,3 +1129,6 @@ class DetectionView(QWidget):
                 logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
             self._opencv_source = None
         self._on_detection_stopped(self._run_id)
+        if self._detection_job_id is not None:
+            self._container.event_bus.publish(JobCancelled(job_id=self._detection_job_id, name="detection"))
+            self._detection_job_id = None

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import numpy as np
+import uuid
 from pathlib import Path
 from typing import Any
 try:
@@ -49,6 +50,7 @@ from app.ui.components.inputs import NoWheelSlider
 from app.ui.components.photo_preview import show_scrollable_photo_dialog
 from app.ui.theme.tokens import Tokens
 from app.ui.views.datasets.worker import DatasetWorker
+from app.core.events.job_events import JobFailed, JobFinished, JobProgress, JobStarted
 
 PREVIEW_PHOTOS_COUNT = 6
 EFFECT_LABELS: dict[str, str] = {
@@ -88,8 +90,10 @@ def _progress_style(t: type) -> str:
 class DatasetsView(QWidget):
     """Вкладка «Датасет»: общие пути вверху, функции рядами с параметрами и «Применить»."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, container=None) -> None:
         super().__init__(parent)
+        self._container = container
+        self._bus = getattr(container, "event_bus", None)
         self._class_names: list[str] = []
         self._class_check_vars: list[QCheckBox] = []
         self._merge_check_vars: list[QCheckBox] = []
@@ -100,8 +104,27 @@ class DatasetsView(QWidget):
         self._worker.progress.connect(self._on_worker_progress)
         self._worker.finished.connect(self._on_worker_finished)
         self._current_row_id: str | None = None
+        self._current_job_id: str | None = None
         self._row_widgets: dict[str, tuple[Any, QLabel, Any]] = {}  # row_id -> (progress_bar, status_label, apply_btn)
         self._build_ui()
+
+    def _publish_job_start(self, row_id: str) -> None:
+        if self._bus is None:
+            return
+        self._current_job_id = uuid.uuid4().hex
+        self._bus.publish(JobStarted(job_id=self._current_job_id, name=f"dataset:{row_id}"))
+        self._bus.publish(JobProgress(job_id=self._current_job_id, name=f"dataset:{row_id}", progress=0.0, message="started"))
+
+    def _publish_job_done(self, *, success: bool, message: str) -> None:
+        if self._bus is None or self._current_job_id is None or self._current_row_id is None:
+            return
+        name = f"dataset:{self._current_row_id}"
+        if success:
+            self._bus.publish(JobProgress(job_id=self._current_job_id, name=name, progress=1.0, message=message))
+            self._bus.publish(JobFinished(job_id=self._current_job_id, name=name, result=None))
+        else:
+            self._bus.publish(JobFailed(job_id=self._current_job_id, name=name, error=message))
+        self._current_job_id = None
 
     def _build_ui(self) -> None:
         t = Tokens
@@ -431,9 +454,19 @@ class DatasetsView(QWidget):
             if prog is not None and prog.isVisible():
                 prog.setRange(0, 100)
                 prog.setValue(int(value * 100))
+            if self._bus is not None and self._current_job_id is not None:
+                self._bus.publish(
+                    JobProgress(
+                        job_id=self._current_job_id,
+                        name=f"dataset:{self._current_row_id}",
+                        progress=max(0.0, min(1.0, value)),
+                        message="running",
+                    )
+                )
 
     def _on_worker_finished(self, success: bool, message: str) -> None:
         row_id = self._current_row_id
+        self._publish_job_done(success=success, message=message)
         self._current_row_id = None
         self._thread.quit()
         if row_id:
@@ -445,6 +478,7 @@ class DatasetsView(QWidget):
 
     def _start_worker(self, row_id: str, task_id: str, params: dict[str, Any]) -> None:
         self._current_row_id = row_id
+        self._publish_job_start(row_id)
         self._set_row_busy(row_id, True)
         self._worker.set_task(task_id, params)
         self._thread.start()
