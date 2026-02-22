@@ -3,12 +3,26 @@ Stack controller: QStackedWidget + lazy tab loading. Creates view only on first 
 """
 from __future__ import annotations
 
+import logging
+import traceback
 from typing import Callable
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QLabel, QStackedWidget, QWidget
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QPushButton,
+    QPlainTextEdit,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
+from app.core.paths import get_app_state_dir
 from app.ui.components.demo import create_components_demo_widget
+
+log = logging.getLogger(__name__)
 
 # Tab ids in order (must match sidebar order)
 TAB_IDS = ("datasets", "training", "detection", "integrations", "jobs")
@@ -33,6 +47,43 @@ def _default_factory(tab_id: str) -> QWidget:
         titles.get(tab_id, tab_id),
         f"Контент будет добавлен в Phase 4–5. (tab_id: {tab_id})",
     )
+
+
+class _TabLoadErrorWidget(QWidget):
+    def __init__(self, tab_id: str, exc: BaseException, tb_text: str) -> None:
+        super().__init__()
+        self._traceback = tb_text
+        root = QVBoxLayout(self)
+
+        title = QLabel("Ошибка загрузки вкладки")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #ef4444;")
+        root.addWidget(title)
+
+        summary = QLabel(f"{tab_id}: {type(exc).__name__}: {exc}")
+        summary.setWordWrap(True)
+        root.addWidget(summary)
+
+        tb = QPlainTextEdit()
+        tb.setReadOnly(True)
+        tb.setPlainText(tb_text)
+        tb.setMinimumHeight(180)
+        root.addWidget(tb)
+
+        copy_btn = QPushButton("Copy traceback")
+        copy_btn.clicked.connect(self._copy_traceback)
+        root.addWidget(copy_btn)
+
+        logs_btn = QPushButton("Open logs folder")
+        logs_btn.clicked.connect(self._open_logs_folder)
+        root.addWidget(logs_btn)
+        root.addStretch(1)
+
+    def _copy_traceback(self) -> None:
+        QApplication.clipboard().setText(self._traceback)
+
+    def _open_logs_folder(self) -> None:
+        logs_path = get_app_state_dir()
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(logs_path)))
 
 
 class StackController:
@@ -73,7 +124,12 @@ class StackController:
                 return
             index = TAB_IDS.index(tab_id)
             factory = self._factories.get(tab_id) or (lambda: _default_factory(tab_id))
-            widget = factory()
+            try:
+                widget = factory()
+            except Exception as exc:
+                tb_text = traceback.format_exc()
+                log.exception("Failed to create tab '%s'", tab_id)
+                widget = _TabLoadErrorWidget(tab_id=tab_id, exc=exc, tb_text=tb_text)
             old_widget = self._stack.widget(index)
             self._stack.removeWidget(old_widget)
             old_widget.deleteLater()
