@@ -63,20 +63,18 @@ class EventBus:
         if wm is None:
             return self.subscribe(event_type, handler)
 
-        sub: Subscription | None = None
+        sub: Subscription
 
         def _wrapped(event: object) -> None:
-            nonlocal sub
             alive = wm()
             if alive is None:
-                if sub is not None:
-                    self.unsubscribe(sub)
+                self.unsubscribe(sub)
                 return
             alive(cast(TEvent, event))
 
+        sub = Subscription(event_type=event_type, handler=_wrapped)
         with self._lock:
             self._subs[event_type].append(_wrapped)
-        sub = Subscription(event_type=event_type, handler=_wrapped)
         return sub
 
     def unsubscribe(self, subscription: Subscription) -> None:

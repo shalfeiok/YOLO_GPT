@@ -18,6 +18,7 @@ class ITrainer(ABC):
     @abstractmethod
     def train(
         self,
+        *,
         data_yaml: Path,
         model_name: str,
         epochs: int,
@@ -27,8 +28,12 @@ class ITrainer(ABC):
         patience: int,
         project: Path,
         on_progress: Callable[[float, str], None] | None = None,
+        console_queue: Any = None,
         weights_path: Path | None = None,
-    ) -> Path:
+        workers: int = 0,
+        optimizer: str = "",
+        advanced_options: dict[str, Any] | None = None,
+    ) -> Path | None:
         """Run training. Returns path to best weights. If weights_path is set, load from it instead of model_name."""
         ...
 
