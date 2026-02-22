@@ -12,7 +12,7 @@ from app.features.comet_integration.domain import CometConfig
 from app.features.dvc_integration.domain import DVCConfig
 from app.features.hyperparameter_tuning.domain import TuningConfig
 from app.features.kfold_integration.domain import KFoldConfig
-from app.features.model_export.domain import ModelExportConfig
+from app.features.model_export.domain import EXPORT_FORMATS, ModelExportConfig
 from app.features.model_validation.domain import ModelValidationConfig
 from app.features.sagemaker_integration.domain import SageMakerConfig
 from app.features.sahi_integration.domain import SahiConfig
@@ -77,3 +77,11 @@ class IntegrationsPort(Protocol):
     def load_jobs_policy(self) -> JobsPolicyConfig: ...
 
     def save_jobs_policy(self, policy: JobsPolicyConfig) -> None: ...
+
+
+__all__ = [
+    "EXPORT_FORMATS",
+    "JobsPolicyConfig",
+    "IntegrationsState",
+    "IntegrationsPort",
+]
