@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from PySide6.QtCore import QTimer
 
-from app.core.events import JobCancelled, JobFailed, JobFinished, JobLogLine, JobProgress, JobRetrying, JobStarted, JobTimedOut
+from app.core.events import (
+    JobCancelled,
+    JobFailed,
+    JobFinished,
+    JobLogLine,
+    JobProgress,
+    JobRetrying,
+    JobStarted,
+    JobTimedOut,
+)
 
 
 class IntegrationsJobsMixin:
@@ -29,7 +38,9 @@ class IntegrationsJobsMixin:
             self._job_status.setText(f"Задача: {event.name} — {pct}%{msg}")
             return
         if isinstance(event, JobRetrying):
-            self._job_status.setText(f"Задача: {event.name} — повтор {event.attempt}/{event.max_attempts}: {event.error}")
+            self._job_status.setText(
+                f"Задача: {event.name} — повтор {event.attempt}/{event.max_attempts}: {event.error}"
+            )
             return
         if isinstance(event, JobFinished):
             self._job_status.setText(f"Задача: {event.name} — готово")
@@ -63,7 +74,9 @@ class IntegrationsJobsMixin:
             if event.name == "export_model" and event.result:
                 self._toast_ok("Экспорт", f"Готово: {event.result}")
             elif event.name == "validate_model" and isinstance(event.result, dict):
-                msg = "Готово.\n" + "\n".join(f"{k}: {float(v):.4f}" for k, v in event.result.items() if v is not None)
+                msg = "Готово.\n" + "\n".join(
+                    f"{k}: {float(v):.4f}" for k, v in event.result.items() if v is not None
+                )
                 self._toast_ok("Валидация", msg)
             elif event.name == "seg_isolate" and event.result is not None:
                 self._toast_ok("Seg isolation", f"Сохранено изображений: {event.result}.")
@@ -75,7 +88,9 @@ class IntegrationsJobsMixin:
                 self._toast_ok("Tuning", f"Готово: {event.result}")
             elif event.name == "sahi_predict":
                 self._toast_ok("SAHI", "Инференс по плиткам завершён.")
-            elif event.name in {"sagemaker_clone_template", "sagemaker_cdk_deploy"} and isinstance(event.result, tuple):
+            elif event.name in {"sagemaker_clone_template", "sagemaker_cdk_deploy"} and isinstance(
+                event.result, tuple
+            ):
                 ok, msg = event.result
                 (self._toast_ok if ok else self._toast_warn)("SageMaker", msg)
         except Exception:
