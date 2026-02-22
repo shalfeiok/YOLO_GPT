@@ -1,26 +1,34 @@
 """Создание вариантов датасета: размытие, качество, цвета, разрешение, засветка, затемнение, обесцвечивание."""
+
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
+
 
 # Варианты аугментации (ключ для UI, функция (img_bgr) -> img_bgr)
 def _blur(img: np.ndarray) -> np.ndarray:
     return cv2.GaussianBlur(img, (15, 15), 3)
 
+
 def _quality_down(img: np.ndarray) -> np.ndarray:
     _, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 55])
     return cv2.imdecode(buf, cv2.IMREAD_COLOR)
+
 
 def _color_shift(img: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.float32)
@@ -28,16 +36,20 @@ def _color_shift(img: np.ndarray) -> np.ndarray:
     hsv = np.clip(hsv, 0, 255).astype(np.uint8)
     return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
+
 def _resolution_down(img: np.ndarray) -> np.ndarray:
     h, w = img.shape[:2]
     small = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
     return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
 
+
 def _overexpose(img: np.ndarray) -> np.ndarray:
     return np.clip(img.astype(np.int32) + 60, 0, 255).astype(np.uint8)
 
+
 def _darken(img: np.ndarray) -> np.ndarray:
     return np.clip(img.astype(np.int32) - 50, 0, 255).astype(np.uint8)
+
 
 def _desaturate(img: np.ndarray) -> np.ndarray:
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

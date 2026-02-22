@@ -1,4 +1,5 @@
 """Console capture for in-app training log: logging handler (preferred) or stdout redirect (legacy)."""
+
 from __future__ import annotations
 
 import logging
@@ -6,7 +7,6 @@ import re
 import sys
 import threading
 from queue import Queue
-from typing import Optional
 
 # Убираем ANSI-последовательности (например \x1b[K — erase to end of line), чтобы в консоли не было мусора
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\[?[0-9;]*[a-zA-Z]?")
@@ -24,7 +24,7 @@ def strip_ansi(text: str) -> str:
 class QueueWriter:
     """Writes to a queue (each write is one put); original stream can be preserved."""
 
-    def __init__(self, queue: Queue, original: Optional[object] = None) -> None:
+    def __init__(self, queue: Queue, original: object | None = None) -> None:
         self._queue = queue
         self._original = original
         self._buffer: list[str] = []
@@ -59,7 +59,9 @@ class QueueWriter:
             self._original.flush()
 
 
-def redirect_stdout_stderr_to_queue(queue: Queue, also_keep_original: bool = False) -> tuple[object, object]:
+def redirect_stdout_stderr_to_queue(
+    queue: Queue, also_keep_original: bool = False
+) -> tuple[object, object]:
     """Replace sys.stdout and sys.stderr with QueueWriter. Returns (old_stdout, old_stderr).
 
     Thread-safe and re-entrant:
@@ -150,4 +152,5 @@ def detach_training_log_handler(attached: list[tuple[logging.Logger, TrainingLog
             logger.removeHandler(handler)
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('Failed to detach logging handler', exc_info=True)
+
+            logging.getLogger(__name__).debug("Failed to detach logging handler", exc_info=True)

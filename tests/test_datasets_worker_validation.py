@@ -15,7 +15,9 @@ def _load_worker_module():
     return mod
 
 
-def test_prepare_yolo_rejects_empty_output_for_non_voc(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_prepare_yolo_rejects_empty_output_for_non_voc(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     mod = _load_worker_module()
     DatasetWorker = mod.DatasetWorker
 

@@ -11,11 +11,13 @@ Internally we validate and normalize data through a typed dataclass schema
 
 No new third-party dependencies are introduced.
 """
+
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from app.config import INTEGRATIONS_CONFIG_PATH
 from app.features.integrations_migrations import migrate

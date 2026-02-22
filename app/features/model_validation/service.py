@@ -6,8 +6,8 @@ Ref: https://docs.ultralytics.com/ru/guides/model-evaluation-insights/
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.features.model_validation.domain import ModelValidationConfig
 

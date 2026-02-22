@@ -1,13 +1,14 @@
 """Сборка объединённого data.yaml из одного или нескольких датасетов (SOLID: единственная ответственность)."""
+
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 import yaml
 
 from app.interfaces import IDatasetConfigBuilder
 
 
-def _find_images_dir(base: Path, candidates: tuple[str, ...]) -> Optional[Path]:
+def _find_images_dir(base: Path, candidates: tuple[str, ...]) -> Path | None:
     for name in candidates:
         p = base / name / "images"
         if p.is_dir():
@@ -38,7 +39,7 @@ class DatasetConfigBuilder(IDatasetConfigBuilder):
     VALID_DIRS = ("valid", "val")
     TEST_DIRS = ("test", "test-dev")
 
-    def build_multi(self, dataset_paths: List[Path], output_yaml: Path) -> Path:
+    def build_multi(self, dataset_paths: list[Path], output_yaml: Path) -> Path:
         """Объединяет несколько датасетов в один data.yaml. nc = max по всем, names объединяются."""
         if not dataset_paths:
             raise ValueError("Нужен хотя бы один датасет")
@@ -70,11 +71,15 @@ class DatasetConfigBuilder(IDatasetConfigBuilder):
             train_key = data.get("train")
             val_key = data.get("val")
             if train_key:
-                train_dir = (base / train_key) if not Path(train_key).is_absolute() else Path(train_key)
+                train_dir = (
+                    (base / train_key) if not Path(train_key).is_absolute() else Path(train_key)
+                )
                 if train_dir.is_dir():
                     train_paths.append(str(train_dir.resolve()))
                     if val_key:
-                        val_dir = (base / val_key) if not Path(val_key).is_absolute() else Path(val_key)
+                        val_dir = (
+                            (base / val_key) if not Path(val_key).is_absolute() else Path(val_key)
+                        )
                         if val_dir.is_dir():
                             val_paths.append(str(val_dir.resolve()))
                     else:
@@ -122,6 +127,6 @@ class DatasetConfigBuilder(IDatasetConfigBuilder):
         dataset1_path: Path,
         dataset2_path: Path,
         output_yaml: Path,
-        primary_yaml: Optional[Path] = None,
+        primary_yaml: Path | None = None,
     ) -> Path:
         return self.build_multi([dataset1_path, dataset2_path], output_yaml)

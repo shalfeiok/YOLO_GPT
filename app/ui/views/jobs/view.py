@@ -5,8 +5,6 @@ This is a thin UI on top of JobRegistry + EventBus.
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
@@ -26,11 +24,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.core.observability.crash_bundle import create_crash_bundle
-from app.core.observability.run_manifest import get_run_folder
-from app.ui.infrastructure.file_dialogs import get_save_zip_path
-from app.ui.views.jobs.policy_dialog import JobsPolicyDialog
-
 from app.core.events.job_events import (
     JobCancelled,
     JobFailed,
@@ -41,6 +34,10 @@ from app.core.events.job_events import (
     JobStarted,
     JobTimedOut,
 )
+from app.core.observability.crash_bundle import create_crash_bundle
+from app.core.observability.run_manifest import get_run_folder
+from app.ui.infrastructure.file_dialogs import get_save_zip_path
+from app.ui.views.jobs.policy_dialog import JobsPolicyDialog
 
 
 class JobsView(QWidget):
@@ -67,7 +64,9 @@ class JobsView(QWidget):
         header.addWidget(self._filter_edit, 2)
 
         self._status_combo = QComboBox()
-        self._status_combo.addItems(["Все", "running", "retrying", "finished", "failed", "cancelled", "timed_out"])
+        self._status_combo.addItems(
+            ["Все", "running", "retrying", "finished", "failed", "cancelled", "timed_out"]
+        )
         self._status_combo.currentIndexChanged.connect(self._refresh)
         header.addWidget(self._status_combo)
 
@@ -259,8 +258,12 @@ class JobsView(QWidget):
         if self._autoscroll.isChecked():
             self._log.moveCursor(self._log.textCursor().MoveOperation.End)
 
-        self._cancel_btn.setEnabled(rec.status in {"running", "retrying"} and rec.cancel is not None)
-        self._retry_btn.setEnabled(rec.rerun is not None and rec.status in {"failed", "cancelled", "finished", "timed_out"})
+        self._cancel_btn.setEnabled(
+            rec.status in {"running", "retrying"} and rec.cancel is not None
+        )
+        self._retry_btn.setEnabled(
+            rec.rerun is not None and rec.status in {"failed", "cancelled", "finished", "timed_out"}
+        )
         self._copy_btn.setEnabled(True)
         self._copy_summary_btn.setEnabled(True)
         self._open_run_btn.setEnabled(get_run_folder(rec.job_id) is not None)

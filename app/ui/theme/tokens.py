@@ -1,23 +1,35 @@
 """
 Design tokens: colors, spacing, radius. TokenSet per theme; current set updated by ThemeManager.
 """
-from __future__ import annotations
 
-from typing import Any
+from __future__ import annotations
 
 
 class TokenSet:
     """Immutable-like set of design tokens. ThemeManager copies dark/light into current."""
 
     __slots__ = (
-        "background_main", "surface", "surface_hover",
-        "primary", "primary_hover",
-        "text_primary", "text_secondary",
+        "background_main",
+        "surface",
+        "surface_hover",
+        "primary",
+        "primary_hover",
+        "text_primary",
+        "text_secondary",
         "border",
-        "success", "warning", "error",
-        "space_xs", "space_sm", "space_md", "space_lg", "space_xl",
-        "radius_sm", "radius_md", "radius_lg",
-        "card_padding", "border_width",
+        "success",
+        "warning",
+        "error",
+        "space_xs",
+        "space_sm",
+        "space_md",
+        "space_lg",
+        "space_xl",
+        "radius_sm",
+        "radius_md",
+        "radius_lg",
+        "card_padding",
+        "border_width",
     )
 
     def __init__(
@@ -86,9 +98,16 @@ DARK = TokenSet(
     success="#22c55e",
     warning="#eab308",
     error="#ef4444",
-    space_xs=4, space_sm=8, space_md=12, space_lg=16, space_xl=24,
-    radius_sm=6, radius_md=10, radius_lg=14,
-    card_padding=20, border_width=1,
+    space_xs=4,
+    space_sm=8,
+    space_md=12,
+    space_lg=16,
+    space_xl=24,
+    radius_sm=6,
+    radius_md=10,
+    radius_lg=14,
+    card_padding=20,
+    border_width=1,
 )
 
 LIGHT = TokenSet(
@@ -103,9 +122,16 @@ LIGHT = TokenSet(
     success="#16a34a",
     warning="#ca8a04",
     error="#dc2626",
-    space_xs=4, space_sm=8, space_md=12, space_lg=16, space_xl=24,
-    radius_sm=6, radius_md=10, radius_lg=14,
-    card_padding=20, border_width=1,
+    space_xs=4,
+    space_sm=8,
+    space_md=12,
+    space_lg=16,
+    space_xl=24,
+    radius_sm=6,
+    radius_md=10,
+    radius_lg=14,
+    card_padding=20,
+    border_width=1,
 )
 
 # Current tokens: mutable, updated by ThemeManager. Components use Tokens.primary etc.

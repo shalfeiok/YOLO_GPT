@@ -3,6 +3,7 @@
 Захват — GDI/mss/камера. Инференс — ONNX (выбор детектора в view по backend_id).
 Варианты по execution provider: CPU, CUDA, DirectML, TensorRT, auto.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -37,7 +38,9 @@ class OnnxBackend(OpenCVBackend):
         super().__init__(backend_id)
         section = get_config_section(backend_id)
         self._settings = default_visualization_config().get(section, {}).copy()
-        self._backend_id = backend_id if backend_id in VISUALIZATION_BACKEND_DISPLAY_NAMES else BACKEND_ONNX
+        self._backend_id = (
+            backend_id if backend_id in VISUALIZATION_BACKEND_DISPLAY_NAMES else BACKEND_ONNX
+        )
 
     def get_id(self) -> str:
         return self._backend_id
@@ -55,11 +58,45 @@ class OnnxBackend(OpenCVBackend):
 
     def get_settings_schema(self) -> list[dict[str, Any]]:
         return [
-            {"key": "preview_max_w", "type": "int", "label": "Ширина превью (px)", "default": 0, "min": 0, "max": 7680},
-            {"key": "preview_max_h", "type": "int", "label": "Высота превью (px)", "default": 0, "min": 0, "max": 4320},
-            {"key": "use_cuda_resize", "type": "bool", "label": "Ресайз на GPU (cv2.cuda)", "default": True},
-            {"key": "execution_provider", "type": "choice", "label": "Execution provider", "default": "auto",
-             "choices": ["cpu", "cuda", "directml", "tensorrt", "auto"]},
-            {"key": "use_directml", "type": "bool", "label": "DirectML (если доступен)", "default": False},
-            {"key": "use_tensorrt", "type": "bool", "label": "TensorRT (если доступен)", "default": False},
+            {
+                "key": "preview_max_w",
+                "type": "int",
+                "label": "Ширина превью (px)",
+                "default": 0,
+                "min": 0,
+                "max": 7680,
+            },
+            {
+                "key": "preview_max_h",
+                "type": "int",
+                "label": "Высота превью (px)",
+                "default": 0,
+                "min": 0,
+                "max": 4320,
+            },
+            {
+                "key": "use_cuda_resize",
+                "type": "bool",
+                "label": "Ресайз на GPU (cv2.cuda)",
+                "default": True,
+            },
+            {
+                "key": "execution_provider",
+                "type": "choice",
+                "label": "Execution provider",
+                "default": "auto",
+                "choices": ["cpu", "cuda", "directml", "tensorrt", "auto"],
+            },
+            {
+                "key": "use_directml",
+                "type": "bool",
+                "label": "DirectML (если доступен)",
+                "default": False,
+            },
+            {
+                "key": "use_tensorrt",
+                "type": "bool",
+                "label": "TensorRT (если доступен)",
+                "default": False,
+            },
         ]

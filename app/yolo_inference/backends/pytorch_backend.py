@@ -7,21 +7,26 @@ stores path and clears model; inference thread calls ensure_model_created_in_cur
 before the predict loop. Pre-warm runs one dummy inference to initialize CUDA kernels.
 Thread ownership (Part 4.7): predict() may only be called from the registered inference thread.
 """
+
 from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
 
 from app.yolo_inference.backends.base import AbstractModelBackend
@@ -29,6 +34,7 @@ from app.yolo_inference.backends.base import AbstractModelBackend
 
 def _create_yolo_model(weights_path: Path) -> Any:
     from ultralytics import YOLO
+
     return YOLO(str(weights_path))
 
 
@@ -53,8 +59,14 @@ def _draw_boxes_cv2(
         color = tuple(int(x) for x in np.random.uniform(0, 255, size=3))
         cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
         cv2.putText(
-            out, label, (x1, y1 - 6),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA,
+            out,
+            label,
+            (x1, y1 - 6),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            1,
+            cv2.LINE_AA,
         )
     return out
 
@@ -66,12 +78,12 @@ class PyTorchBackend(AbstractModelBackend):
     """
 
     def __init__(self) -> None:
-        self._weights_path: Optional[Path] = None
+        self._weights_path: Path | None = None
         self._force_cpu: bool = False
         self._model: Any = None
         self._model_lock = threading.Lock()
         # Part 4.7: only the thread that created the model may call predict()
-        self._inference_thread_id: Optional[int] = None
+        self._inference_thread_id: int | None = None
 
     def load(self, weights_path: Path) -> None:
         """Store path and clear model. Actual creation happens in inference thread."""
@@ -103,14 +115,24 @@ class PyTorchBackend(AbstractModelBackend):
             return
         try:
             import torch
+
             device = "cpu" if self._force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
             if device == "cuda":
                 dummy = np.zeros((640, 640, 3), dtype=np.uint8)
                 with torch.no_grad():
-                    model.predict(source=dummy, conf=0.25, iou=0.45, device=device, verbose=False, stream=False)
+                    model.predict(
+                        source=dummy,
+                        conf=0.25,
+                        iou=0.45,
+                        device=device,
+                        verbose=False,
+                        stream=False,
+                    )
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('PyTorch backend operation failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("PyTorch backend operation failed", exc_info=True)
+
     def _check_inference_thread(self) -> None:
         """Part 4.7: enforce single inference-thread ownership."""
         if self._inference_thread_id is None:
@@ -126,7 +148,7 @@ class PyTorchBackend(AbstractModelBackend):
         frame: np.ndarray,
         conf: float = 0.45,
         iou: float = 0.45,
-    ) -> Tuple[np.ndarray, List[Any]]:
+    ) -> tuple[np.ndarray, list[Any]]:
         self._check_inference_thread()
         with self._model_lock:
             model = self._model
@@ -135,6 +157,7 @@ class PyTorchBackend(AbstractModelBackend):
         device = "cpu" if self._force_cpu else None
         try:
             import torch
+
             with torch.no_grad():
                 results = model.predict(
                     source=frame,
@@ -148,6 +171,7 @@ class PyTorchBackend(AbstractModelBackend):
             if not self._force_cpu and ("no kernel image" in str(e) or "CUDA" in str(e)):
                 self._force_cpu = True
                 import torch
+
                 with torch.no_grad():
                     results = model.predict(
                         source=frame, conf=conf, iou=iou, device="cpu", verbose=False, stream=False
@@ -175,11 +199,14 @@ class PyTorchBackend(AbstractModelBackend):
             self._inference_thread_id = None
         try:
             import torch
+
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('PyTorch backend operation failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("PyTorch backend operation failed", exc_info=True)
+
     @property
     def is_loaded(self) -> bool:
         return self._weights_path is not None

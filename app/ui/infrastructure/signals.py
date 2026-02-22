@@ -2,6 +2,7 @@
 Thread-safe signal bridge: worker threads emit progress and console lines to the main thread.
 Use these QObject signals from callbacks/queue consumers so View can subscribe on main thread.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal

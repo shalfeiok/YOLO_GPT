@@ -1,19 +1,20 @@
 """
 Stack controller: QStackedWidget + lazy tab loading. Creates view only on first show.
 """
+
 from __future__ import annotations
 
 import logging
 import traceback
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
-    QPushButton,
     QPlainTextEdit,
+    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,

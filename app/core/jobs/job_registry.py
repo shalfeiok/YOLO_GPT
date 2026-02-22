@@ -136,7 +136,9 @@ class JobRegistry:
         if len(self._jobs) <= self._max_jobs:
             return
         # Purge oldest by started_at.
-        oldest = sorted(self._jobs.values(), key=lambda r: r.started_at)[: len(self._jobs) - self._max_jobs]
+        oldest = sorted(self._jobs.values(), key=lambda r: r.started_at)[
+            : len(self._jobs) - self._max_jobs
+        ]
         for rec in oldest:
             self._jobs.pop(rec.job_id, None)
 
@@ -170,13 +172,18 @@ class JobRegistry:
                 except Exception:
                     progress = 0.0
                 msg = data.get("message")
-                self._apply_progress(JobProgress(job_id=job_id, name=name, progress=progress, message=msg), persist=False)
+                self._apply_progress(
+                    JobProgress(job_id=job_id, name=name, progress=progress, message=msg),
+                    persist=False,
+                )
             elif t == "JobLogLine":
                 line = str(data.get("line", ""))
                 if line:
                     self._apply_log(JobLogLine(job_id=job_id, name=name, line=line), persist=False)
             elif t == "JobFinished":
-                self._apply_finished(JobFinished(job_id=job_id, name=name, result=None), persist=False)
+                self._apply_finished(
+                    JobFinished(job_id=job_id, name=name, result=None), persist=False
+                )
             elif t == "JobFailed":
                 err = str(data.get("error", ""))
                 self._apply_failed(JobFailed(job_id=job_id, name=name, error=err), persist=False)
@@ -190,7 +197,13 @@ class JobRegistry:
                     attempt, max_attempts = 1, 1
                 err = str(data.get("error", ""))
                 self._apply_retrying(
-                    JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=err),
+                    JobRetrying(
+                        job_id=job_id,
+                        name=name,
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        error=err,
+                    ),
                     persist=False,
                 )
             elif t == "JobTimedOut":
@@ -198,7 +211,9 @@ class JobRegistry:
                     timeout_sec = float(data.get("timeout_sec", 0.0))
                 except Exception:
                     timeout_sec = 0.0
-                self._apply_timed_out(JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec), persist=False)
+                self._apply_timed_out(
+                    JobTimedOut(job_id=job_id, name=name, timeout_sec=timeout_sec), persist=False
+                )
 
         with self._lock:
             self._purge_if_needed()

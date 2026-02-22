@@ -1,6 +1,7 @@
 """
 Skeleton loader: placeholder with shimmer for loading states.
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer

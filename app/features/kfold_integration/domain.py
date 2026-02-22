@@ -7,7 +7,6 @@ Ref: https://docs.ultralytics.com/ru/guides/kfold-cross-validation/
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 
@@ -65,4 +64,3 @@ class KFoldConfig:
     @k.setter
     def k(self, value: int) -> None:
         self.k_folds = int(value)
-

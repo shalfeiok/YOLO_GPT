@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.features.integrations_config import load_config, save_config
 from app.features.hyperparameter_tuning.domain import TuningConfig
+from app.features.integrations_config import load_config, save_config
 
 
 def load_tuning_config() -> TuningConfig:

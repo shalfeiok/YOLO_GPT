@@ -8,7 +8,6 @@ from threading import RLock
 from typing import Any, TypeVar, cast
 from weakref import WeakMethod
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +32,9 @@ class EventBus:
         self._lock = RLock()
         self._subs: defaultdict[type[object], list[Callable[[object], None]]] = defaultdict(list)
 
-    def subscribe(self, event_type: type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
+    def subscribe(
+        self, event_type: type[TEvent], handler: Callable[[TEvent], None]
+    ) -> Subscription:
         # Internally we store object-based handlers; we adapt typed handlers
         # via a small wrapper so type-checking remains clean under stricter settings.
         def _wrapped(event: object) -> None:
@@ -43,7 +44,9 @@ class EventBus:
             self._subs[event_type].append(_wrapped)
         return Subscription(event_type=event_type, handler=_wrapped)
 
-    def subscribe_weak(self, event_type: type[TEvent], handler: Callable[[TEvent], None]) -> Subscription:
+    def subscribe_weak(
+        self, event_type: type[TEvent], handler: Callable[[TEvent], None]
+    ) -> Subscription:
         """Subscribe with a weak reference when possible.
 
         Intended for UI objects (Qt widgets/view-models). If the owner is garbage-collected,

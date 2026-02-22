@@ -1,20 +1,23 @@
 """
 Main window: collapsible sidebar + stacked content, lazy tabs, keyboard navigation.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QByteArray, Qt
+from PySide6.QtCore import QByteArray
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
-from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStatusBar, QStackedWidget, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QStatusBar, QWidget
 
+from app.core.version import get_version_string
 from app.ui.components.command_palette import CommandPalette, run_id_to_tab
 from app.ui.infrastructure.settings import AppSettings
+from app.ui.shell.sidebar import (
+    CollapsibleSidebar,
+)
+from app.ui.shell.stack_controller import TAB_IDS, StackController
 from app.ui.theme.manager import THEME_DARK, THEME_LIGHT
-from app.ui.shell.sidebar import CollapsibleSidebar, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED
-from app.ui.shell.stack_controller import StackController, TAB_IDS
-from app.core.version import get_version_string
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -44,17 +47,20 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
 
         sidebar_collapsed = self._settings.get_sidebar_collapsed()
-        self._sidebar = CollapsibleSidebar(self, initial_collapsed=sidebar_collapsed, container=container)
+        self._sidebar = CollapsibleSidebar(
+            self, initial_collapsed=sidebar_collapsed, container=container
+        )
         self._sidebar.tab_changed.connect(self._on_tab_changed)
 
         self._stack = QStackedWidget()
         factories = None
         if container is not None and signals is not None:
-            from app.ui.views.training.view import TrainingView
-            from app.ui.views.detection.view import DetectionView
             from app.ui.views.datasets.view import DatasetsView
+            from app.ui.views.detection.view import DetectionView
             from app.ui.views.integrations.view import IntegrationsView
             from app.ui.views.jobs.view import JobsView
+            from app.ui.views.training.view import TrainingView
+
             factories = {
                 "training": lambda: TrainingView(container, signals),
                 "detection": lambda: DetectionView(container),

@@ -1,6 +1,7 @@
 """
 Collapsible sidebar: icon-based navigation, tooltips, smooth width animation.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -75,7 +76,9 @@ class CollapsibleSidebar(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setMinimumWidth(SIDEBAR_WIDTH_COLLAPSED)
         self.setMaximumWidth(SIDEBAR_WIDTH_EXPANDED)
-        self._set_sidebar_width(SIDEBAR_WIDTH_COLLAPSED if initial_collapsed else SIDEBAR_WIDTH_EXPANDED)
+        self._set_sidebar_width(
+            SIDEBAR_WIDTH_COLLAPSED if initial_collapsed else SIDEBAR_WIDTH_EXPANDED
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 12, 4, 8)
@@ -93,11 +96,31 @@ class CollapsibleSidebar(QFrame):
         scroll_layout.setSpacing(2)
 
         nav_items = [
-            ("datasets", "Датасеты", "Управление датасетами и подготовка к YOLO", QStyle.StandardPixmap.SP_DirIcon),
+            (
+                "datasets",
+                "Датасеты",
+                "Управление датасетами и подготовка к YOLO",
+                QStyle.StandardPixmap.SP_DirIcon,
+            ),
             ("training", "Обучение", "Обучение моделей YOLO", QStyle.StandardPixmap.SP_MediaPlay),
-            ("detection", "Детекция", "Детекция в реальном времени", QStyle.StandardPixmap.SP_ComputerIcon),
-            ("integrations", "Интеграции", "Интеграции и мониторинг", QStyle.StandardPixmap.SP_DriveNetIcon),
-            ("jobs", "Задачи", "История фоновых задач, логи и повтор", QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            (
+                "detection",
+                "Детекция",
+                "Детекция в реальном времени",
+                QStyle.StandardPixmap.SP_ComputerIcon,
+            ),
+            (
+                "integrations",
+                "Интеграции",
+                "Интеграции и мониторинг",
+                QStyle.StandardPixmap.SP_DriveNetIcon,
+            ),
+            (
+                "jobs",
+                "Задачи",
+                "История фоновых задач, логи и повтор",
+                QStyle.StandardPixmap.SP_FileDialogDetailedView,
+            ),
         ]
         for tab_id, label, tooltip, pixmap in nav_items:
             btn = SidebarButton(self, tab_id, label, tooltip, pixmap)
@@ -110,11 +133,14 @@ class CollapsibleSidebar(QFrame):
         layout.addWidget(scroll)
 
         # Theme switcher (Part 4.11: theme from DI container, no global get_theme_manager)
-        from app.ui.theme.manager import THEME_DARK, THEME_LIGHT
+        from app.ui.theme.manager import THEME_LIGHT
+
         theme_mgr = self._container.theme_manager if self._container else None
         self._theme_combo = QComboBox()
         self._theme_combo.addItems(["Тёмная", "Светлая"])
-        self._theme_combo.setCurrentIndex(1 if (theme_mgr and theme_mgr.get_theme() == THEME_LIGHT) else 0)
+        self._theme_combo.setCurrentIndex(
+            1 if (theme_mgr and theme_mgr.get_theme() == THEME_LIGHT) else 0
+        )
         self._theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         self._theme_label = QLabel("Тема:")
         theme_row = QWidget()
@@ -137,11 +163,15 @@ class CollapsibleSidebar(QFrame):
         self._toggle_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self._toggle_btn.setIcon(
             self.style().standardIcon(
-                QStyle.StandardPixmap.SP_ArrowLeft if not initial_collapsed else QStyle.StandardPixmap.SP_ArrowRight
+                QStyle.StandardPixmap.SP_ArrowLeft
+                if not initial_collapsed
+                else QStyle.StandardPixmap.SP_ArrowRight
             )
         )
         self._toggle_btn.setText("Свернуть" if not initial_collapsed else "")
-        self._toggle_btn.setToolTip("Свернуть панель" if not initial_collapsed else "Развернуть панель")
+        self._toggle_btn.setToolTip(
+            "Свернуть панель" if not initial_collapsed else "Развернуть панель"
+        )
         self._toggle_btn.setMinimumHeight(36)
         self._toggle_btn.clicked.connect(self._toggle_collapsed)
         layout.addWidget(self._toggle_btn)
@@ -168,7 +198,10 @@ class CollapsibleSidebar(QFrame):
         target = SIDEBAR_WIDTH_COLLAPSED if collapsed else SIDEBAR_WIDTH_EXPANDED
         current = self.width()
 
-        if self._animation is not None and self._animation.state() == QPropertyAnimation.State.Running:
+        if (
+            self._animation is not None
+            and self._animation.state() == QPropertyAnimation.State.Running
+        ):
             self._animation.stop()
 
         self._animation = QPropertyAnimation(self, b"minimumWidth")
@@ -189,19 +222,23 @@ class CollapsibleSidebar(QFrame):
         self._update_toggle_button()
 
     def _on_animation_finished(self) -> None:
-        self._set_sidebar_width(SIDEBAR_WIDTH_COLLAPSED if self._collapsed else SIDEBAR_WIDTH_EXPANDED)
+        self._set_sidebar_width(
+            SIDEBAR_WIDTH_COLLAPSED if self._collapsed else SIDEBAR_WIDTH_EXPANDED
+        )
         for btn in self._buttons:
             btn.setText(btn._label if not self._collapsed else "")
         self._theme_widget.setVisible(not self._collapsed)
 
     def _on_theme_changed(self, index: int) -> None:
         from app.ui.theme.manager import THEME_DARK, THEME_LIGHT
+
         theme_mgr = self._container.theme_manager if self._container else None
         if theme_mgr:
             theme_mgr.set_theme(THEME_LIGHT if index == 1 else THEME_DARK)
 
     def _sync_theme_combo(self, name: str) -> None:
         from app.ui.theme.manager import THEME_LIGHT
+
         self._theme_combo.blockSignals(True)
         self._theme_combo.setCurrentIndex(1 if name == THEME_LIGHT else 0)
         self._theme_combo.blockSignals(False)

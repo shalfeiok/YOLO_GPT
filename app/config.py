@@ -3,6 +3,7 @@
 Содержит пути к корню проекта, датасетам, runs, параметры детекции и обучения,
 путь к файлу конфигурации интеграций (integrations_config.json).
 """
+
 from pathlib import Path
 
 # Base paths
@@ -15,7 +16,10 @@ DEFAULT_WEIGHTS_DIR = PROJECT_ROOT / "weights"
 # Detection
 DEFAULT_CONFIDENCE = 0.45
 DEFAULT_IOU_THRESH = 0.45
-PREVIEW_MAX_SIZE = (854, 480)  # smaller to reduce Tk/PhotoImage load and avoid main-thread freeze during long detection
+PREVIEW_MAX_SIZE = (
+    854,
+    480,
+)  # smaller to reduce Tk/PhotoImage load and avoid main-thread freeze during long detection
 
 # Training defaults (подобраны под типичную связку: 6-ядерный CPU + 8 GB GPU, напр. Ryzen 5 2600 + RTX 5060)
 DEFAULT_EPOCHS = 50

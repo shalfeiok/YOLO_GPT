@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from app.core.events import EventBus
 from app.core.events.job_events import JobRetrying, JobStarted, JobTimedOut
 from app.core.jobs import JobRegistry

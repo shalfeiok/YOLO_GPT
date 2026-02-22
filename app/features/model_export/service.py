@@ -6,10 +6,10 @@ Ref: https://docs.ultralytics.com/ru/guides/model-deployment-options/#tf-graphde
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-from app.features.model_export.domain import ModelExportConfig, EXPORT_FORMATS
+from app.features.model_export.domain import EXPORT_FORMATS, ModelExportConfig
 
 
 def run_export(

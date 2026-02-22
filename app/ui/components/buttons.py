@@ -1,6 +1,7 @@
 """
 Primary and secondary buttons. Styling from ThemeManager global stylesheet (#primaryButton, #secondaryButton).
 """
+
 from __future__ import annotations
 
 from PySide6.QtCore import Qt

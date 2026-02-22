@@ -13,16 +13,21 @@ class ModelValidatorPort(Protocol):
     """Port the application layer needs for model validation."""
 
     def validate(
-        self, config: ModelValidationConfig, *, on_progress: Callable[[float, str], None] | None = None
-    ) -> dict[str, Any]:
-        ...
+        self,
+        config: ModelValidationConfig,
+        *,
+        on_progress: Callable[[float, str], None] | None = None,
+    ) -> dict[str, Any]: ...
 
 
 class DefaultModelValidator:
     """Adapter over the feature-level validation service."""
 
     def validate(
-        self, config: ModelValidationConfig, *, on_progress: Callable[[float, str], None] | None = None
+        self,
+        config: ModelValidationConfig,
+        *,
+        on_progress: Callable[[float, str], None] | None = None,
     ) -> dict[str, Any]:
         return run_validation(config, on_progress=on_progress)
 
@@ -34,6 +39,9 @@ class ValidateModelUseCase:
         self._validator = validator
 
     def execute(
-        self, config: ModelValidationConfig, *, on_progress: Callable[[float, str], None] | None = None
+        self,
+        config: ModelValidationConfig,
+        *,
+        on_progress: Callable[[float, str], None] | None = None,
     ) -> dict[str, Any]:
         return self._validator.validate(config, on_progress=on_progress)

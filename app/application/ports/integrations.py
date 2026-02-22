@@ -2,6 +2,7 @@
 
 UI should depend on this port, not on feature repositories or services directly.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from app.features.comet_integration.domain import CometConfig
 from app.features.dvc_integration.domain import DVCConfig
 from app.features.hyperparameter_tuning.domain import TuningConfig
 from app.features.kfold_integration.domain import KFoldConfig
-from app.features.model_export.domain import ModelExportConfig, EXPORT_FORMATS
+from app.features.model_export.domain import ModelExportConfig
 from app.features.model_validation.domain import ModelValidationConfig
 from app.features.sagemaker_integration.domain import SageMakerConfig
 from app.features.sahi_integration.domain import SahiConfig
@@ -27,7 +28,7 @@ class JobsPolicyConfig:
     retry_deadline_sec: int = 0
 
     @classmethod
-    def from_dict(cls, d: dict) -> "JobsPolicyConfig":
+    def from_dict(cls, d: dict) -> JobsPolicyConfig:
         return cls(
             default_timeout_sec=int(d.get("default_timeout_sec", 0)),
             retries=int(d.get("retries", 0)),
@@ -67,17 +68,12 @@ class IntegrationsState:
 
 class IntegrationsPort(Protocol):
     @property
-    def export_formats(self) -> list[str]:
-        ...
+    def export_formats(self) -> list[str]: ...
 
-    def load_state(self) -> IntegrationsState:
-        ...
+    def load_state(self) -> IntegrationsState: ...
 
-    def save_state(self, state: IntegrationsState) -> None:
-        ...
+    def save_state(self, state: IntegrationsState) -> None: ...
 
-    def load_jobs_policy(self) -> JobsPolicyConfig:
-        ...
+    def load_jobs_policy(self) -> JobsPolicyConfig: ...
 
-    def save_jobs_policy(self, policy: JobsPolicyConfig) -> None:
-        ...
+    def save_jobs_policy(self, policy: JobsPolicyConfig) -> None: ...

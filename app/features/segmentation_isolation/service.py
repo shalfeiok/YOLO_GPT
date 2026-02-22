@@ -6,18 +6,22 @@ Ref: https://docs.ultralytics.com/ru/guides/isolating-segmentation-objects/
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
 
 from app.features.segmentation_isolation.domain import SegIsolationConfig
@@ -91,7 +95,10 @@ def run_seg_isolation(
                         isolated = isolated[y1:y2, x1:x2]
                     except Exception:
                         import logging
-                        logging.getLogger(__name__).debug('Optional segmentation isolation failed', exc_info=True)
+
+                        logging.getLogger(__name__).debug(
+                            "Optional segmentation isolation failed", exc_info=True
+                        )
                 label = "unknown"
                 if hasattr(c, "names") and c.names and hasattr(c.boxes, "cls"):
                     cls_list = c.boxes.cls.tolist()

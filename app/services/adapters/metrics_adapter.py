@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from app.application.ports.metrics import MetricsPort
 
@@ -18,7 +18,7 @@ class MetricsAdapter(MetricsPort):
 
         return get_memory_info()
 
-    def get_gpu_info(self) -> Optional[dict[str, Any]]:
+    def get_gpu_info(self) -> dict[str, Any] | None:
         from app.services.system_metrics import get_gpu_info
 
         return get_gpu_info()

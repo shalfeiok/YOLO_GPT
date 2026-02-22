@@ -1,8 +1,9 @@
 """ONNX detection service: IDetector implementation delegating to ONNXBackend."""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -21,21 +22,20 @@ class OnnxDetectionService(IDetector):
 
     def ensure_model_ready(self) -> None:
         """No-op for ONNX; model is loaded in load_model() or via async export."""
-        pass
 
     def predict(
         self,
         frame: np.ndarray,
         conf: float = 0.45,
         iou: float = 0.45,
-    ) -> Tuple[np.ndarray, List[Any]]:
+    ) -> tuple[np.ndarray, list[Any]]:
         return self._backend.predict(frame, conf=conf, iou=iou)
 
     def is_exporting(self) -> bool:
         """Part 3: True while .pt is being exported to .onnx asynchronously."""
         return self._backend.is_exporting()
 
-    def get_export_error(self) -> Optional[str]:
+    def get_export_error(self) -> str | None:
         return self._backend.get_export_error()
 
     def unload_model(self) -> None:

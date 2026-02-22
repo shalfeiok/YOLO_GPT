@@ -3,9 +3,11 @@
 Определяет контракты для обучения (ITrainer), детекции (IDetector),
 захвата окна/экрана (IWindowCapture) и сборки конфига датасета (IDatasetConfigBuilder).
 """
+
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional
+from typing import Any
 
 import numpy as np
 
@@ -24,8 +26,8 @@ class ITrainer(ABC):
         device: str,
         patience: int,
         project: Path,
-        on_progress: Optional[Callable[[float, str], None]] = None,
-        weights_path: Optional[Path] = None,
+        on_progress: Callable[[float, str], None] | None = None,
+        weights_path: Path | None = None,
     ) -> Path:
         """Run training. Returns path to best weights. If weights_path is set, load from it instead of model_name."""
         ...
@@ -70,12 +72,12 @@ class IWindowCapture(ABC):
         ...
 
     @abstractmethod
-    def capture_window(self, hwnd: int) -> Optional[np.ndarray]:
+    def capture_window(self, hwnd: int) -> np.ndarray | None:
         """Capture frame from window by hwnd. Returns BGR numpy array or None."""
         ...
 
     @abstractmethod
-    def capture_primary_monitor(self) -> Optional[np.ndarray]:
+    def capture_primary_monitor(self) -> np.ndarray | None:
         """Capture full primary monitor. Returns BGR numpy array or None."""
         ...
 
@@ -89,7 +91,7 @@ class IDatasetConfigBuilder(ABC):
         dataset1_path: Path,
         dataset2_path: Path,
         output_yaml: Path,
-        primary_yaml: Optional[Path] = None,
+        primary_yaml: Path | None = None,
     ) -> Path:
         """Build combined data.yaml. Returns path to output_yaml."""
         ...

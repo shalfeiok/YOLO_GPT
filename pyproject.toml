@@ -8,6 +8,12 @@ line-length = 100
 src = ["app", "tests"]
 target-version = "py311"
 
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
 [tool.ruff.lint]
 select = [
   "E", "F", "W",     # pycodestyle/pyflakes

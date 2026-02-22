@@ -1,23 +1,35 @@
 """Визуализация датасета: загрузка классов, изображения с bbox, фильтр по классам."""
+
 from pathlib import Path
-from typing import Optional
+
 try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
 
 
-
 def _require_cv2() -> None:
     if cv2 is None:
-        raise ImportError("OpenCV (cv2) is required for this feature. Install with: pip install opencv-python")
+        raise ImportError(
+            "OpenCV (cv2) is required for this feature. Install with: pip install opencv-python"
+        )
+
+
 import numpy as np
 import yaml
 
 # Цвета для классов (BGR)
 _COLORS = [
-    (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255),
-    (0, 255, 255), (128, 0, 0), (0, 128, 0), (0, 0, 128), (128, 128, 0),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (255, 0, 255),
+    (0, 255, 255),
+    (128, 0, 0),
+    (0, 128, 0),
+    (0, 0, 128),
+    (128, 128, 0),
 ]
 
 
@@ -37,7 +49,7 @@ def load_classes_from_dataset(dataset_dir: Path) -> list[str]:
     return [f"class_{i}" for i in range(nc)]
 
 
-def _find_labels_dir(dataset_dir: Path, image_path: Path) -> Optional[Path]:
+def _find_labels_dir(dataset_dir: Path, image_path: Path) -> Path | None:
     """Ищет папку labels для данного изображения (train/labels или val/labels)."""
     for split in ("train", "valid", "val"):
         labels_dir = dataset_dir / split / "labels"
@@ -50,7 +62,9 @@ def _find_labels_dir(dataset_dir: Path, image_path: Path) -> Optional[Path]:
     return None
 
 
-def read_yolo_labels(labels_path: Path, only_classes: Optional[set[int]] = None) -> list[tuple[int, float, float, float, float]]:
+def read_yolo_labels(
+    labels_path: Path, only_classes: set[int] | None = None
+) -> list[tuple[int, float, float, float, float]]:
     """Читает YOLO label file. Возвращает [(class_id, x_center, y_center, w, h) normalized]."""
     if not labels_path.exists():
         return []
@@ -71,7 +85,7 @@ def draw_boxes(
     img: np.ndarray,
     labels_path: Path,
     class_names: list[str],
-    only_classes: Optional[set[int]] = None,
+    only_classes: set[int] | None = None,
 ) -> np.ndarray:
     """Рисует bbox на изображении. img — BGR, метки в формате YOLO (normalized)."""
     img = img.copy()
@@ -89,7 +103,7 @@ def draw_boxes(
     return img
 
 
-def get_sample_image_path(dataset_dir: Path) -> Optional[Path]:
+def get_sample_image_path(dataset_dir: Path) -> Path | None:
     """Возвращает путь к любому изображению из train или valid."""
     paths = get_sample_image_paths(dataset_dir, 1)
     return paths[0] if paths else None
@@ -98,6 +112,7 @@ def get_sample_image_path(dataset_dir: Path) -> Optional[Path]:
 def get_sample_image_paths(dataset_dir: Path, n: int = 6) -> list[Path]:
     """Возвращает до n путей к изображениям из train/valid (с приоритетом наличия меток)."""
     import random
+
     out: list[Path] = []
     for split in ("train", "valid", "val"):
         imgs_dir = dataset_dir / split / "images"
@@ -120,7 +135,7 @@ def get_sample_image_paths(dataset_dir: Path, n: int = 6) -> list[Path]:
     return out
 
 
-def get_labels_path_for_image(dataset_dir: Path, image_path: Path) -> Optional[Path]:
+def get_labels_path_for_image(dataset_dir: Path, image_path: Path) -> Path | None:
     """Возвращает путь к .txt меткам для изображения."""
     stem = image_path.stem
     for split in ("train", "valid", "val"):

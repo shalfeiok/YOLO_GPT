@@ -1,11 +1,13 @@
 """
 Базовый интерфейс бэкенда визуализации: отрисовка кадров в окне детекции.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from queue import Queue
-from typing import Any, Callable, Optional
+from typing import Any
 
 
 class IVisualizationBackend(ABC):
@@ -39,7 +41,6 @@ class IVisualizationBackend(ABC):
 
     def apply_settings(self, settings: dict[str, Any]) -> None:
         """Применить настройки (сохраняются в инстансе)."""
-        pass
 
     def supports_d3dshot_capture(self) -> bool:
         """True если бэкенд может захватывать «Весь экран» через D3DShot."""
@@ -59,9 +60,9 @@ class IVisualizationBackend(ABC):
         max_h: int,
         is_running_getter: Callable[[], bool],
         run_id_getter: Callable[[], int],
-        on_stop: Optional[Callable[[], None]] = None,
-        on_q_key: Optional[Callable[[], None]] = None,
-        on_render_metrics: Optional[Callable[[float], None]] = None,
+        on_stop: Callable[[], None] | None = None,
+        on_q_key: Callable[[], None] | None = None,
+        on_render_metrics: Callable[[float], None] | None = None,
     ) -> None:
         """
         Запустить поток отображения: читает кадры из preview_queue, ресайз/отрисовка, imshow.

@@ -7,27 +7,23 @@ OpenCV classes.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Protocol, Union
+from typing import Protocol
 
 import numpy as np
 
 
 @dataclass(frozen=True, slots=True)
 class FrameSourceSpec:
-    source: Union[int, str]
+    source: int | str
 
 
 class FrameSource(Protocol):
-    def is_opened(self) -> bool:
-        ...
+    def is_opened(self) -> bool: ...
 
-    def read(self) -> tuple[bool, Optional[np.ndarray]]:
-        ...
+    def read(self) -> tuple[bool, np.ndarray | None]: ...
 
-    def release(self) -> None:
-        ...
+    def release(self) -> None: ...
 
 
 class CapturePort(Protocol):
-    def create_frame_source(self, spec: FrameSourceSpec) -> FrameSource:
-        ...
+    def create_frame_source(self, spec: FrameSourceSpec) -> FrameSource: ...

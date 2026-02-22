@@ -23,8 +23,9 @@ No third-party dependencies are required.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 
 def _as_bool(value: Any, default: bool) -> bool:
@@ -89,7 +90,7 @@ class AlbumentationsConfig:
     transform_p: float = 0.5
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "AlbumentationsConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> AlbumentationsConfig:
         m = _mapping(data)
         p = _clamp(_as_float(m.get("transform_p"), 0.5), 0.0, 1.0)
         return cls(
@@ -111,7 +112,7 @@ class CometConfig:
     mode: str = "online"
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "CometConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> CometConfig:
         m = _mapping(data)
         return cls(
             enabled=_as_bool(m.get("enabled"), False),
@@ -129,7 +130,7 @@ class DvcConfig:
     enabled: bool = False
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "DvcConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> DvcConfig:
         m = _mapping(data)
         return cls(enabled=_as_bool(m.get("enabled"), False))
 
@@ -142,7 +143,7 @@ class SagemakerConfig:
     template_cloned_path: str = ""
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "SagemakerConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> SagemakerConfig:
         m = _mapping(data)
         return cls(
             instance_type=_as_str(m.get("instance_type"), "ml.m5.4xlarge"),
@@ -167,7 +168,7 @@ class JobsPolicyConfig:
     retry_deadline_sec: int = 0
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "JobsPolicyConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> JobsPolicyConfig:
         m = _mapping(data)
         return cls(
             default_timeout_sec=max(0, _as_int(m.get("default_timeout_sec"), 900)),
@@ -192,7 +193,7 @@ class KFoldConfig:
     train_project: str = "kfold_demo"
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "KFoldConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> KFoldConfig:
         m = _mapping(data)
         return cls(
             enabled=bool(m.get("enabled", False)),
@@ -206,6 +207,8 @@ class KFoldConfig:
             train_batch=max(1, _as_int(m.get("train_batch"), 16)),
             train_project=_as_str(m.get("train_project"), "kfold_demo"),
         )
+
+
 @dataclass(slots=True)
 class TuningConfig:
     enabled: bool = False
@@ -217,7 +220,7 @@ class TuningConfig:
     name: str = "tune"
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "TuningConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> TuningConfig:
         m = _mapping(data)
         return cls(
             data_yaml=_as_str(m.get("data_yaml"), ""),
@@ -236,7 +239,7 @@ class ModelExportConfig:
     output_dir: str = ""
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "ModelExportConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> ModelExportConfig:
         m = _mapping(data)
         return cls(
             weights_path=_as_str(m.get("weights_path"), ""),
@@ -255,7 +258,7 @@ class SahiConfig:
     overlap_width_ratio: float = 0.2
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "SahiConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> SahiConfig:
         m = _mapping(data)
         return cls(
             model_path=_as_str(m.get("model_path"), ""),
@@ -276,7 +279,7 @@ class SegIsolationConfig:
     crop: bool = True
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "SegIsolationConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> SegIsolationConfig:
         m = _mapping(data)
         return cls(
             model_path=_as_str(m.get("model_path"), ""),
@@ -293,7 +296,7 @@ class ModelValidationConfig:
     weights_path: str = ""
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "ModelValidationConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> ModelValidationConfig:
         m = _mapping(data)
         return cls(
             data_yaml=_as_str(m.get("data_yaml"), ""),
@@ -312,7 +315,7 @@ class UltralyticsSolutionsConfig:
     colormap: str = "COLORMAP_JET"
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "UltralyticsSolutionsConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> UltralyticsSolutionsConfig:
         m = _mapping(data)
         return cls(
             solution_type=_as_str(m.get("solution_type"), "ObjectCounter"),
@@ -331,7 +334,7 @@ class DetectionOutputConfig:
     save_frames: bool = False
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "DetectionOutputConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> DetectionOutputConfig:
         m = _mapping(data)
         return cls(
             save_path=_as_str(m.get("save_path"), ""),
@@ -355,11 +358,13 @@ class IntegrationsConfig:
     sahi: SahiConfig = field(default_factory=SahiConfig)
     seg_isolation: SegIsolationConfig = field(default_factory=SegIsolationConfig)
     model_validation: ModelValidationConfig = field(default_factory=ModelValidationConfig)
-    ultralytics_solutions: UltralyticsSolutionsConfig = field(default_factory=UltralyticsSolutionsConfig)
+    ultralytics_solutions: UltralyticsSolutionsConfig = field(
+        default_factory=UltralyticsSolutionsConfig
+    )
     detection_output: DetectionOutputConfig = field(default_factory=DetectionOutputConfig)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "IntegrationsConfig":
+    def from_dict(cls, data: Mapping[str, Any]) -> IntegrationsConfig:
         m = _mapping(data)
         return cls(
             schema_version=_as_int(m.get("schema_version"), 2),
@@ -374,7 +379,9 @@ class IntegrationsConfig:
             sahi=SahiConfig.from_dict(_mapping(m.get("sahi"))),
             seg_isolation=SegIsolationConfig.from_dict(_mapping(m.get("seg_isolation"))),
             model_validation=ModelValidationConfig.from_dict(_mapping(m.get("model_validation"))),
-            ultralytics_solutions=UltralyticsSolutionsConfig.from_dict(_mapping(m.get("ultralytics_solutions"))),
+            ultralytics_solutions=UltralyticsSolutionsConfig.from_dict(
+                _mapping(m.get("ultralytics_solutions"))
+            ),
             detection_output=DetectionOutputConfig.from_dict(_mapping(m.get("detection_output"))),
         )
 

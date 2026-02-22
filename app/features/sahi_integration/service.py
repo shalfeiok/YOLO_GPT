@@ -7,8 +7,8 @@ Requires: pip install sahi
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.features.sahi_integration.domain import SahiConfig
 

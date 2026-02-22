@@ -1,9 +1,9 @@
 """Тесты доменных моделей интеграции Albumentations."""
-import pytest
+
 
 from app.features.albumentations_integration.domain import (
-    AlbumentationsConfig,
     STANDARD_TRANSFORM_NAMES,
+    AlbumentationsConfig,
 )
 
 

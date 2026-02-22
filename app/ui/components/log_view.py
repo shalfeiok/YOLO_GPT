@@ -1,9 +1,10 @@
 """
 Log view: QListView + filter by level, smart auto-scroll, batched updates.
 """
+
 from __future__ import annotations
 
-from PySide6.QtCore import QSortFilterProxyModel, Qt
+from PySide6.QtCore import QSortFilterProxyModel
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -13,13 +14,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.ui.theme.tokens import Tokens
 from app.ui.components.log_model import (
     LOG_LEVEL_ERROR,
     LOG_LEVEL_INFO,
     LOG_LEVEL_WARNING,
     LogListModel,
 )
+from app.ui.theme.tokens import Tokens
 
 FILTER_ALL = "Все"
 FILTER_INFO = "Info"
@@ -128,4 +129,3 @@ class LogView(QWidget):
             f"QComboBox {{ background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; "
             f"border-radius: {t.radius_sm}px; padding: 4px; min-height: 24px; }}"
         )
-

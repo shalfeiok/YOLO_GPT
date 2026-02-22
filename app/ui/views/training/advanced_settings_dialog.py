@@ -2,11 +2,10 @@
 Диалог «Расширенные настройки обучения»: cache, lr, mosaic, mixup, seed, веса потерь и др.
 Сохранение/загрузка профилей, стандартный профиль по умолчанию.
 """
+
 from __future__ import annotations
 
 import json
-import webbrowser
-from pathlib import Path
 from typing import Any
 
 from PySide6.QtWidgets import (
@@ -14,9 +13,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -99,19 +96,22 @@ PRESETS: list[tuple[str, str, dict[str, Any]]] = [
     (
         "Максимальное качество",
         "Меньше lr, больше mixup и аугментации. Для финального обучения на большом датасете.",
-        _merge_preset(DEFAULTS, {
-            "lr0": 0.001,
-            "lrf": 0.01,
-            "mosaic": 1.0,
-            "mixup": 0.15,
-            "close_mosaic": 5,
-            "degrees": 10.0,
-            "translate": 0.15,
-            "scale": 0.5,
-            "hsv_h": 0.02,
-            "hsv_s": 0.8,
-            "hsv_v": 0.4,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "lr0": 0.001,
+                "lrf": 0.01,
+                "mosaic": 1.0,
+                "mixup": 0.15,
+                "close_mosaic": 5,
+                "degrees": 10.0,
+                "translate": 0.15,
+                "scale": 0.5,
+                "hsv_h": 0.02,
+                "hsv_s": 0.8,
+                "hsv_v": 0.4,
+            },
+        ),
     ),
     (
         "Экономия памяти",
@@ -126,85 +126,103 @@ PRESETS: list[tuple[str, str, dict[str, Any]]] = [
     (
         "Сильная аугментация",
         "Максимум геометрии и цветов. Для разнообразия данных и регуляризации.",
-        _merge_preset(DEFAULTS, {
-            "mosaic": 1.0,
-            "mixup": 0.2,
-            "degrees": 15.0,
-            "translate": 0.2,
-            "scale": 0.5,
-            "fliplr": 0.5,
-            "flipud": 0.1,
-            "hsv_h": 0.025,
-            "hsv_s": 0.8,
-            "hsv_v": 0.45,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "mosaic": 1.0,
+                "mixup": 0.2,
+                "degrees": 15.0,
+                "translate": 0.2,
+                "scale": 0.5,
+                "fliplr": 0.5,
+                "flipud": 0.1,
+                "hsv_h": 0.025,
+                "hsv_s": 0.8,
+                "hsv_v": 0.45,
+            },
+        ),
     ),
     (
         "Слабая аугментация",
         "Минимум трансформаций. Маленький датасет или предобученные веса.",
-        _merge_preset(DEFAULTS, {
-            "mosaic": 0.3,
-            "mixup": 0.0,
-            "degrees": 0.0,
-            "translate": 0.05,
-            "scale": 0.3,
-            "hsv_h": 0.01,
-            "hsv_s": 0.5,
-            "hsv_v": 0.3,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "mosaic": 0.3,
+                "mixup": 0.0,
+                "degrees": 0.0,
+                "translate": 0.05,
+                "scale": 0.3,
+                "hsv_h": 0.01,
+                "hsv_s": 0.5,
+                "hsv_v": 0.3,
+            },
+        ),
     ),
     (
         "Fine-tuning",
         "Низкий lr, слабая аугментация. Дообучение готовой модели на своих данных.",
-        _merge_preset(DEFAULTS, {
-            "lr0": 0.001,
-            "lrf": 0.01,
-            "mosaic": 0.2,
-            "mixup": 0.0,
-            "close_mosaic": 15,
-            "degrees": 0.0,
-            "translate": 0.05,
-            "scale": 0.3,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "lr0": 0.001,
+                "lrf": 0.01,
+                "mosaic": 0.2,
+                "mixup": 0.0,
+                "close_mosaic": 15,
+                "degrees": 0.0,
+                "translate": 0.05,
+                "scale": 0.3,
+            },
+        ),
     ),
     (
         "Отладка / быстрый прогон",
         "Почти без аугментации. Проверка пайплайна и быстрая переобучение на малых эпохах.",
-        _merge_preset(DEFAULTS, {
-            "cache": False,
-            "mosaic": 0.0,
-            "mixup": 0.0,
-            "close_mosaic": 0,
-            "degrees": 0.0,
-            "translate": 0.0,
-            "scale": 0.2,
-            "fliplr": 0.5,
-            "flipud": 0.0,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "cache": False,
+                "mosaic": 0.0,
+                "mixup": 0.0,
+                "close_mosaic": 0,
+                "degrees": 0.0,
+                "translate": 0.0,
+                "scale": 0.2,
+                "fliplr": 0.5,
+                "flipud": 0.0,
+            },
+        ),
     ),
     (
         "Большой датасет",
         "Кэш, сильная аугментация. Когда данных много и нужна регуляризация.",
-        _merge_preset(DEFAULTS, {
-            "cache": True,
-            "mosaic": 1.0,
-            "mixup": 0.1,
-            "degrees": 10.0,
-            "translate": 0.15,
-            "hsv_s": 0.8,
-            "hsv_v": 0.4,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "cache": True,
+                "mosaic": 1.0,
+                "mixup": 0.1,
+                "degrees": 10.0,
+                "translate": 0.15,
+                "hsv_s": 0.8,
+                "hsv_v": 0.4,
+            },
+        ),
     ),
     (
         "Мелкие объекты",
         "Mosaic и масштаб для лучшего обнаружения мелких целей.",
-        _merge_preset(DEFAULTS, {
-            "mosaic": 1.0,
-            "mixup": 0.1,
-            "scale": 0.6,
-            "translate": 0.15,
-            "close_mosaic": 5,
-        }),
+        _merge_preset(
+            DEFAULTS,
+            {
+                "mosaic": 1.0,
+                "mixup": 0.1,
+                "scale": 0.6,
+                "translate": 0.15,
+                "close_mosaic": 5,
+            },
+        ),
     ),
 ]
 
@@ -298,7 +316,9 @@ class AdvancedTrainingSettingsDialog(QDialog):
         scroll.setWidget(content)
         layout.addWidget(scroll)
 
-        bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bbox = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
         bbox.accepted.connect(self._gather_and_accept)
         bbox.rejected.connect(self.reject)
         layout.addWidget(bbox)
@@ -306,6 +326,7 @@ class AdvancedTrainingSettingsDialog(QDialog):
     def _load_albumentations_into_form(self) -> None:
         """Загрузить настройки Albumentations из конфига в форму."""
         from app.features.albumentations_integration.repository import load_albumentations_config
+
         cfg = load_albumentations_config()
         self._alb_enabled_cb.setChecked(cfg.enabled)
         self._alb_mode_combo.setCurrentIndex(0 if cfg.use_standard else 1)
@@ -313,8 +334,11 @@ class AdvancedTrainingSettingsDialog(QDialog):
 
     def _save_albumentations_from_form(self) -> None:
         """Сохранить значения формы Albumentations в конфиг интеграций."""
-        from app.features.albumentations_integration.repository import load_albumentations_config, save_albumentations_config
-        from app.features.albumentations_integration.domain import AlbumentationsConfig
+        from app.features.albumentations_integration.repository import (
+            load_albumentations_config,
+            save_albumentations_config,
+        )
+
         cfg = load_albumentations_config()
         cfg.enabled = self._alb_enabled_cb.isChecked()
         cfg.use_standard = self._alb_mode_combo.currentIndex() == 0
@@ -325,7 +349,12 @@ class AdvancedTrainingSettingsDialog(QDialog):
         """Сбросить настройки Albumentations к умолчанию в форме."""
         from app.features.albumentations_integration.domain import AlbumentationsConfig
         from app.features.albumentations_integration.repository import save_albumentations_config
-        save_albumentations_config(AlbumentationsConfig(enabled=False, use_standard=True, custom_transforms=[], transform_p=0.5))
+
+        save_albumentations_config(
+            AlbumentationsConfig(
+                enabled=False, use_standard=True, custom_transforms=[], transform_p=0.5
+            )
+        )
         self._alb_enabled_cb.setChecked(False)
         self._alb_mode_combo.setCurrentIndex(0)
         self._alb_p_spin.setValue(50)
@@ -333,8 +362,12 @@ class AdvancedTrainingSettingsDialog(QDialog):
 
     def _open_albumentations_transforms_editor(self) -> None:
         """Диалог редактирования кастомных трансформов Albumentations."""
-        from app.features.albumentations_integration.repository import load_albumentations_config, save_albumentations_config
         from app.features.albumentations_integration.domain import STANDARD_TRANSFORM_NAMES
+        from app.features.albumentations_integration.repository import (
+            load_albumentations_config,
+            save_albumentations_config,
+        )
+
         t = Tokens
         cfg = load_albumentations_config()
         transforms: list = list(cfg.custom_transforms)
@@ -393,7 +426,9 @@ class AdvancedTrainingSettingsDialog(QDialog):
             form_d = QFormLayout(add_dlg)
             name_combo = QComboBox()
             name_combo.addItems(STANDARD_TRANSFORM_NAMES)
-            name_combo.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;")
+            name_combo.setStyleSheet(
+                f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;"
+            )
             form_d.addRow("Трансформ:", name_combo)
             p_spin = NoWheelSpinBox()
             p_spin.setRange(0, 100)
@@ -403,10 +438,12 @@ class AdvancedTrainingSettingsDialog(QDialog):
             btn_row = QHBoxLayout()
             ok_btn = PrimaryButton("Добавить")
             cancel_btn = SecondaryButton("Отмена")
+
             def do_add() -> None:
                 transforms.append({"name": name_combo.currentText(), "p": p_spin.value() / 100.0})
                 refresh_list()
                 add_dlg.accept()
+
             ok_btn.clicked.connect(do_add)
             cancel_btn.clicked.connect(add_dlg.reject)
             btn_row.addWidget(ok_btn)
@@ -421,10 +458,12 @@ class AdvancedTrainingSettingsDialog(QDialog):
         add_btn.clicked.connect(add_transform)
         main_layout.addWidget(add_btn)
         save_close_btn = PrimaryButton("Сохранить и закрыть")
+
         def save_and_close() -> None:
             cfg.custom_transforms = transforms
             save_albumentations_config(cfg)
             dlg.accept()
+
         save_close_btn.clicked.connect(save_and_close)
         main_layout.addWidget(save_close_btn)
         dlg.exec()
@@ -493,9 +532,7 @@ class AdvancedTrainingSettingsDialog(QDialog):
         for key, w in self._widgets.items():
             if isinstance(w, QCheckBox):
                 out[key] = w.isChecked()
-            elif isinstance(w, NoWheelSpinBox):
-                out[key] = w.value()
-            elif hasattr(w, "value"):
+            elif isinstance(w, NoWheelSpinBox) or hasattr(w, "value"):
                 out[key] = w.value()
         return out
 

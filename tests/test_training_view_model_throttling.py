@@ -7,7 +7,9 @@ from app.core.events import TrainingProgress
 try:
     from app.ui.views.training.view_model import TrainingViewModel
 except ImportError as exc:  # pragma: no cover - environment-specific skip
-    pytest.skip(f"TrainingViewModel import unavailable in this environment: {exc}", allow_module_level=True)
+    pytest.skip(
+        f"TrainingViewModel import unavailable in this environment: {exc}", allow_module_level=True
+    )
 
 
 class _Bus:
@@ -33,7 +35,9 @@ def _mk_vm_for_unit_tests() -> tuple[TrainingViewModel, _Bus]:
     vm._last_log_line = None
     vm._last_log_repeat_count = 0
     vm._emit_on_ui_thread = lambda fn: None
-    vm._signals = type("_S", (), {"progress_updated": type("_P", (), {"emit": lambda *a, **k: None})()})()
+    vm._signals = type(
+        "_S", (), {"progress_updated": type("_P", (), {"emit": lambda *a, **k: None})()}
+    )()
     return vm, bus
 
 
