@@ -5,6 +5,7 @@ Does not hold UI; View subscribes to signals and calls start_training/stop_train
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 
 from pathlib import Path
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
 
 CONSOLE_POLL_MS = 80
 CONSOLE_BATCH_MAX = 100  # emit up to this many lines per poll to reduce signal traffic
+JOB_PROGRESS_MIN_INTERVAL_S = 0.15
+MAX_SAME_LOG_LINE_STREAK = 3
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +46,10 @@ class TrainingViewModel(QObject):
         self._console_timer.timeout.connect(self._poll_console)
         self._log_file = None
         self._active_job_id: str | None = None
+        self._last_job_progress_ts: float = 0.0
+        self._last_job_progress_key: tuple[int, str] | None = None
+        self._last_log_line: str | None = None
+        self._last_log_repeat_count = 0
 
         # Subscribe UI to application events via EventBus.
         self._subs = []
@@ -58,9 +65,18 @@ class TrainingViewModel(QObject):
 
     def _on_training_progress(self, ev: TrainingProgress) -> None:
         if self._active_job_id:
-            self._container.event_bus.publish(
-                JobProgress(job_id=self._active_job_id, name="training", progress=ev.fraction, message=ev.message)
+            now = time.monotonic()
+            progress_key = (int(ev.fraction * 1000), str(ev.message or ""))
+            should_emit = (
+                self._last_job_progress_key != progress_key
+                or (now - self._last_job_progress_ts) >= JOB_PROGRESS_MIN_INTERVAL_S
             )
+            if should_emit:
+                self._container.event_bus.publish(
+                    JobProgress(job_id=self._active_job_id, name="training", progress=ev.fraction, message=ev.message)
+                )
+                self._last_job_progress_ts = now
+                self._last_job_progress_key = progress_key
         self._emit_on_ui_thread(lambda: self._signals.progress_updated.emit(ev.fraction, ev.message))
 
     def _on_training_finished(self, ev: TrainingFinished) -> None:
@@ -114,6 +130,10 @@ class TrainingViewModel(QObject):
 
         train_uc = self._container.train_model_use_case
         self._active_job_id = uuid.uuid4().hex
+        self._last_job_progress_ts = 0.0
+        self._last_job_progress_key = None
+        self._last_log_line = None
+        self._last_log_repeat_count = 0
         self._container.event_bus.publish(JobStarted(job_id=self._active_job_id, name="training"))
         self._container.event_bus.publish(JobProgress(job_id=self._active_job_id, name="training", progress=0.0, message="started"))
 
@@ -194,10 +214,11 @@ class TrainingViewModel(QObject):
                     if batch:
                         self._signals.console_lines_batch.emit(batch)
                     return
-                batch.append(strip_ansi(line))
-                if self._active_job_id:
+                clean_line = strip_ansi(line)
+                batch.append(clean_line)
+                if self._active_job_id and self._should_publish_log_line(clean_line):
                     self._container.event_bus.publish(
-                        JobLogLine(job_id=self._active_job_id, name="training", line=strip_ansi(line))
+                        JobLogLine(job_id=self._active_job_id, name="training", line=clean_line)
                     )
                 if self._log_file:
                     try:
@@ -214,6 +235,14 @@ class TrainingViewModel(QObject):
     def stop_training(self) -> None:
         self._container.train_model_use_case.stop()
         self._join_training_thread_async()
+
+    def _should_publish_log_line(self, line: str) -> bool:
+        if line == self._last_log_line:
+            self._last_log_repeat_count += 1
+        else:
+            self._last_log_line = line
+            self._last_log_repeat_count = 1
+        return self._last_log_repeat_count <= MAX_SAME_LOG_LINE_STREAK
 
     def parse_metrics_from_line(self, line: str) -> dict | None:
         """Return parsed metrics dict from a console line, or None."""
