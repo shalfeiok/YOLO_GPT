@@ -57,6 +57,14 @@ class MainWindow(QMainWindow):
         if container is not None and signals is not None:
             from app.ui.views.datasets.view import DatasetsView
             from app.ui.views.detection.view import DetectionView
+            from app.ui.views.autoannotation.view import AutoAnnotationView
+            from app.ui.views.benchmark.view import BenchmarkView
+            from app.ui.views.classification.view import ClassificationView
+            from app.ui.views.experiments.view import ExperimentsView
+            from app.ui.views.pose.view import PoseView
+            from app.ui.views.segmentation.view import SegmentationView
+            from app.ui.views.tracking.view import TrackingView
+            from app.ui.views.validation.view import ValidationView
             from app.ui.views.integrations.view import IntegrationsView
             from app.ui.views.jobs.view import JobsView
             from app.ui.views.training.view import TrainingView
@@ -65,6 +73,14 @@ class MainWindow(QMainWindow):
                 "training": lambda: TrainingView(container, signals),
                 "detection": lambda: DetectionView(container),
                 "datasets": lambda: DatasetsView(container=container),
+                "validation": lambda: ValidationView(container),
+                "segmentation": lambda: SegmentationView(container),
+                "pose": lambda: PoseView(container),
+                "classification": lambda: ClassificationView(container),
+                "tracking": lambda: TrackingView(container),
+                "autoannotation": lambda: AutoAnnotationView(container),
+                "benchmark": lambda: BenchmarkView(container),
+                "experiments": lambda: ExperimentsView(container),
                 "integrations": lambda: IntegrationsView(container),
                 "jobs": lambda: JobsView(container),
             }
@@ -84,7 +100,7 @@ class MainWindow(QMainWindow):
         self._command_palette = CommandPalette(self)
         self._command_palette.set_on_run(self._on_command_palette_run)
         status = QStatusBar(self)
-        status.showMessage("Ctrl+K — палитра команд  |  Ctrl+1…5 — вкладки")
+        status.showMessage("Ctrl+K — палитра команд  |  Ctrl+1…9 — вкладки")
         self.setStatusBar(status)
         self._setup_shortcuts()
         self._restore_geometry()
