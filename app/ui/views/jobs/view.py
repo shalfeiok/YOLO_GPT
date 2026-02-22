@@ -5,6 +5,8 @@ This is a thin UI on top of JobRegistry + EventBus.
 
 from __future__ import annotations
 
+import weakref
+
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
@@ -49,6 +51,7 @@ class JobsView(QWidget):
         self._subs = []
         self._selected_job_id: str | None = None
         self._refresh_scheduled = False
+        self._is_closing = False
         self._details_job_id: str | None = None
         self._details_log_count = 0
 
@@ -178,6 +181,7 @@ class JobsView(QWidget):
         self._refresh()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        self._is_closing = True
         for s in self._subs:
             self._bus.unsubscribe(s)
         self._subs.clear()
@@ -185,9 +189,21 @@ class JobsView(QWidget):
 
     def _on_job_event(self, event) -> None:
         # Job events can arrive from worker threads.
-        QTimer.singleShot(0, lambda e=event: self._on_job_event_ui(e))
+        if self._is_closing:
+            return
+        self_ref = weakref.ref(self)
+
+        def _dispatch(e=event) -> None:
+            obj = self_ref()
+            if obj is None or obj._is_closing:
+                return
+            obj._on_job_event_ui(e)
+
+        QTimer.singleShot(0, _dispatch)
 
     def _on_job_event_ui(self, event) -> None:
+        if self._is_closing:
+            return
         if isinstance(event, JobLogLine) and event.job_id == self._selected_job_id:
             self._append_log_lines(event.line.splitlines())
         if self._refresh_scheduled:
