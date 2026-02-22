@@ -164,6 +164,11 @@ class DetectionView(QWidget):
         self._fps_timer = QTimer(self)
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
+        self._loading_layout = QVBoxLayout(self)
+        self._loading_layout.addWidget(QLabel("Загрузка вкладки детекции…"))
+        QTimer.singleShot(0, self._init_ui_async)
+
+    def _init_ui_async(self) -> None:
         self._build_ui()
         QTimer.singleShot(0, self._refresh_windows)
 
