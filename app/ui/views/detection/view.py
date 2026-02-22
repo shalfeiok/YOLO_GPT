@@ -162,13 +162,25 @@ class DetectionView(QWidget):
         self._fps_timer = QTimer(self)
         self._fps_timer.timeout.connect(self._tick_fps)
         self.stop_cleanup_done.connect(self._finalize_stop_ui)
+        self._loading_layout = QVBoxLayout(self)
+        self._loading_layout.addWidget(QLabel("Загрузка вкладки детекции…"))
+        QTimer.singleShot(0, self._init_ui_async)
+
+    def _init_ui_async(self) -> None:
         self._build_ui()
         # Defer potentially expensive window enumeration to keep tab opening responsive.
         QTimer.singleShot(0, self._refresh_windows)
 
     def _build_ui(self) -> None:
         t = Tokens
-        layout = QVBoxLayout(self)
+        old_layout = self.layout()
+        if old_layout is not None:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                w = item.widget()
+                if w is not None:
+                    w.deleteLater()
+        layout = old_layout if isinstance(old_layout, QVBoxLayout) else QVBoxLayout(self)
         layout.setSpacing(t.space_lg)
         layout.setContentsMargins(t.space_lg, t.space_lg, t.space_lg, t.space_lg)
 
@@ -1315,3 +1327,11 @@ class DetectionView(QWidget):
                 JobCancelled(job_id=self._detection_job_id, name="detection")
             )
             self._detection_job_id = None
+
+    def shutdown(self) -> None:
+        if self._run_event.is_set() or self._visualization_backend is not None:
+            self._stop_detection()
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self.shutdown()
+        super().closeEvent(event)
