@@ -8,12 +8,14 @@
 | `app/core/jobs/job_registry.py` | 333 | `app/core/jobs/job_registry_replay.py` (event replay extracted) | 216 + 69 |
 | `app/services/yolo_prep_service.py` | 581 | `app/services/yolo_prep/{common.py,voc.py,prepare.py,class_ops.py,__init__.py}` + compatibility shim `yolo_prep_service.py` | 20 (shim) + 493 (package) |
 | `app/ui/views/integrations/sections.py` | 691 | `app/ui/views/integrations/sections_parts/{common.py,tracking.py,training.py,inference.py,__init__.py}` + facade `sections.py` | 18 (facade) + 535 (parts) |
+| `app/ui/views/integrations/view_model.py` | 483 | `app/ui/views/integrations/view_model_parts/{config.py,actions.py,__init__.py}` + facade `view_model.py` | 45 (facade) + 322 (parts) |
 
 ## 2. Architectural Changes
 
 - Jobs subsystem decomposed into dedicated modules for process orchestration, child IPC, log buffering and type contracts.
 - Job registry replay logic extracted into a standalone replay module to isolate persistence replay from runtime state transitions.
 - Integrations view sections decomposed into section-part modules (tracking/training/inference) with a thin facade export module.
+- Integrations ViewModel decomposed into config/state and actions mixins with a thin facade class.
 - YOLO dataset preparation moved from a monolithic service into feature-focused modules:
   - shared parsing/constants (`common.py`),
   - VOC conversion (`voc.py`),
@@ -27,6 +29,7 @@
 - Removed replay/persistence concerns from runtime `JobRegistry` event handlers.
 - Separated dataset-IO concerns from class-remapping concerns in YOLO prep service to avoid mixed responsibilities.
 - Separated integrations UI domains (tracking vs training vs inference) to prevent one oversized UI builder module.
+- Separated integrations state/config persistence from async action orchestration to reduce ViewModel coupling.
 - Preserved upstream imports through stable facade modules while introducing internal package boundaries.
 
 ## 4. Code Quality Improvements
