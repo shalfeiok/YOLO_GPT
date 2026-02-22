@@ -96,31 +96,19 @@ class CollapsibleSidebar(QFrame):
         scroll_layout.setSpacing(2)
 
         nav_items = [
-            (
-                "datasets",
-                "Датасеты",
-                "Управление датасетами и подготовка к YOLO",
-                QStyle.StandardPixmap.SP_DirIcon,
-            ),
+            ("datasets", "Датасеты", "Управление датасетами и подготовка к YOLO", QStyle.StandardPixmap.SP_DirIcon),
             ("training", "Обучение", "Обучение моделей YOLO", QStyle.StandardPixmap.SP_MediaPlay),
-            (
-                "detection",
-                "Детекция",
-                "Детекция в реальном времени",
-                QStyle.StandardPixmap.SP_ComputerIcon,
-            ),
-            (
-                "integrations",
-                "Интеграции",
-                "Интеграции и мониторинг",
-                QStyle.StandardPixmap.SP_DriveNetIcon,
-            ),
-            (
-                "jobs",
-                "Задачи",
-                "История фоновых задач, логи и повтор",
-                QStyle.StandardPixmap.SP_FileDialogDetailedView,
-            ),
+            ("detection", "Детекция", "Детекция в реальном времени", QStyle.StandardPixmap.SP_ComputerIcon),
+            ("validation", "Валидация", "Валидация и метрики модели", QStyle.StandardPixmap.SP_DialogApplyButton),
+            ("segmentation", "Сегментация", "Сегментация в реальном времени", QStyle.StandardPixmap.SP_DirOpenIcon),
+            ("pose", "Поза", "Оценка позы", QStyle.StandardPixmap.SP_TitleBarNormalButton),
+            ("classification", "Классификация", "Классификация изображений", QStyle.StandardPixmap.SP_FileIcon),
+            ("tracking", "Трекинг", "Отслеживание объектов", QStyle.StandardPixmap.SP_ArrowForward),
+            ("autoannotation", "Аннотация", "Автоаннотирование датасета", QStyle.StandardPixmap.SP_FileDialogNewFolder),
+            ("benchmark", "Бенчмарк", "Сравнение форматов модели", QStyle.StandardPixmap.SP_BrowserReload),
+            ("experiments", "Эксперименты", "История обучений и сравнение", QStyle.StandardPixmap.SP_FileDialogContentsView),
+            ("integrations", "Интеграции", "Интеграции и мониторинг", QStyle.StandardPixmap.SP_DriveNetIcon),
+            ("jobs", "Задачи", "История фоновых задач, логи и повтор", QStyle.StandardPixmap.SP_FileDialogDetailedView),
         ]
         for tab_id, label, tooltip, pixmap in nav_items:
             btn = SidebarButton(self, tab_id, label, tooltip, pixmap)
