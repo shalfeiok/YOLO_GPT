@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.events import EventBus
-from app.core.events.job_events import JobRetrying, JobStarted, JobTimedOut
+from app.core.events.job_events import JobLogLine, JobRetrying, JobStarted, JobTimedOut
 from app.core.jobs import JobRegistry
 
 
@@ -31,3 +31,15 @@ def test_job_registry_marks_timed_out() -> None:
     assert rec.status == "timed_out"
     assert rec.error is not None
     assert "timeout" in rec.error
+
+
+def test_job_registry_splits_batched_log_lines() -> None:
+    bus = EventBus()
+    reg = JobRegistry(bus)
+
+    bus.publish(JobStarted(job_id="j3", name="batch"))
+    bus.publish(JobLogLine(job_id="j3", name="batch", line="line-1\nline-2\n"))
+
+    rec = reg.get("j3")
+    assert rec is not None
+    assert rec.logs[-2:] == ["line-1", "line-2"]

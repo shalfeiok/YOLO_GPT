@@ -256,7 +256,10 @@ class JobRegistry:
     def _apply_log(self, e: JobLogLine, *, persist: bool) -> None:
         with self._lock:
             rec = self._ensure(e.job_id, e.name)
-            rec.logs.append(e.line)
+            parts = [part for part in str(e.line).splitlines() if part.strip()]
+            if not parts:
+                return
+            rec.logs.extend(parts)
             if len(rec.logs) > self._max_log_lines:
                 rec.logs = rec.logs[-self._max_log_lines :]
         if persist:

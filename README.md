@@ -1,37 +1,53 @@
 # YOLO_GPT
 
-## What is YOLO_GPT
-YOLO_GPT is a desktop application for training and running YOLO-based computer vision workflows. It provides a Qt UI around dataset preparation, training, detection, and job tracking. The project is structured to keep UI, application services, and core domain components separated.
+## Overview
+YOLO_GPT is a desktop application for training and running YOLO-based computer-vision workflows.
+The codebase is split into UI (`app/ui`), application/use-cases (`app/application`), and core infra (`app/core`).
 
-## Features
-- YOLO model training workflows from the desktop UI.
-- Detection/inference flows for image or stream-like scenarios.
-- Dataset tooling (preparation, augmentation, and visualization helpers).
-- Background jobs and run tracking for long operations.
+## Requirements
+- Python 3.10+ (recommended: 3.11)
+- OS: Windows 10/11 is the primary target (Linux/macOS also supported for development)
 
-## Quick start
-```bash
+## Runtime install
+> Install PyTorch separately for your CPU/CUDA environment before heavy training.
+
+### Windows (PowerShell)
+```powershell
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 python main.py
 ```
 
-## Dev setup
+### Linux/macOS
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python main.py
+```
+
+## Development setup
 ```bash
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
-ruff check . --fix
-ruff format .
-black .
-pytest
-pytest -q
 pre-commit install
+```
+
+## Quality checks
+```bash
+python -m compileall .
+ruff check .
+ruff format .
+pytest -q
 pre-commit run -a
 ```
 
-## Torch/CUDA note
-Install `torch`/`torchvision`/`torchaudio` separately for your target CUDA/CPU environment before running heavy training workloads.
+## Dependencies split
+- `requirements.txt` — runtime dependencies only.
+- `requirements-dev.txt` — development tooling (ruff, black, pytest, pre-commit, mypy, etc.).
 
-## Logs & runs
-Runtime logs and run artifacts are written under project runtime directories (for example `runs/` and related output folders created by training/detection jobs).
+## Logs and run artifacts
+Runtime logs and run manifests are written under app state/run folders and surfaced in the Jobs UI.

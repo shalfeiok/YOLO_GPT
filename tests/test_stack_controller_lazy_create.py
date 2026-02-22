@@ -53,3 +53,28 @@ def test_stack_controller_renders_error_widget_when_factory_crashes() -> None:
     labels = [w.text() for w in stack.currentWidget().findChildren(QLabel)]
     assert any("Ошибка загрузки вкладки" in t for t in labels)
     assert any("factory failed" in t for t in labels)
+
+
+def test_error_widget_has_actions() -> None:
+    QApplication, QLabel, QStackedWidget = _import_qtwidgets_or_skip()
+
+    from PySide6.QtWidgets import QPushButton
+
+    from app.ui.shell.stack_controller import ErrorWidget, StackController
+
+    app = QApplication.instance() or QApplication([])
+    stack = QStackedWidget()
+
+    def _boom():
+        raise ValueError("bad tab")
+
+    controller = StackController(stack, factories={"datasets": _boom})
+    controller.switch_to("datasets")
+    app.processEvents()
+
+    assert isinstance(stack.currentWidget(), ErrorWidget)
+    labels = [w.text() for w in stack.currentWidget().findChildren(QLabel)]
+    assert any("bad tab" in t for t in labels)
+    buttons = [b.text() for b in stack.currentWidget().findChildren(QPushButton)]
+    assert "Copy traceback" in buttons
+    assert "Open logs folder" in buttons

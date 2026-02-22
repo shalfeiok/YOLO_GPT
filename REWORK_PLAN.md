@@ -1,40 +1,104 @@
 # Rework Plan
 
 ## Rules
-- 1 commit = 1 task.
-- In every commit, update this plan.
-- No deadlines in tasks.
+- 1 commit = 1 atomic task.
+- In every commit: mark completed task with ✅ and append changelog line `YYYY-MM-DD — <short_sha> — <summary>`.
+- Priorities: Crash → Freeze → Data-loss → Perf → UX → Cleanliness.
+- Any risky behavior change must include guardrails and tests/self-checks.
 
 ## Backlog
-- [x] Task 0 — Create REWORK_PLAN.md and marking rules.
-- [x] Task 1 — Add README.md.
-- [x] Task 2 — Split runtime and dev dependencies.
-- [x] Task 3 — Add pre-commit hooks.
-- [x] Task 4 — Normalize collapsed files formatting.
-- [x] Task 5 — Configure lint/format/test tooling in pyproject.toml.
-- [x] Task 6 — Apply project-wide formatting.
-- [x] Task 7 — Add basic smoke tests.
-- [x] Task 8 — Fix integrations EXPORT_FORMATS import regression.
+- [x] ✅ Task 0 — Full audit and normalize this rework plan format.
+- [x] ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
+- [x] ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
+- [x] ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
+- [x] ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
+- [x] ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
+- [x] ✅ Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
+- [x] ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
+- [x] ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
+- [x] ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
+- [x] ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
+- [x] ✅ Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
+- [x] ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
+- [x] ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
+
+## Audit Backlog Details
+### A) Crash points
+- `app/application/container.py`: `process_job_runner` passes unsupported `event_store` kwarg to `ProcessJobRunner`, causing runtime crash once accessed.
+- `app/ui/views/training/view_model.py`: training worker exceptions can race with queue finalization and leak inconsistent state.
+
+### B) UI freeze points
+- `TrainingViewModel.start_training` uses dedicated non-daemon thread + synchronous trainer; heavy training lifecycle still managed from VM and can backlog UI signals.
+- `JobRunner` and `ProcessJobRunner` publish log events per line causing event-bus amplification during verbose runs.
+
+### C) Performance bottlenecks
+- Per-line event publish for stdout/stderr in both runners.
+- Jobs view refreshes full table for bursts of events; debounced but still receives excess events.
+
+### D) Reliability gaps
+- Training path is not consistently executed via process runner default path.
+- Manifest spec in training VM is currently built from raw request values, not normalized `TrainingRunSpec` profile result.
+
+### E) Testing/documentation/tooling gaps
+- No targeted tests for batched log flushing behavior.
+- Need explicit test around tab-factory error boundary UX fallback.
 
 ## Done
-- Task 0 — Create REWORK_PLAN.md and marking rules.
-- Task 1 — Add README.md.
-- Task 2 — Split runtime and dev dependencies.
-- Task 3 — Add pre-commit hooks.
-- Task 4 — Normalize collapsed files formatting.
-- Task 5 — Configure lint/format/test tooling in pyproject.toml.
-- Task 6 — Apply project-wide formatting.
-- Task 7 — Add basic smoke tests.
-- Task 8 — Fix integrations EXPORT_FORMATS import regression.
+- ✅ Task 0 — Full audit and normalize this rework plan format.
+- ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
+- ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
+- ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
+- ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
+- ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
+- ✅ Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
+- ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
+- ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
+- ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
+- ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
+- ✅ Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
+- ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
+- ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
 ## Changelog
-- 2026-02-22 — 13eec22 — chore: add rework plan
+- 2026-02-22 — 5cc7881 — chore(plan): audit and rebuild REWORK_PLAN backlog
 
-- 2026-02-22 — 2f507f0 — docs: add README
-- 2026-02-22 — dd6307d — build: split runtime and dev requirements
-- 2026-02-22 — 028eb70 — chore: add pre-commit hooks
-- 2026-02-22 — 3d03f1b — style: normalize collapsed files formatting
-- 2026-02-22 — a2bd880 — chore: configure lint and format tooling
-- 2026-02-22 — 60cb3e4 — style: apply formatting
-- 2026-02-22 — 4d79c87 — test: add basic smoke tests
-- 2026-02-22 — d9a5569 — fix: restore integrations export formats re-export
+- 2026-02-22 — 39adc79 — fix(container): remove invalid ProcessJobRunner kwargs
+- 2026-02-22 — 408c8c4 — perf(jobs): batch log events in thread/process runners
+- 2026-02-22 — 693c054 — feat(jobs): add artifact shortcuts for manifest/weights/plots
+- 2026-02-22 — f755ec3 — refactor(di): move UI-only deps to ui container shim
+- 2026-02-22 — 34997cf — fix(observability): use timezone.utc for py310 compatibility
+- 2026-02-22 — 12d7ee1 — fix(logging): replace datetime.UTC for py310 compatibility
+- 2026-02-22 — 9b8a729 — style: format touched files with ruff format
+- 2026-02-22 — 01cc160 — fix(lint): resolve ruff issues in touched files
+
+- 2026-02-22 — 463c9f6 — fix(ui): expose crash-safe ErrorWidget and add action coverage
+
+- 2026-02-22 — 8980b9c — test(core): split batched job log events in registry and add regression test
+
+- 2026-02-22 — a91a73f — chore(plan): reconcile changelog commit hashes
+
+- 2026-02-22 — a7374e7 — chore(plan): fix last changelog hash after amend
+
+- 2026-02-22 — c81584c — chore(ci): stabilize workflow lint scope and checks
+
+- 2026-02-22 — 5620209 — chore(plan): fix amended ci commit hash in changelog
+
+- 2026-02-22 — 06f4915 — feat(train): persist resolved TrainingRunSpec in run manifest
+
+- 2026-02-22 — 6441401 — feat(train): use process runner by default for training execution
+
+- 2026-02-22 — 1c0d18e — chore(plan): fix amended C1 hash in changelog
+
+- 2026-02-22 — db6b7fe — fix(train): align manifest job id with process handle and coerce timeout
+
+- 2026-02-22 — 479dc73 — chore(plan): fix latest training-fix changelog hash
+
+- 2026-02-22 — 0997dc0 — test(process): add malformed log/cancelled IPC payload coverage
+
+- 2026-02-22 — 1a06f09 — chore(plan): fix C2 changelog hash after amend
+
+- 2026-02-22 — a7f7e52 — chore(plan): correct plan hash references
+
+- 2026-02-22 — 28c59a3 — docs: improve Windows-first README and tooling checks
+
+- 2026-02-22 — 75519a4 — chore(plan): sync README commit hash after amend
