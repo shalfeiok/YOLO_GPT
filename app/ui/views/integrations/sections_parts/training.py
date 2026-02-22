@@ -8,9 +8,10 @@ from PySide6.QtWidgets import QCheckBox, QGroupBox, QHBoxLayout, QLabel, QLineEd
 from app.application.ports.integrations import ModelValidationConfig, TuningConfig
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.theme import Tokens
-from app.ui.infrastructure.file_dialogs import get_open_yaml_path
+from app.ui.infrastructure.file_dialogs import get_open_pt_path, get_open_yaml_path
 
 from .common import SectionsCtx, edit_style
+
 
 def build_kfold(ctx: SectionsCtx) -> QGroupBox:
     t = Tokens
@@ -112,6 +113,8 @@ def build_tuning(ctx: SectionsCtx) -> QGroupBox:
     row.addStretch()
     lay.addLayout(row)
     return grp
+
+
 def build_validation(ctx: SectionsCtx) -> QGroupBox:
     t = Tokens
     grp = QGroupBox("K. Validation")

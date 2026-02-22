@@ -76,7 +76,9 @@ class JobRegistry:
     def set_cancel(self, job_id: str, cancel: Callable[[], None]) -> None:
         self._set_pending_action(job_id, cancel, self._pending_cancel, "cancel")
 
-    def _set_pending_action(self, job_id: str, action: Any, pending: dict[str, Any], field_name: str) -> None:
+    def _set_pending_action(
+        self, job_id: str, action: Any, pending: dict[str, Any], field_name: str
+    ) -> None:
         if not job_id:
             return
         with self._lock:
@@ -120,7 +122,9 @@ class JobRegistry:
     def _purge_if_needed(self) -> None:
         if self._max_jobs <= 0 or len(self._jobs) <= self._max_jobs:
             return
-        oldest = sorted(self._jobs.values(), key=lambda r: r.started_at)[: len(self._jobs) - self._max_jobs]
+        oldest = sorted(self._jobs.values(), key=lambda r: r.started_at)[
+            : len(self._jobs) - self._max_jobs
+        ]
         for rec in oldest:
             self._jobs.pop(rec.job_id, None)
 
@@ -190,12 +194,16 @@ class JobRegistry:
             self._persist(e)
 
     def _apply_timed_out(self, e: JobTimedOut, *, persist: bool) -> None:
-        self._set_terminal(e.job_id, e.name, "timed_out", f"timeout after {e.timeout_sec:.1f}s", persist, e)
+        self._set_terminal(
+            e.job_id, e.name, "timed_out", f"timeout after {e.timeout_sec:.1f}s", persist, e
+        )
 
     def _apply_cancelled(self, e: JobCancelled, *, persist: bool) -> None:
         self._set_terminal(e.job_id, e.name, "cancelled", None, persist, e)
 
-    def _set_terminal(self, job_id: str, name: str, status: str, error: str | None, persist: bool, event: Any) -> None:
+    def _set_terminal(
+        self, job_id: str, name: str, status: str, error: str | None, persist: bool, event: Any
+    ) -> None:
         with self._lock:
             rec = self._ensure(job_id, name)
             rec.status = status
@@ -206,11 +214,26 @@ class JobRegistry:
         if persist:
             self._persist(event)
 
-    def _on_started(self, e: JobStarted) -> None: self._apply_started(e, persist=True)
-    def _on_progress(self, e: JobProgress) -> None: self._apply_progress(e, persist=True)
-    def _on_log(self, e: JobLogLine) -> None: self._apply_log(e, persist=True)
-    def _on_finished(self, e: JobFinished) -> None: self._apply_finished(e, persist=True)
-    def _on_failed(self, e: JobFailed) -> None: self._apply_failed(e, persist=True)
-    def _on_retrying(self, e: JobRetrying) -> None: self._apply_retrying(e, persist=True)
-    def _on_timed_out(self, e: JobTimedOut) -> None: self._apply_timed_out(e, persist=True)
-    def _on_cancelled(self, e: JobCancelled) -> None: self._apply_cancelled(e, persist=True)
+    def _on_started(self, e: JobStarted) -> None:
+        self._apply_started(e, persist=True)
+
+    def _on_progress(self, e: JobProgress) -> None:
+        self._apply_progress(e, persist=True)
+
+    def _on_log(self, e: JobLogLine) -> None:
+        self._apply_log(e, persist=True)
+
+    def _on_finished(self, e: JobFinished) -> None:
+        self._apply_finished(e, persist=True)
+
+    def _on_failed(self, e: JobFailed) -> None:
+        self._apply_failed(e, persist=True)
+
+    def _on_retrying(self, e: JobRetrying) -> None:
+        self._apply_retrying(e, persist=True)
+
+    def _on_timed_out(self, e: JobTimedOut) -> None:
+        self._apply_timed_out(e, persist=True)
+
+    def _on_cancelled(self, e: JobCancelled) -> None:
+        self._apply_cancelled(e, persist=True)

@@ -31,6 +31,8 @@ from app.features.detection_visualization.backends.base import IVisualizationBac
 from app.features.detection_visualization.domain import (
     BACKEND_OPENCV,
     BACKEND_OPENCV_CPU_RESIZE,
+    BACKEND_OPENCV_GDI,
+    BACKEND_OPENCV_MSS,
     VISUALIZATION_BACKEND_DISPLAY_NAMES,
     default_visualization_config,
     get_config_section,

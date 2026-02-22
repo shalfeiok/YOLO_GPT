@@ -1,6 +1,5 @@
 """Тесты доменных моделей интеграций Comet ML и DVC."""
 
-
 from app.features.comet_integration.domain import CometConfig
 from app.features.dvc_integration.domain import DVCConfig
 

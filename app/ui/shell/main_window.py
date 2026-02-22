@@ -139,4 +139,20 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._save_geometry()
+        for i in range(self._stack.count()):
+            w = self._stack.widget(i)
+            if w is not None and hasattr(w, "shutdown"):
+                try:
+                    w.shutdown()
+                except Exception:
+                    import logging
+
+                    logging.getLogger(__name__).exception("Failed to shutdown tab widget")
+        if self._container is not None and hasattr(self._container, "shutdown"):
+            try:
+                self._container.shutdown()
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).exception("Failed to shutdown container")
         super().closeEvent(event)
