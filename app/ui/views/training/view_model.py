@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import time
-import uuid
 from functools import partial
 from pathlib import Path
 from queue import Empty, Queue
@@ -45,6 +44,18 @@ JOB_PROGRESS_MIN_INTERVAL_S = 0.15
 MAX_SAME_LOG_LINE_STREAK = 3
 
 log = logging.getLogger(__name__)
+
+
+def _coerce_timeout_sec(raw: object) -> float | None:
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    return value
 
 
 class TrainingViewModel(QObject):
@@ -249,23 +260,11 @@ class TrainingViewModel(QObject):
             optimizer=optimizer,
             advanced_options=advanced_options,
         )
-        self._active_job_id = uuid.uuid4().hex
+        self._active_job_id = None
         self._last_job_progress_ts = 0.0
         self._last_job_progress_key = None
         self._last_log_line = None
         self._last_log_repeat_count = 0
-        try:
-            register_run(
-                job_id=self._active_job_id,
-                run_type="training",
-                spec=run_spec.to_dict(),
-                artifacts={
-                    "project_dir": str(project),
-                    "log_path": None if log_path is None else str(log_path),
-                },
-            )
-        except Exception:
-            log.exception("Failed to create training run manifest")
 
         # Prefer process-based execution by default to keep UI responsive and enforce hard cancel.
         cfg = {
@@ -282,13 +281,27 @@ class TrainingViewModel(QObject):
             "optimizer": run_spec.optimizer,
             "advanced_options": dict(run_spec.advanced_options),
         }
+        timeout_sec = _coerce_timeout_sec((advanced_options or {}).get("timeout_sec"))
         handle = self._container.process_job_runner.submit(
             "training",
             partial(train_model_job, cfg=cfg),
-            timeout_sec=(advanced_options or {}).get("timeout_sec"),
+            timeout_sec=timeout_sec,
         )
         self._training_job_handle = handle
         self._active_job_id = handle.job_id
+
+        try:
+            register_run(
+                job_id=handle.job_id,
+                run_type="training",
+                spec=run_spec.to_dict(),
+                artifacts={
+                    "project_dir": str(project),
+                    "log_path": None if log_path is None else str(log_path),
+                },
+            )
+        except Exception:
+            log.exception("Failed to create training run manifest")
 
     def _join_training_thread_async(self) -> None:
         """Join the training thread without blocking the UI thread."""

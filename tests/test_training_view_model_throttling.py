@@ -5,7 +5,7 @@ import pytest
 from app.core.events import TrainingProgress
 
 try:
-    from app.ui.views.training.view_model import TrainingViewModel
+    from app.ui.views.training.view_model import TrainingViewModel, _coerce_timeout_sec
 except ImportError as exc:  # pragma: no cover - environment-specific skip
     pytest.skip(
         f"TrainingViewModel import unavailable in this environment: {exc}", allow_module_level=True
@@ -87,3 +87,12 @@ def test_resolve_run_spec_applies_profile_defaults() -> None:
     assert spec.seed == 42
     assert spec.workers <= 2
     assert spec.cache == "disk"
+
+
+def test_coerce_timeout_sec() -> None:
+    assert _coerce_timeout_sec(None) is None
+    assert _coerce_timeout_sec("") is None
+    assert _coerce_timeout_sec("abc") is None
+    assert _coerce_timeout_sec(0) is None
+    assert _coerce_timeout_sec(-5) is None
+    assert _coerce_timeout_sec("12.5") == 12.5

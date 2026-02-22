@@ -12,6 +12,7 @@
 - [x] ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - [x] ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - [x] ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
+- [x] ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
 - [ ] Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
 - [x] ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - [x] ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
@@ -48,6 +49,7 @@
 - ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - ✅ Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
+- ✅ Task C1b — Align training manifest job_id with ProcessJobRunner handle and validate timeout input.
 - ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
@@ -84,3 +86,7 @@
 - 2026-02-22 — 6441401 — feat(train): use process runner by default for training execution
 
 - 2026-02-22 — 1c0d18e — chore(plan): fix amended C1 hash in changelog
+
+- 2026-02-22 — db6b7fe — fix(train): align manifest job id with process handle and coerce timeout
+
+- 2026-02-22 — SHA_LASTPLAN — chore(plan): fix latest training-fix changelog hash
