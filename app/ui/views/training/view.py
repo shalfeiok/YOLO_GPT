@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -57,6 +58,15 @@ class TrainingView(QWidget):
         self._trained_choices: list[tuple[str, Path]] = []
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
+        self._root_layout = QVBoxLayout(self)
+        self._loading_label = QLabel("Загрузка вкладки обучения…")
+        self._root_layout.addWidget(self._loading_label)
+        QTimer.singleShot(0, self._init_ui_async)
+
+    def _init_ui_async(self) -> None:
+        if self._loading_label is not None:
+            self._loading_label.deleteLater()
+            self._loading_label = None
         self._build_ui()
         self._connect_signals()
 
@@ -125,8 +135,6 @@ class TrainingView(QWidget):
                 f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;"
             )
         self._metrics_dashboard.refresh_theme()
-        if hasattr(self._log_view, "refresh_theme"):
-            self._log_view.refresh_theme()
 
     def _add_dataset_row(self, layout: QVBoxLayout, num: int, initial: str = "") -> None:
         row = QWidget()
@@ -372,8 +380,6 @@ class TrainingView(QWidget):
             if parsed:
                 self._current_metrics.update(parsed)
                 self._update_metrics_display()
-        if lines:
-            self._log_view.append_batch([(line, None) for line in lines])
 
     def _update_metrics_display(self) -> None:
         m = self._current_metrics
@@ -518,9 +524,6 @@ class TrainingView(QWidget):
         self._epoch_start_time = None
         self._last_epoch = None
         self._metrics_dashboard.clear()
-        self._log_view.clear()
-        self._log_view.append_line("Запуск обучения…")
-        self._log_view.append_line(f"Лог записывается в: {log_path}")
         self._vm.start_training(
             data_yaml=out_yaml,
             model_name=model_id or "yolo11n.pt",

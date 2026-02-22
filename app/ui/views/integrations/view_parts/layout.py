@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from app.config import INTEGRATIONS_CONFIG_PATH
 from app.ui.components.buttons import SecondaryButton
@@ -71,14 +71,6 @@ class IntegrationsLayoutMixin:
         self._job_status = QLabel("")
         self._job_status.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px;")
         main.addWidget(self._job_status)
-        self._job_log = QTextEdit()
-        self._job_log.setReadOnly(True)
-        self._job_log.setMinimumHeight(120)
-        self._job_log.setPlaceholderText("Логи фоновой задачи появятся здесь…")
-        self._job_log.setStyleSheet(
-            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px; font-family: monospace; font-size: 11px;"
-        )
-        main.addWidget(self._job_log)
 
         cfg_label = QLabel(f"Файл конфигурации: {INTEGRATIONS_CONFIG_PATH}")
         cfg_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px;")

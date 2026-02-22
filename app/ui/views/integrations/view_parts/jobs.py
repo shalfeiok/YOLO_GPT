@@ -29,8 +29,6 @@ class IntegrationsJobsMixin:
             self._current_job_id = event.job_id
             self._job_status.setText(f"Задача: {event.name} — запуск…")
             self._btn_cancel_job.setEnabled(True)
-            if hasattr(self, "_job_log"):
-                self._job_log.setPlainText("")
             return
         if isinstance(event, JobProgress):
             pct = int(event.progress * 100)
@@ -66,8 +64,6 @@ class IntegrationsJobsMixin:
             self._current_job_id = None
             self._toast_err("Таймаут", f"Превышено время: {event.timeout_sec:.1f}с")
             return
-        if isinstance(event, JobLogLine) and hasattr(self, "_job_log"):
-            self._append_job_log(event.line)
 
     def _handle_job_finished_toast(self, event: JobFinished) -> None:
         try:
@@ -97,12 +93,6 @@ class IntegrationsJobsMixin:
             import logging
 
             logging.getLogger(__name__).debug("Integrations view update failed", exc_info=True)
-
-    def _append_job_log(self, line: str) -> None:
-        txt = self._job_log.toPlainText()
-        lines = (txt.splitlines() + [line])[-400:]
-        self._job_log.setPlainText("\n".join(lines))
-        self._job_log.verticalScrollBar().setValue(self._job_log.verticalScrollBar().maximum())
 
     def _cancel_current_job(self) -> None:
         if not self._current_job_id:

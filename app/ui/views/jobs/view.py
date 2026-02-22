@@ -49,6 +49,8 @@ class JobsView(QWidget):
         self._subs = []
         self._selected_job_id: str | None = None
         self._refresh_scheduled = False
+        self._details_job_id: str | None = None
+        self._details_log_count = 0
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -74,7 +76,7 @@ class JobsView(QWidget):
         self._clear_btn.clicked.connect(self._on_clear)
         header.addWidget(self._clear_btn)
 
-        self._bundle_btn = QPushButton("Crash bundle")
+        self._bundle_btn = QPushButton("Крэш-архив")
         self._bundle_btn.clicked.connect(self._on_crash_bundle)
         header.addWidget(self._bundle_btn)
 
@@ -113,17 +115,17 @@ class JobsView(QWidget):
         self._retry_btn.clicked.connect(self._on_retry)
         self._copy_btn = QPushButton("Скопировать лог")
         self._copy_btn.clicked.connect(self._on_copy_log)
-        self._copy_summary_btn = QPushButton("Скопировать summary")
+        self._copy_summary_btn = QPushButton("Скопировать сводку")
         self._copy_summary_btn.clicked.connect(self._on_copy_summary)
-        self._open_run_btn = QPushButton("Open run folder")
+        self._open_run_btn = QPushButton("Открыть папку запуска")
         self._open_run_btn.clicked.connect(self._on_open_run_folder)
-        self._open_manifest_btn = QPushButton("Manifest")
+        self._open_manifest_btn = QPushButton("Манифест")
         self._open_manifest_btn.clicked.connect(self._on_open_manifest)
-        self._open_weights_btn = QPushButton("Weights")
+        self._open_weights_btn = QPushButton("Веса")
         self._open_weights_btn.clicked.connect(self._on_open_weights)
-        self._open_plots_btn = QPushButton("Plots")
+        self._open_plots_btn = QPushButton("Графики")
         self._open_plots_btn.clicked.connect(self._on_open_plots)
-        self._bundle_btn2 = QPushButton("Crash bundle")
+        self._bundle_btn2 = QPushButton("Крэш-архив")
         self._bundle_btn2.clicked.connect(self._on_crash_bundle)
         btn_row.addWidget(self._cancel_btn)
         btn_row.addWidget(self._retry_btn)
@@ -181,8 +183,10 @@ class JobsView(QWidget):
         self._subs.clear()
         super().closeEvent(event)
 
-    def _on_job_event(self, _e) -> None:
+    def _on_job_event(self, event) -> None:
         # Job events can arrive from worker threads
+        if isinstance(event, JobLogLine) and event.job_id == self._selected_job_id:
+            self._append_log_lines(event.line.splitlines())
         if self._refresh_scheduled:
             return
         self._refresh_scheduled = True
@@ -202,6 +206,7 @@ class JobsView(QWidget):
         if flt:
             jobs = [j for j in jobs if flt in j.name.lower() or flt in j.status.lower()]
 
+        self._table.setUpdatesEnabled(False)
         self._table.setRowCount(len(jobs))
 
         has_jobs = len(jobs) > 0
@@ -231,31 +236,36 @@ class JobsView(QWidget):
                     self._table.selectRow(r)
                     break
 
+        self._table.setUpdatesEnabled(True)
+
         self._refresh_details()
 
     @staticmethod
     def _format_status(status: str) -> str:
         return {
-            "running": "🟢 running",
-            "retrying": "🔁 retrying",
-            "finished": "✅ finished",
-            "failed": "❌ failed",
-            "cancelled": "⛔ cancelled",
-            "timed_out": "⏱ timed_out",
+            "running": "🟢 выполняется",
+            "retrying": "🔁 повтор",
+            "finished": "✅ завершена",
+            "failed": "❌ ошибка",
+            "cancelled": "⛔ отменена",
+            "timed_out": "⏱ таймаут",
         }.get(status, status)
 
     def _on_select(self) -> None:
-        items = self._table.selectedItems()
-        if not items:
+        row = self._table.currentRow()
+        if row < 0:
             self._selected_job_id = None
         else:
-            self._selected_job_id = items[0].data(Qt.ItemDataRole.UserRole)
+            item = self._table.item(row, 0)
+            self._selected_job_id = None if item is None else item.data(Qt.ItemDataRole.UserRole)
         self._refresh_details()
 
     def _refresh_details(self) -> None:
         rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
         if not rec:
             self._log.clear()
+            self._details_job_id = None
+            self._details_log_count = 0
             self._cancel_btn.setEnabled(False)
             self._retry_btn.setEnabled(False)
             self._copy_btn.setEnabled(False)
@@ -266,9 +276,12 @@ class JobsView(QWidget):
             self._open_plots_btn.setEnabled(False)
             return
 
-        self._log.setPlainText("\n".join(rec.logs))
-        if self._autoscroll.isChecked():
-            self._log.moveCursor(self._log.textCursor().MoveOperation.End)
+        if self._details_job_id != rec.job_id or len(rec.logs) < self._details_log_count:
+            self._log.setPlainText("\n".join(rec.logs))
+        elif len(rec.logs) > self._details_log_count:
+            self._append_log_lines(rec.logs[self._details_log_count :])
+        self._details_job_id = rec.job_id
+        self._details_log_count = len(rec.logs)
 
         self._cancel_btn.setEnabled(
             rec.status in {"running", "retrying"} and rec.cancel is not None
@@ -308,23 +321,33 @@ class JobsView(QWidget):
         if not rec:
             return
         lines = [
-            f"Job: {rec.name}",
+            f"Задача: {rec.name}",
             f"ID: {rec.job_id}",
-            f"Status: {rec.status}",
-            f"Progress: {int(rec.progress * 100)}%",
-            f"Started: {rec.started_at.isoformat(timespec='seconds')}",
+            f"Статус: {rec.status}",
+            f"Прогресс: {int(rec.progress * 100)}%",
+            f"Старт: {rec.started_at.isoformat(timespec='seconds')}",
         ]
-        if rec.ended_at:
-            lines.append(f"Ended: {rec.ended_at.isoformat(timespec='seconds')}")
+        if rec.finished_at:
+            lines.append(f"Завершено: {rec.finished_at.isoformat(timespec='seconds')}")
         if rec.message:
-            lines.append(f"Message: {rec.message}")
+            lines.append(f"Сообщение: {rec.message}")
         if rec.error:
-            lines.append(f"Error: {rec.error}")
+            lines.append(f"Ошибка: {rec.error}")
         # Include last ~25 log lines (enough context, still short)
         if rec.logs:
-            lines.append("--- Tail log ---")
+            lines.append("--- Хвост лога ---")
             lines.extend(rec.logs[-25:])
         QApplication.clipboard().setText("\n".join(lines))
+
+    def _append_log_lines(self, lines: list[str]) -> None:
+        if not lines:
+            return
+        self._log.moveCursor(self._log.textCursor().MoveOperation.End)
+        if self._log.toPlainText():
+            self._log.insertPlainText("\n")
+        self._log.insertPlainText("\n".join(lines))
+        if self._autoscroll.isChecked():
+            self._log.moveCursor(self._log.textCursor().MoveOperation.End)
 
     def _on_find_next(self) -> None:
         needle = self._log_search.text().strip()
