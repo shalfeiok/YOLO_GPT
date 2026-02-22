@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.events import TrainingProgress
+from app.core.events.job_events import JobLogLine
 
 try:
     from app.ui.views.training.view_model import TrainingViewModel, _coerce_timeout_sec
@@ -96,3 +97,24 @@ def test_coerce_timeout_sec() -> None:
     assert _coerce_timeout_sec(0) is None
     assert _coerce_timeout_sec(-5) is None
     assert _coerce_timeout_sec("12.5") == 12.5
+
+
+def test_training_job_log_is_forwarded_to_console_batch() -> None:
+    vm, _ = _mk_vm_for_unit_tests()
+    vm._uses_process_runner = True
+    vm._active_job_id = "job-1"
+    emitted: list[list[str]] = []
+
+    vm._signals = type(
+        "_S",
+        (),
+        {
+            "console_lines_batch": type("_B", (), {"emit": lambda _self, lines: emitted.append(lines)})(),
+        },
+    )()
+    vm._log_file = None
+    vm._emit_on_ui_thread = lambda fn: fn()
+
+    vm._on_training_job_log(JobLogLine(job_id="job-1", name="training", line="epoch 1"))
+
+    assert emitted == [["epoch 1"]]

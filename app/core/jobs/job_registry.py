@@ -7,6 +7,7 @@ from threading import RLock
 from typing import Any
 
 from app.core.events import EventBus
+from app.core.events.event_bus import Subscription
 from app.core.events.job_events import (
     JobCancelled,
     JobFailed,
@@ -56,19 +57,29 @@ class JobRegistry:
         self._pending_cancel: dict[str, Callable[[], None]] = {}
         self._store = store
         self._lock = RLock()
+        self._subscriptions: list[Subscription] = []
         self._subscribe_handlers()
         if self._store is not None and replay_on_start:
             replay_records(self)
 
     def _subscribe_handlers(self) -> None:
-        self._bus.subscribe(JobStarted, self._on_started)
-        self._bus.subscribe(JobProgress, self._on_progress)
-        self._bus.subscribe(JobLogLine, self._on_log)
-        self._bus.subscribe(JobFinished, self._on_finished)
-        self._bus.subscribe(JobFailed, self._on_failed)
-        self._bus.subscribe(JobCancelled, self._on_cancelled)
-        self._bus.subscribe(JobRetrying, self._on_retrying)
-        self._bus.subscribe(JobTimedOut, self._on_timed_out)
+        self._subscriptions.extend(
+            [
+                self._bus.subscribe(JobStarted, self._on_started),
+                self._bus.subscribe(JobProgress, self._on_progress),
+                self._bus.subscribe(JobLogLine, self._on_log),
+                self._bus.subscribe(JobFinished, self._on_finished),
+                self._bus.subscribe(JobFailed, self._on_failed),
+                self._bus.subscribe(JobCancelled, self._on_cancelled),
+                self._bus.subscribe(JobRetrying, self._on_retrying),
+                self._bus.subscribe(JobTimedOut, self._on_timed_out),
+            ]
+        )
+
+    def close(self) -> None:
+        for sub in self._subscriptions:
+            self._bus.unsubscribe(sub)
+        self._subscriptions.clear()
 
     def set_rerun(self, job_id: str, rerun: Callable[[], Any]) -> None:
         self._set_pending_action(job_id, rerun, self._pending_rerun, "rerun")
