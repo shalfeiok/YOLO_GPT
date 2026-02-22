@@ -6,7 +6,13 @@ from pathlib import Path
 
 import yaml
 
-from .common import DEFAULT_VAL_RATIO, IMAGE_DIR_NAMES, IMAGE_EXTENSIONS, LABEL_DIR_NAMES, _split_label_line
+from .common import (
+    DEFAULT_VAL_RATIO,
+    IMAGE_DIR_NAMES,
+    IMAGE_EXTENSIONS,
+    LABEL_DIR_NAMES,
+    _split_label_line,
+)
 
 
 def _collect_image_paths(root: Path) -> list[Path]:

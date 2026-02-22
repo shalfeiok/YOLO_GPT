@@ -233,3 +233,14 @@ class Container:
 
         spec = source if isinstance(source, FrameSourceSpec) else FrameSourceSpec(source=source)
         return self.capture.create_frame_source(spec)
+
+    def shutdown(self) -> None:
+        if self._trainer is not None:
+            try:
+                self._trainer.stop()
+            except Exception:
+                pass
+        if self._job_runner is not None:
+            self._job_runner.shutdown()
+        if self._process_job_runner is not None:
+            self._process_job_runner.shutdown()

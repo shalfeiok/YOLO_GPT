@@ -198,9 +198,7 @@ def build_lr_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> 
     form.addWidget(grp)
 
 
-def build_yolo_augmentation_section(
-    dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout
-) -> None:
+def build_yolo_augmentation_section(dlg: AdvancedTrainingSettingsDialog, form: QVBoxLayout) -> None:
     t = Tokens
     grp = QGroupBox("Встроенная аугментация YOLO")
     grp.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
