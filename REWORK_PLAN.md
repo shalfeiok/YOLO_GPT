@@ -19,7 +19,7 @@
 - [x] ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
 - [ ] Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
 - [x] ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
-- [ ] Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
+- [x] ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
 ## Audit Backlog Details
 ### A) Crash points
@@ -51,6 +51,7 @@
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
 - ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
+- ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
 ## Changelog
 - 2026-02-22 — 5cc7881 — chore(plan): audit and rebuild REWORK_PLAN backlog
@@ -71,3 +72,7 @@
 - 2026-02-22 — a91a73f — chore(plan): reconcile changelog commit hashes
 
 - 2026-02-22 — a7374e7 — chore(plan): fix last changelog hash after amend
+
+- 2026-02-22 — c81584c — chore(ci): stabilize workflow lint scope and checks
+
+- 2026-02-22 — eb2a221 — chore(plan): fix amended ci commit hash in changelog
