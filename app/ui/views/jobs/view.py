@@ -5,9 +5,7 @@ This is a thin UI on top of JobRegistry + EventBus.
 
 from __future__ import annotations
 
-import weakref
-
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -43,6 +41,8 @@ from app.ui.views.jobs.policy_dialog import JobsPolicyDialog
 
 
 class JobsView(QWidget):
+    _job_event_signal = Signal(object)
+
     def __init__(self, container) -> None:
         super().__init__()
         self._container = container
@@ -50,10 +50,11 @@ class JobsView(QWidget):
         self._registry = container.job_registry
         self._subs = []
         self._selected_job_id: str | None = None
-        self._refresh_scheduled = False
         self._is_closing = False
         self._details_job_id: str | None = None
         self._details_log_count = 0
+
+        self._job_event_signal.connect(self._on_job_event_ui)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -188,31 +189,16 @@ class JobsView(QWidget):
         super().closeEvent(event)
 
     def _on_job_event(self, event) -> None:
-        # Job events can arrive from worker threads.
+        # Thread-safe delivery onto Qt UI thread.
         if self._is_closing:
             return
-        self_ref = weakref.ref(self)
-
-        def _dispatch(e=event) -> None:
-            obj = self_ref()
-            if obj is None or obj._is_closing:
-                return
-            obj._on_job_event_ui(e)
-
-        QTimer.singleShot(0, _dispatch)
+        self._job_event_signal.emit(event)
 
     def _on_job_event_ui(self, event) -> None:
         if self._is_closing:
             return
         if isinstance(event, JobLogLine) and event.job_id == self._selected_job_id:
             self._append_log_lines(event.line.splitlines())
-        if self._refresh_scheduled:
-            return
-        self._refresh_scheduled = True
-        QTimer.singleShot(120, self._refresh_debounced)
-
-    def _refresh_debounced(self) -> None:
-        self._refresh_scheduled = False
         self._refresh()
 
     def _refresh(self) -> None:

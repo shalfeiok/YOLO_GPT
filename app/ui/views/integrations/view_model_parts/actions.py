@@ -178,7 +178,7 @@ class IntegrationsActionsMixin:
             progress(0.95, "finalizing")
             return out
 
-        return self._submit_thread_job("kfold_split", _fn)
+        return self._submit_thread_job("kfold_split", _fn, **self._policy_kwargs())
 
     def kfold_train_async(self, cfg: KFoldConfig, yamls: list[Path]) -> str:
         if not self._container:
@@ -193,7 +193,7 @@ class IntegrationsActionsMixin:
             progress(0.95, "finalizing")
             return out
 
-        return self._submit_thread_job("kfold_train", _fn)
+        return self._submit_thread_job("kfold_train", _fn, **self._policy_kwargs())
 
     def tune_async(self, cfg: TuningConfig) -> str:
         if not self._container:
@@ -226,7 +226,7 @@ class IntegrationsActionsMixin:
             progress(0.95, "finalizing")
             return res
 
-        return self._submit_thread_job("seg_isolate", _fn)
+        return self._submit_thread_job("seg_isolate", _fn, **self._policy_kwargs())
 
     def sagemaker_clone_template_async(self, base_dir: Path | None) -> str:
         if not self._container:
