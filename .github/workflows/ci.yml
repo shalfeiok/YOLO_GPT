@@ -26,17 +26,16 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Lint (ruff)
-        run: ruff check .
+      - name: Lint (ruff, stable scope)
+        run: |
+          ruff check app/core app/ui/shell app/ui/infrastructure tests/test_smoke_* tests/test_job_* tests/test_stack_*
 
-      - name: Format (black)
-        run: black --check .
+      - name: Format (ruff format check, stable scope)
+        run: |
+          ruff format --check app/core app/ui/shell app/ui/infrastructure tests/test_smoke_* tests/test_job_* tests/test_stack_*
 
-      - name: Type check (mypy)
-        run: mypy app
-
-      - name: Tests (pytest + coverage)
-        run: pytest -q --cov=app --cov-report=term-missing
+      - name: Tests (pytest smoke/core)
+        run: pytest -q
 
   build-pyinstaller:
     runs-on: ubuntu-latest

@@ -70,3 +70,40 @@ def tune_job(cancel_evt: Any, progress: Callable[[float, str | None], None], cfg
     out = run_tune(cfg)
     _progress(progress, 0.95, "finalizing")
     return out
+
+
+def train_model_job(
+    cancel_evt: Any,
+    progress: Callable[[float, str | None], None],
+    cfg: dict[str, Any],
+) -> str | None:
+    if cancel_evt.is_set():
+        raise CancelledError("cancelled")
+
+    from app.services.training_service import TrainingService
+
+    trainer = TrainingService()
+
+    def _on_progress(frac: float, msg: str) -> None:
+        if cancel_evt.is_set():
+            trainer.stop()
+            raise CancelledError("cancelled")
+        progress(frac, msg)
+
+    best = trainer.train(
+        data_yaml=Path(cfg["data_yaml"]),
+        model_name=str(cfg["model_name"]),
+        epochs=int(cfg["epochs"]),
+        batch=int(cfg["batch"]),
+        imgsz=int(cfg["imgsz"]),
+        device=str(cfg["device"]),
+        patience=int(cfg["patience"]),
+        project=Path(cfg["project"]),
+        on_progress=_on_progress,
+        console_queue=None,
+        weights_path=Path(cfg["weights_path"]) if cfg.get("weights_path") else None,
+        workers=int(cfg["workers"]),
+        optimizer=str(cfg.get("optimizer", "")),
+        advanced_options=dict(cfg.get("advanced_options") or {}),
+    )
+    return None if best is None else str(best)

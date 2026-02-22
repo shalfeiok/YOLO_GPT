@@ -117,6 +117,12 @@ class JobsView(QWidget):
         self._copy_summary_btn.clicked.connect(self._on_copy_summary)
         self._open_run_btn = QPushButton("Open run folder")
         self._open_run_btn.clicked.connect(self._on_open_run_folder)
+        self._open_manifest_btn = QPushButton("Manifest")
+        self._open_manifest_btn.clicked.connect(self._on_open_manifest)
+        self._open_weights_btn = QPushButton("Weights")
+        self._open_weights_btn.clicked.connect(self._on_open_weights)
+        self._open_plots_btn = QPushButton("Plots")
+        self._open_plots_btn.clicked.connect(self._on_open_plots)
         self._bundle_btn2 = QPushButton("Crash bundle")
         self._bundle_btn2.clicked.connect(self._on_crash_bundle)
         btn_row.addWidget(self._cancel_btn)
@@ -125,6 +131,9 @@ class JobsView(QWidget):
         btn_row.addWidget(self._copy_btn)
         btn_row.addWidget(self._copy_summary_btn)
         btn_row.addWidget(self._open_run_btn)
+        btn_row.addWidget(self._open_manifest_btn)
+        btn_row.addWidget(self._open_weights_btn)
+        btn_row.addWidget(self._open_plots_btn)
         btn_row.addWidget(self._bundle_btn2)
         bottom_layout.addLayout(btn_row)
 
@@ -252,6 +261,9 @@ class JobsView(QWidget):
             self._copy_btn.setEnabled(False)
             self._copy_summary_btn.setEnabled(False)
             self._open_run_btn.setEnabled(False)
+            self._open_manifest_btn.setEnabled(False)
+            self._open_weights_btn.setEnabled(False)
+            self._open_plots_btn.setEnabled(False)
             return
 
         self._log.setPlainText("\n".join(rec.logs))
@@ -266,7 +278,13 @@ class JobsView(QWidget):
         )
         self._copy_btn.setEnabled(True)
         self._copy_summary_btn.setEnabled(True)
-        self._open_run_btn.setEnabled(get_run_folder(rec.job_id) is not None)
+        folder = get_run_folder(rec.job_id)
+        self._open_run_btn.setEnabled(folder is not None)
+        self._open_manifest_btn.setEnabled(
+            folder is not None and (folder / "run_manifest.json").exists()
+        )
+        self._open_weights_btn.setEnabled(folder is not None and any(folder.rglob("best.pt")))
+        self._open_plots_btn.setEnabled(folder is not None and any(folder.rglob("results.png")))
 
     def _on_cancel(self) -> None:
         rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
@@ -334,6 +352,39 @@ class JobsView(QWidget):
         if not found.isNull():
             self._log.setTextCursor(found)
 
+    def _open_path(self, path) -> None:
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+
+    def _selected_run_folder(self):
+        rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
+        if rec is None:
+            return None
+        return get_run_folder(rec.job_id)
+
+    def _on_open_manifest(self) -> None:
+        folder = self._selected_run_folder()
+        if folder is None:
+            return
+        manifest = folder / "run_manifest.json"
+        if manifest.exists():
+            self._open_path(manifest)
+
+    def _on_open_weights(self) -> None:
+        folder = self._selected_run_folder()
+        if folder is None:
+            return
+        weights = next(folder.rglob("best.pt"), None)
+        if weights is not None:
+            self._open_path(weights.parent)
+
+    def _on_open_plots(self) -> None:
+        folder = self._selected_run_folder()
+        if folder is None:
+            return
+        plot = next(folder.rglob("results.png"), None)
+        if plot is not None:
+            self._open_path(plot)
+
     def _on_open_run_folder(self) -> None:
         rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
         if rec is None:
@@ -364,6 +415,5 @@ class JobsView(QWidget):
 
     def _on_policy(self) -> None:
         dlg = JobsPolicyDialog(self, integrations=getattr(self._container, "integrations", None))
-        if dlg.exec():
-            if getattr(self._container, "notifications", None):
-                self._container.notifications.success("Политика задач сохранена")
+        if dlg.exec() and getattr(self._container, "notifications", None):
+            self._container.notifications.success("Политика задач сохранена")
