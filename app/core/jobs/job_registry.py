@@ -184,7 +184,10 @@ class JobRegistry:
             parts = [part for part in str(e.line).splitlines() if part.strip()]
             if not parts:
                 return
-            rec.logs.extend(parts)
+            for part in parts:
+                if rec.logs and rec.logs[-1] == part:
+                    continue
+                rec.logs.append(part)
             if len(rec.logs) > self._max_log_lines:
                 rec.logs = rec.logs[-self._max_log_lines :]
         if persist:
