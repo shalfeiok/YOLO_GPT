@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import threading
+
 import pytest
 
+from app.core.errors import CancelledError
 from app.core.events import EventBus
 from app.core.events.job_events import JobCancelled
-from app.core.errors import CancelledError
 from app.core.jobs.job_runner import JobRunner
 
 

@@ -6,8 +6,9 @@ separate process (spawn start method).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from app.core.errors import CancelledError
 
@@ -17,7 +18,9 @@ def _progress(progress: Callable[[float, str | None], None], p: float, msg: str 
     progress(pp, msg)
 
 
-def sahi_predict_job(cancel_evt: Any, progress: Callable[[float, str | None], None], cfg: Any) -> None:
+def sahi_predict_job(
+    cancel_evt: Any, progress: Callable[[float, str | None], None], cfg: Any
+) -> None:
     if cancel_evt.is_set():
         raise CancelledError("cancelled")
     _progress(progress, 0.05, "running")

@@ -1,7 +1,6 @@
 """Тесты вспомогательных функций вкладки «Обучение» (scan_trained_weights)."""
-from pathlib import Path
 
-import pytest
+from pathlib import Path
 
 from app.ui.training.helpers import scan_trained_weights
 

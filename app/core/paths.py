@@ -24,7 +24,10 @@ def get_app_state_dir(app_folder_name: str = ".app_state") -> Path:
         return proj_dir
     except Exception:
         import logging
-        logging.getLogger(__name__).debug('Project dir probe failed; falling back to user data dir', exc_info=True)
+
+        logging.getLogger(__name__).debug(
+            "Project dir probe failed; falling back to user data dir", exc_info=True
+        )
     # 2) User data dir
     if sys.platform.startswith("win"):
         base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")

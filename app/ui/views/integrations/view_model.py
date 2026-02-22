@@ -12,24 +12,24 @@ The View owns widgets; the ViewModel owns data and side effects.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from functools import partial
-from dataclasses import replace
-
-from app.core.errors import CancelledError
-from app.core.jobs import JobHandle, ProcessJobHandle
 
 from app.application.jobs.risky_job_fns import (
-    sahi_predict_job,
-    sagemaker_clone_template_job,
     sagemaker_cdk_deploy_job,
+    sagemaker_clone_template_job,
+    sahi_predict_job,
     tune_job,
 )
+from app.core.errors import CancelledError
+from app.core.jobs import JobHandle, ProcessJobHandle
 
 try:  # Optional in headless test environments.
     from PySide6.QtCore import QObject, Signal
 except Exception:  # pragma: no cover
+
     class QObject:  # type: ignore[no-redef]
         pass
 
@@ -40,12 +40,12 @@ except Exception:  # pragma: no cover
         def emit(self, *_: object, **__: object) -> None:
             return
 
+
 from app.application.ports.integrations import (
     CometConfig,
     DVCConfig,
     IntegrationsPort,
     IntegrationsState,
-    JobsPolicyConfig,
     KFoldConfig,
     ModelExportConfig,
     ModelValidationConfig,
@@ -54,7 +54,6 @@ from app.application.ports.integrations import (
     SegIsolationConfig,
     TuningConfig,
 )
-
 from app.application.use_cases.export_model import DefaultModelExporter, ExportModelUseCase
 from app.application.use_cases.integrations_config import (
     DefaultIntegrationsConfigRepository,
@@ -67,6 +66,8 @@ from app.application.use_cases.validate_model import DefaultModelValidator, Vali
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
+
+
 class IntegrationsViewModel(QObject):
     """Application-facing API for the Integrations view."""
 
@@ -103,7 +104,9 @@ class IntegrationsViewModel(QObject):
             "retries": retries,
             "retry_backoff_sec": backoff,
             "retry_jitter": float(p.retry_jitter),
-            "retry_deadline_sec": int(p.retry_deadline_sec) if int(p.retry_deadline_sec) > 0 else None,
+            "retry_deadline_sec": int(p.retry_deadline_sec)
+            if int(p.retry_deadline_sec) > 0
+            else None,
         }
         return kwargs
 
@@ -172,7 +175,9 @@ class IntegrationsViewModel(QObject):
         self._update_state(sagemaker=cfg)
 
     def reset_sagemaker(self) -> SageMakerConfig:
-        cfg = SageMakerConfig(instance_type="ml.m5.4xlarge", endpoint_name="", model_path="", template_cloned_path="")
+        cfg = SageMakerConfig(
+            instance_type="ml.m5.4xlarge", endpoint_name="", model_path="", template_cloned_path=""
+        )
         self._update_state(sagemaker=cfg)
         return cfg
 
@@ -228,7 +233,9 @@ class IntegrationsViewModel(QObject):
         return cfg
 
     def run_export(self, *, model_path: str, export_format: str, output_dir: str) -> str:
-        cfg = ModelExportConfig(weights_path=model_path, format=export_format, output_dir=output_dir)
+        cfg = ModelExportConfig(
+            weights_path=model_path, format=export_format, output_dir=output_dir
+        )
         return self.export_model_async(cfg)
 
     def run_validation(self, *, model_path: str, data_yaml: str) -> str:
@@ -237,7 +244,11 @@ class IntegrationsViewModel(QObject):
 
     # ---- Actions ----
     def export_model(self, cfg: ModelExportConfig) -> Path | None:
-        uc = self._container.export_model_use_case if self._container else ExportModelUseCase(DefaultModelExporter())
+        uc = (
+            self._container.export_model_use_case
+            if self._container
+            else ExportModelUseCase(DefaultModelExporter())
+        )
         return uc.execute(cfg)
 
     def export_model_async(self, cfg: ModelExportConfig) -> str:
@@ -258,11 +269,17 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.job_runner.submit("export_model", _fn, **kwargs))
+        reg.set_rerun(
+            h.job_id, lambda: self._container.job_runner.submit("export_model", _fn, **kwargs)
+        )
         return h.job_id
 
     def validate_model(self, cfg: ModelValidationConfig) -> dict[str, Any]:
-        uc = self._container.validate_model_use_case if self._container else ValidateModelUseCase(DefaultModelValidator())
+        uc = (
+            self._container.validate_model_use_case
+            if self._container
+            else ValidateModelUseCase(DefaultModelValidator())
+        )
         return uc.execute(cfg)
 
     def validate_model_async(self, cfg: ModelValidationConfig) -> str:
@@ -282,7 +299,9 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.job_runner.submit("validate_model", _fn, **kwargs))
+        reg.set_rerun(
+            h.job_id, lambda: self._container.job_runner.submit("validate_model", _fn, **kwargs)
+        )
         return h.job_id
 
     def kfold_split(self, cfg: KFoldConfig) -> list[Path]:
@@ -354,7 +373,9 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.process_job_runner.submit("tune", fn, **kwargs))
+        reg.set_rerun(
+            h.job_id, lambda: self._container.process_job_runner.submit("tune", fn, **kwargs)
+        )
         return h.job_id
 
     def sahi_predict(self, cfg: SahiConfig) -> None:
@@ -374,7 +395,10 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.process_job_runner.submit("sahi_predict", fn, **kwargs))
+        reg.set_rerun(
+            h.job_id,
+            lambda: self._container.process_job_runner.submit("sahi_predict", fn, **kwargs),
+        )
         return h.job_id
 
     def seg_isolate(self, cfg: SegIsolationConfig) -> int:
@@ -428,7 +452,12 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.process_job_runner.submit("sagemaker_clone_template", fn, **kwargs))
+        reg.set_rerun(
+            h.job_id,
+            lambda: self._container.process_job_runner.submit(
+                "sagemaker_clone_template", fn, **kwargs
+            ),
+        )
         return h.job_id
 
     def sagemaker_cdk_deploy(self, template_dir: Path) -> tuple[bool, str]:
@@ -447,5 +476,8 @@ class IntegrationsViewModel(QObject):
         self._jobs[h.job_id] = h
         reg = self._container.job_registry
         reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.process_job_runner.submit("sagemaker_cdk_deploy", fn, **kwargs))
+        reg.set_rerun(
+            h.job_id,
+            lambda: self._container.process_job_runner.submit("sagemaker_cdk_deploy", fn, **kwargs),
+        )
         return h.job_id

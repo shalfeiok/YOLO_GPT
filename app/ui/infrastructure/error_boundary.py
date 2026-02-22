@@ -20,7 +20,9 @@ def install_error_boundary(notifications) -> None:
             msg = "".join(traceback.format_exception(exc_type, exc, tb))
             log.error("Unhandled exception\n%s", msg)
             if notifications is not None:
-                notifications.error("Произошла непредвиденная ошибка. Проверьте логи и crash bundle в разделе 'Задачи'.")
+                notifications.error(
+                    "Произошла непредвиденная ошибка. Проверьте логи и crash bundle в разделе 'Задачи'."
+                )
         finally:
             # Keep default behavior in console
             try:

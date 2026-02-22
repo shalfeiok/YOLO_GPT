@@ -434,7 +434,9 @@ class _InfProgressCtx(_FakeDrainCtx):
 
 
 @pytest.mark.parametrize("bad_value", [float("inf"), float("-inf")])
-def test_process_job_runner_fails_on_infinite_progress_payload(monkeypatch, bad_value: float) -> None:
+def test_process_job_runner_fails_on_infinite_progress_payload(
+    monkeypatch, bad_value: float
+) -> None:
     bus = EventBus()
     runner = ProcessJobRunner(bus, max_workers=1)
     monkeypatch.setattr(runner, "_ctx", _InfProgressCtx(bad_value))

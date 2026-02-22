@@ -4,8 +4,8 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from app.core.paths import get_app_state_dir
 from app.config import INTEGRATIONS_CONFIG_PATH
+from app.core.paths import get_app_state_dir
 
 
 def create_crash_bundle(
@@ -53,5 +53,6 @@ def create_crash_bundle(
             z.writestr("meta.txt", meta)
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('Failed to write crash bundle meta', exc_info=True)
+
+            logging.getLogger(__name__).debug("Failed to write crash bundle meta", exc_info=True)
     return output_zip

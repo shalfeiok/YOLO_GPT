@@ -5,6 +5,7 @@ Part 6.10: Minimal lock contention; drop-old-frame preserved; no race conditions
 - FrameSlot: deque(maxlen=1) auto-drops oldest on append; single lock for put/get.
 - PreviewBuffer: write to slot then swap index under lock; consumer reads other slot.
 """
+
 from __future__ import annotations
 
 import threading

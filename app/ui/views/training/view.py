@@ -1,60 +1,36 @@
 """
 Training View: parameters, progress, metrics, console. Binds to TrainingViewModel and signals.
 """
+
 from __future__ import annotations
 
-import os
 import shutil
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QFormLayout,
-    QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
-    QProgressBar,
     QPushButton,
-    QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
-from app.ui.components.inputs import NoWheelSpinBox
-
-from app.config import (
-    DEFAULT_BATCH,
-    DEFAULT_DATASET1,
-    DEFAULT_EPOCHS,
-    DEFAULT_IMGSZ,
-    DEFAULT_PATIENCE,
-    DEFAULT_WORKERS,
-    PROJECT_ROOT,
-)
-from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.application.ports.metrics import MetricsPort
-from app.ui.training.constants import MAX_DATASETS, METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
-from app.ui.training.helpers import scan_trained_weights
-
-from app.ui.components.buttons import PrimaryButton, SecondaryButton
-from app.ui.components.cards import Card
+from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
+from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
-from app.ui.components.log_view import LogView
 from app.ui.theme.tokens import Tokens
-from app.ui.views.metrics.dashboard import MetricsDashboardWidget
-from app.ui.views.training.view_model import TrainingViewModel
+from app.ui.training.constants import MAX_DATASETS
+from app.ui.training.helpers import scan_trained_weights
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
 from app.ui.views.training.sections import build_training_ui
+from app.ui.views.training.view_model import TrainingViewModel
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -127,9 +103,16 @@ class TrainingView(QWidget):
         self._optimizer_edit.setStyleSheet(self._line_edit_style())
         self._delete_cache_cb.setStyleSheet(f"color: {t.text_primary};")
         self._project_edit.setStyleSheet(self._line_edit_style())
-        self._sys_metrics_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px; margin-top: 4px;")
+        self._sys_metrics_label.setStyleSheet(
+            f"color: {t.text_secondary}; font-size: 11px; margin-top: 4px;"
+        )
         timer_style = f"color: {t.text_secondary}; font-size: 11px;"
-        for w in (self._timer_elapsed_total, self._timer_elapsed_epoch, self._timer_eta_epoch, self._timer_eta_total):
+        for w in (
+            self._timer_elapsed_total,
+            self._timer_elapsed_epoch,
+            self._timer_eta_epoch,
+            self._timer_eta_total,
+        ):
             w.setStyleSheet(timer_style)
         self._progress_bar.setStyleSheet(self._progress_style())
         self._status_label.setStyleSheet(f"color: {t.text_secondary};")
@@ -138,7 +121,9 @@ class TrainingView(QWidget):
         for _key, w in self._metric_pct_labels.items():
             w.setStyleSheet(pct_style)
         for _key, w in self._metric_value_labels.items():
-            w.setStyleSheet(f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;")
+            w.setStyleSheet(
+                f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;"
+            )
         self._metrics_dashboard.refresh_theme()
         if hasattr(self._log_view, "refresh_theme"):
             self._log_view.refresh_theme()
@@ -151,7 +136,9 @@ class TrainingView(QWidget):
         lbl.setStyleSheet(f"font-weight: bold; color: {Tokens.text_primary};")
         edit = QLineEdit()
         edit.setText(initial)
-        edit.setToolTip("Путь к папке датасета (с data.yaml и подпапками train/valid или train/val).")
+        edit.setToolTip(
+            "Путь к папке датасета (с data.yaml и подпапками train/valid или train/val)."
+        )
         edit.setStyleSheet(self._line_edit_style())
         btn = SecondaryButton("…")
         btn.setToolTip("Выбрать папку датасета")
@@ -244,7 +231,12 @@ class TrainingView(QWidget):
         return (YOLO_MODEL_CHOICES[0].model_id, None)
 
     def _browse_weights(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Выберите веса (.pt)", self._project_edit.text(), "PyTorch (*.pt);;Все файлы (*.*)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выберите веса (.pt)",
+            self._project_edit.text(),
+            "PyTorch (*.pt);;Все файлы (*.*)",
+        )
         if path:
             self._weights_edit.setText(path)
 
@@ -267,7 +259,8 @@ class TrainingView(QWidget):
             QMessageBox.information(self, "Удаление", "Папка уже пуста.")
             return
         reply = QMessageBox.question(
-            self, "Удалить старые runs?",
+            self,
+            "Удалить старые runs?",
             f"Будет удалено содержимое папки:\n{p}\n\nПродолжить?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
@@ -290,6 +283,7 @@ class TrainingView(QWidget):
 
     def _start_metrics_timer(self) -> None:
         from PySide6.QtCore import QTimer
+
         self._metrics_timer = QTimer(self)
         self._metrics_timer.timeout.connect(self._tick_system_metrics)
         self._metrics_timer.start(METRICS_UPDATE_MS)
@@ -510,6 +504,7 @@ class TrainingView(QWidget):
         workers = self._workers_value()
         optimizer = self._optimizer_value()
         from datetime import datetime
+
         log_dir = project / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"

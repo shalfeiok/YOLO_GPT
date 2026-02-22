@@ -1,4 +1,5 @@
 """YOLO detection service: IDetector implementation delegating to PyTorchBackend."""
+
 from __future__ import annotations
 
 from pathlib import Path

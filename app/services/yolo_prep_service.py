@@ -1,10 +1,10 @@
 """Приведение папки с изображениями и метками к формату YOLO (train/val, data.yaml). Поддержка Pascal VOC (XML)."""
-import re
+
 import random
+import re
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -16,24 +16,61 @@ def _split_label_line(line: str) -> list[str]:
         return []
     return [t for t in re.split(r"[\s,]+", line) if t]
 
+
 # Расширения изображений
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 # Доля валидации по умолчанию
 DEFAULT_VAL_RATIO = 0.2
 
 # Популярные названия папок с изображениями (для гибкого поиска датасетов)
-IMAGE_DIR_NAMES = frozenset({
-    "images", "img", "imgs", "image", "photos", "pics", "jpg", "jpeg", "data",
-    "train", "val", "valid", "test", "train_images", "val_images", "test_images",
-    "картинки", "изображения", "фото", "данные",
-})
+IMAGE_DIR_NAMES = frozenset(
+    {
+        "images",
+        "img",
+        "imgs",
+        "image",
+        "photos",
+        "pics",
+        "jpg",
+        "jpeg",
+        "data",
+        "train",
+        "val",
+        "valid",
+        "test",
+        "train_images",
+        "val_images",
+        "test_images",
+        "картинки",
+        "изображения",
+        "фото",
+        "данные",
+    }
+)
 
 # Популярные названия папок с метками (YOLO .txt или разметка)
-LABEL_DIR_NAMES = frozenset({
-    "labels", "label", "annotations", "annotation", "ann", "lbl", "lbls",
-    "yolo_labels", "yolo", "txt", "ground_truth", "gt",
-    "метки", "разметка", "аннотации", "labels_train", "labels_val", "labels_test",
-})
+LABEL_DIR_NAMES = frozenset(
+    {
+        "labels",
+        "label",
+        "annotations",
+        "annotation",
+        "ann",
+        "lbl",
+        "lbls",
+        "yolo_labels",
+        "yolo",
+        "txt",
+        "ground_truth",
+        "gt",
+        "метки",
+        "разметка",
+        "аннотации",
+        "labels_train",
+        "labels_val",
+        "labels_test",
+    }
+)
 
 
 def is_voc_dataset(root: Path) -> bool:
@@ -203,7 +240,7 @@ def _collect_image_paths(root: Path) -> list[Path]:
     return sorted(seen)
 
 
-def _find_label_for_image(image_path: Path, root: Path) -> Optional[Path]:
+def _find_label_for_image(image_path: Path, root: Path) -> Path | None:
     """Ищет файл метки .txt для изображения: рядом с картинкой, в папках labels/annotations/ и т.д."""
     stem = image_path.stem
     root = root.resolve()
@@ -259,10 +296,10 @@ def _find_label_for_image(image_path: Path, root: Path) -> Optional[Path]:
 
 def _find_images_and_labels(
     root: Path,
-) -> tuple[list[Path], list[Optional[Path]]]:
+) -> tuple[list[Path], list[Path | None]]:
     """Ищет изображения по популярным названиям папок; для каждой картинки ищет метку в логичных местах."""
     image_paths = _collect_image_paths(root)
-    label_paths: list[Optional[Path]] = [_find_label_for_image(img, root) for img in image_paths]
+    label_paths: list[Path | None] = [_find_label_for_image(img, root) for img in image_paths]
     return image_paths, label_paths
 
 
@@ -270,7 +307,7 @@ def prepare_for_yolo(
     source_dir: Path,
     output_dir: Path,
     val_ratio: float = DEFAULT_VAL_RATIO,
-    seed: Optional[int] = 42,
+    seed: int | None = 42,
 ) -> Path:
     """
     Создаёт в output_dir структуру YOLO: train/images, train/labels, val/images, val/labels, data.yaml.
@@ -369,6 +406,7 @@ def export_dataset_filter_classes(
     class_indices — индексы классов (0-based). В новых метках классы перенумерованы 0, 1, 2, ...
     """
     import shutil
+
     source_dataset_dir = Path(source_dataset_dir).resolve()
     output_dataset_dir = Path(output_dataset_dir).resolve()
     if not class_indices:
@@ -407,7 +445,9 @@ def export_dataset_filter_classes(
                         lines_out.append(f"{new_cid} {parts[1]} {parts[2]} {parts[3]} {parts[4]}")
             if lines_out or not lbl_path.exists():
                 shutil.copy2(img_path, dst_imgs / img_path.name)
-                (dst_lbls / (img_path.stem + ".txt")).write_text("\n".join(lines_out), encoding="utf-8")
+                (dst_lbls / (img_path.stem + ".txt")).write_text(
+                    "\n".join(lines_out), encoding="utf-8"
+                )
 
     data_yaml = {
         "path": str(output_dataset_dir),
@@ -476,7 +516,9 @@ def merge_classes_in_dataset(
                         lines_out.append(f"{new_cid} {parts[1]} {parts[2]} {parts[3]} {parts[4]}")
             if lines_out:
                 shutil.copy2(img_path, dst_imgs / img_path.name)
-                (dst_lbls / (img_path.stem + ".txt")).write_text("\n".join(lines_out), encoding="utf-8")
+                (dst_lbls / (img_path.stem + ".txt")).write_text(
+                    "\n".join(lines_out), encoding="utf-8"
+                )
 
     data_yaml = {
         "path": str(output_dataset_dir),
@@ -495,8 +537,8 @@ def merge_classes_in_dataset(
 def rename_class_in_dataset(
     dataset_dir: Path,
     new_name: str,
-    class_index: Optional[int] = None,
-    old_name: Optional[str] = None,
+    class_index: int | None = None,
+    old_name: str | None = None,
 ) -> Path:
     """
     Переименовывает один класс в data.yaml датасета.

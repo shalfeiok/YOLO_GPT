@@ -6,8 +6,9 @@
   Варианты и быстродействие: см. docs/CAPTURE_BACKGROUND_WINDOWS.md.
 - Camera/video: OpenCV VideoCapture. Единый интерфейс read() → (ret, frame) для конвейера захват → очередь → инференс → превью.
 """
+
 import ctypes
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -32,7 +33,9 @@ _PRINT_PW = "print_pw"
 _PRINT_0 = "print_0"
 _BITBLT = "bitblt"
 _REDRAW_PRINT = "redraw_print"
-_RESTORE_PRINT = "restore_print"  # для свёрнутого окна: временно восстановить → PrintWindow → свернуть
+_RESTORE_PRINT = (
+    "restore_print"  # для свёрнутого окна: временно восстановить → PrintWindow → свернуть
+)
 _WINDOW_METHOD_ORDER = (_PRINT_PW, _PRINT_0, _BITBLT, _REDRAW_PRINT)
 
 
@@ -40,7 +43,7 @@ class WindowCaptureService(IWindowCapture):
     """Captures window or primary monitor on Windows. GDI-first for stability."""
 
     def __init__(self) -> None:
-        self._win32: Optional[object] = None
+        self._win32: object | None = None
         self._mss: Any = None
         self._mss_failed: bool = False  # skip mss after first failure (avoid repeated hang)
         self._window_method_cache: dict[int, str] = {}
@@ -48,17 +51,21 @@ class WindowCaptureService(IWindowCapture):
 
     def _init_win32(self) -> None:
         try:
+            import win32api
+            import win32con
             import win32gui
             import win32ui
-            import win32con
-            import win32api
-            self._win32 = type("Win32", (), {"gui": win32gui, "ui": win32ui, "con": win32con, "api": win32api})()
+
+            self._win32 = type(
+                "Win32", (), {"gui": win32gui, "ui": win32ui, "con": win32con, "api": win32api}
+            )()
             # Чтобы GetWindowRect и экран (mss/GDI) были в одних координатах при масштабировании DPI
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Capture backend operation failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Capture backend operation failed", exc_info=True)
         except ImportError:
             self._win32 = None
 
@@ -68,6 +75,7 @@ class WindowCaptureService(IWindowCapture):
             return self._mss is not None
         try:
             import mss
+
             self._mss = mss.mss()
             return True
         except Exception:
@@ -90,12 +98,12 @@ class WindowCaptureService(IWindowCapture):
         wg.EnumWindows(enum_cb, None)
         return out
 
-    def _is_image_empty(self, arr: Optional[np.ndarray], threshold: float = 3.0) -> bool:
+    def _is_image_empty(self, arr: np.ndarray | None, threshold: float = 3.0) -> bool:
         if arr is None or arr.size == 0:
             return True
         return float(arr.mean()) < threshold
 
-    def _capture_bitblt(self, hwnd: int, w: int, h: int) -> Optional[np.ndarray]:
+    def _capture_bitblt(self, hwnd: int, w: int, h: int) -> np.ndarray | None:
         try:
             wg = self._win32.gui
             ui = self._win32.ui
@@ -118,9 +126,12 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_printwindow(self, hwnd: int, w: int, h: int, flags: int = 0x2) -> Optional[np.ndarray]:
+    def _capture_printwindow(
+        self, hwnd: int, w: int, h: int, flags: int = 0x2
+    ) -> np.ndarray | None:
         try:
             import ctypes
+
             wg = self._win32.gui
             ui = self._win32.ui
             user32 = ctypes.windll.user32
@@ -145,7 +156,9 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_screen_region(self, left: int, top: int, width: int, height: int) -> Optional[np.ndarray]:
+    def _capture_screen_region(
+        self, left: int, top: int, width: int, height: int
+    ) -> np.ndarray | None:
         """Capture screen region via mss (lazy). On failure disables mss for next calls."""
         if not self._ensure_mss() or self._mss is None:
             return None
@@ -171,9 +184,10 @@ class WindowCaptureService(IWindowCapture):
             self._mss_failed = True
             return None
 
-    def _capture_redraw_then_printwindow(self, hwnd: int, w: int, h: int) -> Optional[np.ndarray]:
+    def _capture_redraw_then_printwindow(self, hwnd: int, w: int, h: int) -> np.ndarray | None:
         try:
             import ctypes
+
             user32 = ctypes.windll.user32
             user32.RedrawWindow(hwnd, None, None, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASENOW)
             frame = self._capture_printwindow(hwnd, w, h, 0)
@@ -183,10 +197,11 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_restore_then_printwindow(self, hwnd: int, w: int, h: int) -> Optional[np.ndarray]:
+    def _capture_restore_then_printwindow(self, hwnd: int, w: int, h: int) -> np.ndarray | None:
         """Для свёрнутого окна: временно восстановить, PrintWindow (из буфера процесса), снова свернуть."""
         import ctypes
         import time
+
         user32 = ctypes.windll.user32
         try:
             if not user32.IsIconic(hwnd):
@@ -203,12 +218,14 @@ class WindowCaptureService(IWindowCapture):
                 user32.ShowWindow(hwnd, SW_MINIMIZE)
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Capture backend operation failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Capture backend operation failed", exc_info=True)
             return None
 
-    def _capture_client_area_screen(self, hwnd: int) -> Optional[np.ndarray]:
+    def _capture_client_area_screen(self, hwnd: int) -> np.ndarray | None:
         try:
             import ctypes
+
             wg = self._win32.gui
             user32 = ctypes.windll.user32
 
@@ -231,7 +248,7 @@ class WindowCaptureService(IWindowCapture):
 
     def _try_capture_by_method(
         self, hwnd: int, method: str, left: int, top: int, w: int, h: int
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         if method == _PRINT_PW:
             return self._capture_printwindow(hwnd, w, h, PW_RENDERFULLCONTENT)
         if method == _PRINT_0:
@@ -244,14 +261,14 @@ class WindowCaptureService(IWindowCapture):
             return self._capture_restore_then_printwindow(hwnd, w, h)
         return None
 
-    def _get_virtual_screen_bounds(self) -> Optional[tuple[int, int, int, int]]:
+    def _get_virtual_screen_bounds(self) -> tuple[int, int, int, int] | None:
         """(left, top, width, height) виртуального экрана в пикселях. None если win32 недоступен."""
         if self._win32 is None:
             return None
         try:
             wg = self._win32.gui
-            left = wg.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
-            top = wg.GetSystemMetrics(77)    # SM_YVIRTUALSCREEN
+            left = wg.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
+            top = wg.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
             width = wg.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
             height = wg.GetSystemMetrics(79)  # SM_CYVIRTUALSCREEN
             if width <= 0 or height <= 0:
@@ -260,7 +277,7 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def capture_window(self, hwnd: int) -> Optional[np.ndarray]:
+    def capture_window(self, hwnd: int) -> np.ndarray | None:
         """Захват окна без наложения других окон: сначала PrintWindow (буфер окна), затем область экрана (mss/GDI)."""
         if self._win32 is None:
             return None
@@ -281,7 +298,10 @@ class WindowCaptureService(IWindowCapture):
                         h = bottom - top
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('Capture backend operation failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "Capture backend operation failed", exc_info=True
+                    )
                 if w <= 0 or h <= 0:
                     return None
             # Сначала PrintWindow — содержимое окна без наложения других окон (в т.ч. неактивное)
@@ -309,7 +329,9 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_rect_gdi(self, left: int, top: int, width: int, height: int) -> Optional[np.ndarray]:
+    def _capture_rect_gdi(
+        self, left: int, top: int, width: int, height: int
+    ) -> np.ndarray | None:
         """Захват прямоугольной области экрана через GDI (для fallback при захвате окна)."""
         if self._win32 is None or width <= 0 or height <= 0:
             return None
@@ -337,23 +359,23 @@ class WindowCaptureService(IWindowCapture):
         except Exception:
             return None
 
-    def _capture_primary_gdi(self) -> Optional[np.ndarray]:
+    def _capture_primary_gdi(self) -> np.ndarray | None:
         """Full screen via GDI (fallback when mss hangs/crashes)."""
         if self._win32 is None:
             return None
         try:
             wg = self._win32.gui
             left = wg.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
-            top = wg.GetSystemMetrics(77)   # SM_YVIRTUALSCREEN
-            w = wg.GetSystemMetrics(78)    # SM_CXVIRTUALSCREEN
-            h = wg.GetSystemMetrics(79)    # SM_CYVIRTUALSCREEN
+            top = wg.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
+            w = wg.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
+            h = wg.GetSystemMetrics(79)  # SM_CYVIRTUALSCREEN
             if w <= 0 or h <= 0:
                 return None
             return self._capture_rect_gdi(left, top, w, h)
         except Exception:
             return None
 
-    def capture_primary_monitor(self) -> Optional[np.ndarray]:
+    def capture_primary_monitor(self) -> np.ndarray | None:
         """Primary monitor: try mss (lazy), then GDI fallback if mss fails/hangs."""
         if self._ensure_mss() and self._mss is not None:
             try:
@@ -374,7 +396,7 @@ class OpenCVFrameSource:
     Интерфейс как у cv2.VideoCapture: read() → (ret, frame), release(), is_opened().
     """
 
-    def __init__(self, source: Union[int, str]) -> None:
+    def __init__(self, source: int | str) -> None:
         self._cap: Any = None
         if cv2 is not None:
             self._cap = cv2.VideoCapture(source)
@@ -382,7 +404,7 @@ class OpenCVFrameSource:
     def is_opened(self) -> bool:
         return self._cap is not None and self._cap.isOpened()
 
-    def read(self) -> tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, np.ndarray | None]:
         """Следующий кадр. (True, BGR) или (False, None)."""
         if self._cap is None:
             return False, None
@@ -397,5 +419,6 @@ class OpenCVFrameSource:
                 self._cap.release()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Capture backend operation failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Capture backend operation failed", exc_info=True)
             self._cap = None

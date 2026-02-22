@@ -1,6 +1,7 @@
 """
 QApplication setup: High DPI, organization and app name for QSettings.
 """
+
 from __future__ import annotations
 
 import sys

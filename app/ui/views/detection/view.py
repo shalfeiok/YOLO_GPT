@@ -2,6 +2,7 @@
 Detection View: model, source (screen/window/camera/video), confidence/IOU,
 visualization backend, Start/Stop, FPS. Preview in separate OpenCV window (unchanged logic).
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,29 +13,24 @@ from queue import Empty, Queue
 from threading import Event, Lock, Thread
 from typing import TYPE_CHECKING
 
-from app.features.detection_visualization.frame_buffers import FrameSlot, PreviewBuffer
-
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from app.config import DEFAULT_CONFIDENCE, DEFAULT_IOU_THRESH, PREVIEW_MAX_SIZE
-from app.features.integrations_config import load_config, save_config
+from app.config import PREVIEW_MAX_SIZE
 from app.features.detection_visualization import (
     get_backend,
     list_backends,
@@ -43,21 +39,19 @@ from app.features.detection_visualization import (
     save_visualization_config,
 )
 from app.features.detection_visualization.domain import (
-    BACKEND_OPENCV,
     BACKEND_D3DSHOT_PYTORCH,
-    BACKEND_ONNX,
     VISUALIZATION_BACKEND_DISPLAY_NAMES,
     builtin_visualization_presets,
     get_config_section,
-    is_onnx_family,
     use_gpu_tensor_for_preview,
 )
+from app.features.detection_visualization.frame_buffers import FrameSlot, PreviewBuffer
 from app.features.detection_visualization.repository import (
     delete_user_preset,
     get_user_presets,
     save_user_preset,
 )
-
+from app.features.integrations_config import load_config, save_config
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.inputs import NoWheelSpinBox
 from app.ui.theme.tokens import Tokens
@@ -71,7 +65,6 @@ from .sections import (
     build_thresholds_row,
     build_video_row,
 )
-
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -190,14 +183,28 @@ class DetectionView(QWidget):
     def refresh_theme(self) -> None:
         """Re-apply theme-dependent styles (called when theme changes)."""
         t = Tokens
-        self._weights_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
-        self._source_combo.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;")
-        self._video_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
-        self._conf_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
-        self._iou_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
-        self._vis_combo.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;")
+        self._weights_edit.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+        )
+        self._source_combo.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;"
+        )
+        self._video_edit.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+        )
+        self._conf_edit.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+        )
+        self._iou_edit.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+        )
+        self._vis_combo.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 4px;"
+        )
         self._fps_label.setStyleSheet(f"font-weight: bold; color: {t.text_primary};")
-        self._live_group.setStyleSheet(f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}")
+        self._live_group.setStyleSheet(
+            f"QGroupBox {{ font-weight: bold; color: {t.text_primary}; }}"
+        )
 
     def _get_vis_backend_id(self) -> str:
         name = self._vis_combo.currentText()
@@ -209,7 +216,9 @@ class DetectionView(QWidget):
     def _sync_vis_combo(self) -> None:
         cfg = load_visualization_config()
         bid = cfg.get("backend_id", "opencv")
-        self._vis_combo.setCurrentText(VISUALIZATION_BACKEND_DISPLAY_NAMES.get(bid, "OpenCV (GDI/mss + imshow)"))
+        self._vis_combo.setCurrentText(
+            VISUALIZATION_BACKEND_DISPLAY_NAMES.get(bid, "OpenCV (GDI/mss + imshow)")
+        )
 
     def _on_vis_backend_changed(self, _: str) -> None:
         bid = self._get_vis_backend_id()
@@ -219,8 +228,11 @@ class DetectionView(QWidget):
 
     def _open_vis_settings(self) -> None:
         """Диалог настроек визуализации: профили, бэкенд, превью, настройки фич (region, FPS, colormap)."""
-        from app.features.ultralytics_solutions.repository import load_solutions_config, save_solutions_config
         from app.features.ultralytics_solutions.domain import SolutionsConfig
+        from app.features.ultralytics_solutions.repository import (
+            load_solutions_config,
+            save_solutions_config,
+        )
 
         t = Tokens
         cfg = load_visualization_config()
@@ -242,6 +254,7 @@ class DetectionView(QWidget):
         combo_profile = QComboBox()
         combo_profile.setStyleSheet(style_edit)
         combo_profile.setToolTip("Выберите сохранённый профиль или «Стандартный».")
+
         def _fill_profile_combo() -> None:
             combo_profile.blockSignals(True)
             combo_profile.clear()
@@ -249,6 +262,7 @@ class DetectionView(QWidget):
             for p in get_user_presets():
                 combo_profile.addItem(p.get("name", ""), p.get("config"))
             combo_profile.blockSignals(False)
+
         _fill_profile_combo()
         profile_ly.addWidget(combo_profile, 1)
         btn_std_profile = SecondaryButton("Стандартный")
@@ -321,11 +335,22 @@ class DetectionView(QWidget):
         fps_spin.setStyleSheet(style_edit)
         form_sol.addRow("FPS (SpeedEstimator):", fps_spin)
         colormap_combo = QComboBox()
-        colormap_combo.addItems([
-            "COLORMAP_AUTUMN", "COLORMAP_BONE", "COLORMAP_JET", "COLORMAP_WINTER", "COLORMAP_RAINBOW",
-            "COLORMAP_OCEAN", "COLORMAP_SUMMER", "COLORMAP_SPRING", "COLORMAP_COOL", "COLORMAP_HSV",
-            "COLORMAP_PINK", "COLORMAP_HOT",
-        ])
+        colormap_combo.addItems(
+            [
+                "COLORMAP_AUTUMN",
+                "COLORMAP_BONE",
+                "COLORMAP_JET",
+                "COLORMAP_WINTER",
+                "COLORMAP_RAINBOW",
+                "COLORMAP_OCEAN",
+                "COLORMAP_SUMMER",
+                "COLORMAP_SPRING",
+                "COLORMAP_COOL",
+                "COLORMAP_HSV",
+                "COLORMAP_PINK",
+                "COLORMAP_HOT",
+            ]
+        )
         cm = (solutions_cfg.colormap or "COLORMAP_JET").replace("cv2.", "").strip()
         idx_cm = colormap_combo.findText(cm)
         if idx_cm >= 0:
@@ -353,10 +378,12 @@ class DetectionView(QWidget):
         row_user = QHBoxLayout()
         row_user.addWidget(QLabel("Сохранённые:"))
         combo_user = QComboBox()
+
         def _fill_user_presets() -> None:
             combo_user.clear()
             for p in get_user_presets():
                 combo_user.addItem(p.get("name", ""), p.get("config"))
+
         _fill_user_presets()
         combo_user.setStyleSheet(style_edit)
         row_user.addWidget(combo_user, 1)
@@ -435,6 +462,7 @@ class DetectionView(QWidget):
 
         def _on_std_profile() -> None:
             from app.features.detection_visualization.domain import default_visualization_config
+
             combo_profile.blockSignals(True)
             combo_profile.setCurrentIndex(0)
             combo_profile.blockSignals(False)
@@ -544,7 +572,11 @@ class DetectionView(QWidget):
 
     def _open_live_solutions_settings(self) -> None:
         """Диалог настроек фич в реальном времени: region_points, FPS, colormap."""
-        from app.features.ultralytics_solutions.repository import load_solutions_config, save_solutions_config
+        from app.features.ultralytics_solutions.repository import (
+            load_solutions_config,
+            save_solutions_config,
+        )
+
         t = Tokens
         cfg = load_solutions_config()
         dlg = QDialog(self)
@@ -561,11 +593,22 @@ class DetectionView(QWidget):
         fps_spin.setStyleSheet(style)
         form.addRow("FPS (SpeedEstimator):", fps_spin)
         colormap_combo = QComboBox()
-        colormap_combo.addItems([
-            "COLORMAP_AUTUMN", "COLORMAP_BONE", "COLORMAP_JET", "COLORMAP_WINTER", "COLORMAP_RAINBOW",
-            "COLORMAP_OCEAN", "COLORMAP_SUMMER", "COLORMAP_SPRING", "COLORMAP_COOL", "COLORMAP_HSV",
-            "COLORMAP_PINK", "COLORMAP_HOT",
-        ])
+        colormap_combo.addItems(
+            [
+                "COLORMAP_AUTUMN",
+                "COLORMAP_BONE",
+                "COLORMAP_JET",
+                "COLORMAP_WINTER",
+                "COLORMAP_RAINBOW",
+                "COLORMAP_OCEAN",
+                "COLORMAP_SUMMER",
+                "COLORMAP_SPRING",
+                "COLORMAP_COOL",
+                "COLORMAP_HSV",
+                "COLORMAP_PINK",
+                "COLORMAP_HOT",
+            ]
+        )
         cm = (cfg.colormap or "COLORMAP_JET").replace("cv2.", "").strip()
         idx = colormap_combo.findText(cm)
         if idx >= 0:
@@ -576,6 +619,7 @@ class DetectionView(QWidget):
         btn_row.addStretch()
         save_btn = PrimaryButton("Сохранить")
         cancel_btn = SecondaryButton("Отмена")
+
         def _save() -> None:
             cfg.region_points = region_edit.text().strip() or "[(20, 400), (1260, 400)]"
             cfg.fps = float(fps_spin.value())
@@ -583,6 +627,7 @@ class DetectionView(QWidget):
             save_solutions_config(cfg)
             QMessageBox.information(dlg, "Сохранено", "Настройки фич сохранены.")
             dlg.accept()
+
         save_btn.clicked.connect(_save)
         cancel_btn.clicked.connect(dlg.reject)
         btn_row.addWidget(save_btn)
@@ -592,7 +637,8 @@ class DetectionView(QWidget):
 
     def _browse_weights(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Веса модели",
+            self,
+            "Веса модели",
             self._weights_edit.text() or ".",
             "PyTorch / ONNX (*.pt *.onnx);;PyTorch (*.pt);;ONNX (*.onnx);;Все файлы (*.*)",
         )
@@ -600,7 +646,12 @@ class DetectionView(QWidget):
             self._weights_edit.setText(path)
 
     def _browse_video(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Видеофайл", self._video_edit.text() or ".", "MP4 (*.mp4);;AVI (*.avi);;Все файлы (*.*)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Видеофайл",
+            self._video_edit.text() or ".",
+            "MP4 (*.mp4);;AVI (*.avi);;Все файлы (*.*)",
+        )
         if path:
             self._video_edit.setText(path)
 
@@ -614,13 +665,17 @@ class DetectionView(QWidget):
         path_edit = QLineEdit()
         path_edit.setText(cfg.get("save_path", "") or "")
         path_edit.setPlaceholderText("Папка для сохранения кадров/видео")
-        path_edit.setStyleSheet(f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;")
+        path_edit.setStyleSheet(
+            f"background: {t.surface}; color: {t.text_primary}; border: 1px solid {t.border}; border-radius: {t.radius_sm}px; padding: 6px;"
+        )
         path_edit.setMinimumWidth(320)
         browse_btn = SecondaryButton("Обзор…")
         browse_btn.setMinimumWidth(100)
 
         def choose_dir() -> None:
-            folder = QFileDialog.getExistingDirectory(dlg, "Папка сохранения", path_edit.text() or ".")
+            folder = QFileDialog.getExistingDirectory(
+                dlg, "Папка сохранения", path_edit.text() or "."
+            )
             if folder:
                 path_edit.setText(folder)
 
@@ -692,7 +747,8 @@ class DetectionView(QWidget):
                 self._opencv_source.release()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
             self._opencv_source = None
         for th in (self._capture_thread, self._screen_capture_thread, self._inference_thread):
             if th is not None and th.is_alive():
@@ -743,7 +799,11 @@ class DetectionView(QWidget):
                 return
             test_frame = self._capture.capture_window(self._current_hwnd)
             if test_frame is None:
-                QMessageBox.warning(self, "Захват окна", "Не удалось получить кадр от окна. Разверните окно и нажмите Старт снова.")
+                QMessageBox.warning(
+                    self,
+                    "Захват окна",
+                    "Не удалось получить кадр от окна. Разверните окно и нажмите Старт снова.",
+                )
                 return
 
         vis_config = load_visualization_config()
@@ -763,9 +823,13 @@ class DetectionView(QWidget):
 
         self._active_detector = res.detector
         self._detection_job_id = uuid.uuid4().hex
-        self._container.event_bus.publish(JobStarted(job_id=self._detection_job_id, name="detection"))
         self._container.event_bus.publish(
-            JobProgress(job_id=self._detection_job_id, name="detection", progress=0.0, message="started")
+            JobStarted(job_id=self._detection_job_id, name="detection")
+        )
+        self._container.event_bus.publish(
+            JobProgress(
+                job_id=self._detection_job_id, name="detection", progress=0.0, message="started"
+            )
         )
         try:
             register_run(
@@ -793,7 +857,10 @@ class DetectionView(QWidget):
             self._pending_onnx = (this_run_id, conf_f, iou_f, path, backend_id, vis_config)
 
             def _poll_onnx_ready() -> None:
-                if not getattr(self, "_pending_onnx", None) or self._pending_onnx[0] != self._run_id:
+                if (
+                    not getattr(self, "_pending_onnx", None)
+                    or self._pending_onnx[0] != self._run_id
+                ):
                     return
                 err = getattr(self._active_detector, "get_export_error", lambda: None)()
                 if err:
@@ -871,8 +938,10 @@ class DetectionView(QWidget):
         live_solutions_config: list = []
         if enabled_live_ids:
             try:
-                from app.features.integrations_config import load_config
                 import cv2 as _cv2
+
+                from app.features.integrations_config import load_config
+
                 sol_cfg = load_config().get("ultralytics_solutions", {})
                 region_pts = sol_cfg.get("region_points", "[(20, 400), (1260, 400)]")
                 try:
@@ -880,8 +949,17 @@ class DetectionView(QWidget):
                 except Exception:
                     region = [(20, 400), (1260, 400)]
                 fps_val = float(sol_cfg.get("fps", 30))
-                colormap_name = (sol_cfg.get("colormap") or "COLORMAP_JET").replace("cv2.", "").strip()
-                _sol_display_names = {"DistanceCalculation": "Distance", "Heatmap": "Heatmap", "ObjectCounter": "ObjectCounter", "RegionCounter": "RegionCounter", "SpeedEstimator": "Speed", "TrackZone": "TrackZone"}
+                colormap_name = (
+                    (sol_cfg.get("colormap") or "COLORMAP_JET").replace("cv2.", "").strip()
+                )
+                _sol_display_names = {
+                    "DistanceCalculation": "Distance",
+                    "Heatmap": "Heatmap",
+                    "ObjectCounter": "ObjectCounter",
+                    "RegionCounter": "RegionCounter",
+                    "SpeedEstimator": "Speed",
+                    "TrackZone": "TrackZone",
+                }
                 for sol_id in enabled_live_ids:
                     live_solutions_config.append((sol_id, _sol_display_names.get(sol_id, sol_id)))
                 _sol_region = region
@@ -917,6 +995,7 @@ class DetectionView(QWidget):
 
         def inference_loop() -> None:
             import numpy as np
+
             live_annotators: list = []
 
             def _ensure_annotators() -> None:
@@ -927,37 +1006,86 @@ class DetectionView(QWidget):
                     return
                 try:
                     import ultralytics.utils.checks as _checks
+
                     _orig = getattr(_checks, "check_imshow", None)
                     if _orig is not None:
+
                         def _noop(*a, **k):
                             return True
+
                         _checks.check_imshow = _noop
                     try:
                         from ultralytics import solutions
+
                         for sol_id, sol_name in live_solutions_config:
                             try:
                                 if sol_id == "DistanceCalculation":
-                                    live_annotators.append((sol_name, solutions.DistanceCalculation(model=path, show=False)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.DistanceCalculation(model=path, show=False),
+                                        )
+                                    )
                                 elif sol_id == "Heatmap":
                                     cmap = getattr(_cv2, _sol_colormap_name, _cv2.COLORMAP_JET)
-                                    live_annotators.append((sol_name, solutions.Heatmap(model=path, show=False, colormap=cmap)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.Heatmap(
+                                                model=path, show=False, colormap=cmap
+                                            ),
+                                        )
+                                    )
                                 elif sol_id == "ObjectCounter":
-                                    live_annotators.append((sol_name, solutions.ObjectCounter(model=path, region=_sol_region, show=False)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.ObjectCounter(
+                                                model=path, region=_sol_region, show=False
+                                            ),
+                                        )
+                                    )
                                 elif sol_id == "RegionCounter":
-                                    live_annotators.append((sol_name, solutions.RegionCounter(model=path, region=_sol_region, show=False)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.RegionCounter(
+                                                model=path, region=_sol_region, show=False
+                                            ),
+                                        )
+                                    )
                                 elif sol_id == "SpeedEstimator":
-                                    live_annotators.append((sol_name, solutions.SpeedEstimator(model=path, fps=_sol_fps_val, show=False)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.SpeedEstimator(
+                                                model=path, fps=_sol_fps_val, show=False
+                                            ),
+                                        )
+                                    )
                                 elif sol_id == "TrackZone":
-                                    live_annotators.append((sol_name, solutions.TrackZone(model=path, region=_sol_region, show=False)))
+                                    live_annotators.append(
+                                        (
+                                            sol_name,
+                                            solutions.TrackZone(
+                                                model=path, region=_sol_region, show=False
+                                            ),
+                                        )
+                                    )
                             except Exception:
                                 import logging
-                                logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                                logging.getLogger(__name__).debug(
+                                    "Detection view update failed", exc_info=True
+                                )
                     finally:
                         if _orig is not None:
                             _checks.check_imshow = _orig
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
+
             use_gpu_tensor = use_gpu_tensor_for_preview(backend_id)
             frame_count = 0
             fps_t0 = time.perf_counter()
@@ -969,6 +1097,7 @@ class DetectionView(QWidget):
                 if use_gpu_tensor:
                     try:
                         import torch
+
                         if torch.cuda.is_available():
                             payload = torch.from_numpy(img).cuda()
                         else:
@@ -994,7 +1123,11 @@ class DetectionView(QWidget):
                         log.warning("predict failed", exc_info=True)
                         annotated = frame
                     self._metrics.set_inference_ms((time.perf_counter() - t_infer_start) * 1000.0)
-                    if annotated is None or not hasattr(annotated, "shape") or len(annotated.shape) < 3:
+                    if (
+                        annotated is None
+                        or not hasattr(annotated, "shape")
+                        or len(annotated.shape) < 3
+                    ):
                         continue
                     _ensure_annotators()
                     for sol_name, annotator in live_annotators:
@@ -1002,11 +1135,18 @@ class DetectionView(QWidget):
                             res = annotator(frame)
                             if res is None:
                                 continue
-                            if hasattr(res, "plot_im") and getattr(res, "plot_im", None) is not None:
+                            if (
+                                hasattr(res, "plot_im")
+                                and getattr(res, "plot_im", None) is not None
+                            ):
                                 plot_im = res.plot_im
                                 if isinstance(plot_im, np.ndarray) and len(plot_im.shape) == 3:
                                     annotated = plot_im
-                            elif isinstance(res, np.ndarray) and len(res.shape) == 3 and res.dtype == np.uint8:
+                            elif (
+                                isinstance(res, np.ndarray)
+                                and len(res.shape) == 3
+                                and res.dtype == np.uint8
+                            ):
                                 annotated = res
                         except Exception:
                             log.exception("annotator %s", sol_name)
@@ -1018,7 +1158,10 @@ class DetectionView(QWidget):
                             self._fps_queue.put_nowait(("fps", frame_count / elapsed))
                         except Exception:
                             import logging
-                            logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                            logging.getLogger(__name__).debug(
+                                "Detection view update failed", exc_info=True
+                            )
                         frame_count = 0
                         fps_t0 = time.perf_counter()
             except Exception:
@@ -1039,16 +1182,24 @@ class DetectionView(QWidget):
                     frame = None
                     if self._use_full_screen:
                         backend = getattr(self, "_visualization_backend", None)
-                        if backend is not None and getattr(backend, "supports_d3dshot_capture", lambda: False)():
+                        if (
+                            backend is not None
+                            and getattr(backend, "supports_d3dshot_capture", lambda: False)()
+                        ):
                             frame = backend.capture_frame_fullscreen()
                         if frame is None:
                             frame = self._capture.capture_primary_monitor()
                     else:
-                        frame = self._capture.capture_window(self._current_hwnd) if self._current_hwnd else None
+                        frame = (
+                            self._capture.capture_window(self._current_hwnd)
+                            if self._current_hwnd
+                            else None
+                        )
                     self._metrics.set_capture_ms((time.perf_counter() - t0) * 1000.0)
                     if frame is not None:
                         self._frame_slot.put_nowait(frame)
                     time.sleep(CAPTURE_INTERVAL_MS / 1000.0)
+
             self._screen_capture_thread = Thread(target=screen_capture_loop, daemon=True)
             self._screen_capture_thread.start()
 
@@ -1060,18 +1211,25 @@ class DetectionView(QWidget):
             frame = None
             if self._use_full_screen:
                 backend = getattr(self, "_visualization_backend", None)
-                if backend is not None and getattr(backend, "supports_d3dshot_capture", lambda: False)():
+                if (
+                    backend is not None
+                    and getattr(backend, "supports_d3dshot_capture", lambda: False)()
+                ):
                     frame = backend.capture_frame_fullscreen()
                 if frame is None:
                     frame = self._capture.capture_primary_monitor()
             else:
-                frame = self._capture.capture_window(self._current_hwnd) if self._current_hwnd else None
+                frame = (
+                    self._capture.capture_window(self._current_hwnd) if self._current_hwnd else None
+                )
             self._metrics.set_capture_ms((time.perf_counter() - t0) * 1000.0)
             if frame is not None:
                 self._frame_slot.put_nowait(frame)
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
+
     def _tick_fps(self) -> None:
         while True:
             try:
@@ -1101,7 +1259,8 @@ class DetectionView(QWidget):
                     backend.stop_display()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
             for th in threads:
                 if th is not None and th.is_alive():
                     th.join(timeout=2.0)
@@ -1121,13 +1280,18 @@ class DetectionView(QWidget):
                 self._opencv_source.release()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
             self._opencv_source = None
         self._fps_label.setText("FPS: —")
         self._frame_slot.clear()
         self._preview_buffer.clear()
-        self._container.stop_detection_use_case.execute(StopDetectionRequest(detector=self._active_detector, release_cuda_cache=True))
-        self._detection_status_label.setText("Загрузите модель и нажмите «Старт». Превью откроется в отдельном окне «YOLO Detection».")
+        self._container.stop_detection_use_case.execute(
+            StopDetectionRequest(detector=self._active_detector, release_cuda_cache=True)
+        )
+        self._detection_status_label.setText(
+            "Загрузите модель и нажмите «Старт». Превью откроется в отдельном окне «YOLO Detection»."
+        )
         self._start_btn.setEnabled(True)
         self._stop_btn.setEnabled(False)
 
@@ -1142,9 +1306,12 @@ class DetectionView(QWidget):
                 self._opencv_source.release()
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Detection view update failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Detection view update failed", exc_info=True)
             self._opencv_source = None
         self._on_detection_stopped(self._run_id)
         if self._detection_job_id is not None:
-            self._container.event_bus.publish(JobCancelled(job_id=self._detection_job_id, name="detection"))
+            self._container.event_bus.publish(
+                JobCancelled(job_id=self._detection_job_id, name="detection")
+            )
             self._detection_job_id = None

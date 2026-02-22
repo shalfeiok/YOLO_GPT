@@ -10,12 +10,12 @@ Ref: https://docs.ultralytics.com/ru/integrations/albumentations/#custom-albumen
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from app.features.albumentations_integration.domain import AlbumentationsConfig
 
 
-def get_albumentations_transforms(config: AlbumentationsConfig) -> List[Any]:
+def get_albumentations_transforms(config: AlbumentationsConfig) -> list[Any]:
     """
     Возвращает список трансформов Albumentations для model.train(augmentations=...).
     - Если аугментация отключена: пустой список [] — Ultralytics не применит albumentations.
@@ -29,7 +29,7 @@ def get_albumentations_transforms(config: AlbumentationsConfig) -> List[Any]:
     except ImportError:
         return []
     p = config.transform_p
-    out: List[Any] = []
+    out: list[Any] = []
     if config.use_standard and not config.custom_transforms:
         # Стандартный набор как в Ultralytics, но с вероятностью p из настроек
         out = [
@@ -53,7 +53,13 @@ def get_albumentations_transforms(config: AlbumentationsConfig) -> List[Any]:
             elif name == "GaussNoise":
                 out.append(A.GaussNoise(var_limit=(10.0, 50.0), p=tp))
             elif name == "RandomBrightnessContrast":
-                out.append(A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=tp))
+                out.append(
+                    A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=tp)
+                )
             elif name == "HueSaturationValue":
-                out.append(A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=tp))
+                out.append(
+                    A.HueSaturationValue(
+                        hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=tp
+                    )
+                )
     return out

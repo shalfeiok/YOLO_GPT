@@ -1,6 +1,7 @@
 """
 QSettings wrapper: main window geometry, sidebar state, dock layout, theme.
 """
+
 from __future__ import annotations
 
 from typing import cast

@@ -4,7 +4,7 @@ NOTE: UI is not imported at package import-time (headless-safe).
 Ref: https://docs.ultralytics.com/ru/guides/model-deployment-options/
 """
 
-from app.features.model_export.domain import ModelExportConfig, EXPORT_FORMATS
+from app.features.model_export.domain import EXPORT_FORMATS, ModelExportConfig
 from app.features.model_export.repository import load_export_config, save_export_config
 from app.features.model_export.service import run_export
 

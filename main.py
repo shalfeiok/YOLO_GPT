@@ -6,6 +6,7 @@ Requires: pip install -r requirements.txt -r requirements-dev.txt
 
 Phase 1: opens main window with geometry persistence. No training/detection UI yet.
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,6 +32,7 @@ def main() -> None:
     app = create_application()
     settings = AppSettings()
     from app.ui.theme.manager import ThemeManager
+
     theme_manager = ThemeManager(settings)
     theme_manager.set_theme(settings.get_theme())
 

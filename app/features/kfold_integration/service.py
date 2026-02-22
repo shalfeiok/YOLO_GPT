@@ -11,13 +11,12 @@ import datetime
 import random
 import shutil
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import yaml
 
 from app.features.kfold_integration.domain import KFoldConfig
-
 
 SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png")
 
@@ -34,7 +33,11 @@ def run_kfold_split(
     data_yaml_path = Path(cfg.data_yaml_path)
     k = cfg.k_folds
     random_state = cfg.random_state
-    save_path = Path(cfg.output_path) if cfg.output_path else dataset_path / f"{datetime.date.today().isoformat()}_{k}-Fold_Cross-val"
+    save_path = (
+        Path(cfg.output_path)
+        if cfg.output_path
+        else dataset_path / f"{datetime.date.today().isoformat()}_{k}-Fold_Cross-val"
+    )
 
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset path not found: {dataset_path}")
@@ -56,7 +59,9 @@ def run_kfold_split(
         labels_dir = dataset_path / "labels"
         labels = sorted(labels_dir.rglob("*.txt")) if labels_dir.exists() else []
     if not labels:
-        raise FileNotFoundError(f"No label files in {dataset_path} (expected *labels/*.txt or labels/*.txt)")
+        raise FileNotFoundError(
+            f"No label files in {dataset_path} (expected *labels/*.txt or labels/*.txt)"
+        )
 
     try:
         import pandas as pd

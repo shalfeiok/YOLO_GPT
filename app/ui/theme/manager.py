@@ -1,6 +1,7 @@
 """
 ThemeManager: dark/light token sets, runtime switch, QPalette and application stylesheet.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -52,6 +53,7 @@ class ThemeManager(QObject):
     def tokens(self) -> TokenSet:
         """Current token set (same object as theme.tokens.Tokens, already updated)."""
         from app.ui.theme.tokens import Tokens
+
         return Tokens
 
     def _apply_palette(self, t: TokenSet) -> None:

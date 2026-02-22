@@ -2,13 +2,12 @@
 
 This module exists to keep TrainingView (controller/binding code) small.
 """
+
 from __future__ import annotations
 
 import os
-from app.core.paths import PROJECT_ROOT
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -19,9 +18,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QProgressBar,
-    QPushButton,
     QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -32,15 +29,14 @@ from app.config import (
     DEFAULT_EPOCHS,
     DEFAULT_IMGSZ,
     DEFAULT_PATIENCE,
-    DEFAULT_WORKERS,
 )
-from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
-from app.ui.training.constants import MAX_DATASETS, METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
-from app.ui.theme.tokens import Tokens
+from app.core.paths import PROJECT_ROOT
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.cards import Card
 from app.ui.components.inputs import NoWheelSpinBox
 from app.ui.components.log_view import LogView
+from app.ui.theme.tokens import Tokens
+from app.ui.training.constants import METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
 from app.ui.views.metrics.dashboard import MetricsDashboardWidget
 
 if TYPE_CHECKING:
@@ -78,7 +74,9 @@ def build_training_ui(view: TrainingView) -> None:
     view._model_combo.setMinimumHeight(32)
     view._model_combo.setStyleSheet(view._combo_style())
     view._refresh_model_list()
-    view._model_combo.setToolTip("Базовая архитектура модели YOLO (n/s/m/l/x). От неё зависят скорость и точность.")
+    view._model_combo.setToolTip(
+        "Базовая архитектура модели YOLO (n/s/m/l/x). От неё зависят скорость и точность."
+    )
     view._model_combo.currentTextChanged.connect(view._on_model_changed)
     model_layout.addRow("Модель:", view._model_combo)
     view._model_hint_label = QLabel("")
@@ -90,7 +88,9 @@ def build_training_ui(view: TrainingView) -> None:
     weights_layout.setContentsMargins(0, 0, 0, 0)
     view._weights_edit = QLineEdit()
     view._weights_edit.setPlaceholderText("Путь к весам (.pt)")
-    view._weights_edit.setToolTip("Путь к файлу весов .pt для дообучения (fine-tuning). Оставьте пустым для обучения с нуля выбранной модели.")
+    view._weights_edit.setToolTip(
+        "Путь к файлу весов .pt для дообучения (fine-tuning). Оставьте пустым для обучения с нуля выбранной модели."
+    )
     view._weights_edit.setStyleSheet(view._line_edit_style())
     view._browse_weights_btn = SecondaryButton("Обзор…")
     view._browse_weights_btn.setToolTip("Выбрать файл весов (.pt)")
@@ -108,7 +108,9 @@ def build_training_ui(view: TrainingView) -> None:
     view._epochs_spin = NoWheelSpinBox()
     view._epochs_spin.setRange(1, 10000)
     view._epochs_spin.setValue(DEFAULT_EPOCHS)
-    view._epochs_spin.setToolTip("Число эпох обучения (1–10000). Больше эпох — дольше обучение, обычно лучше сходимость.")
+    view._epochs_spin.setToolTip(
+        "Число эпох обучения (1–10000). Больше эпох — дольше обучение, обычно лучше сходимость."
+    )
     view._epochs_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Эпохи:", view._epochs_spin)
     view._epochs_recommended = QLabel("")
@@ -118,19 +120,25 @@ def build_training_ui(view: TrainingView) -> None:
     view._batch_spin.setRange(-1, 256)
     view._batch_spin.setValue(DEFAULT_BATCH)
     view._batch_spin.setSpecialValueText("авто")
-    view._batch_spin.setToolTip("Размер батча: -1 = авто (рекомендуется), иначе 1–256. Больше батч — быстрее на GPU, но нужно больше видеопамяти.")
+    view._batch_spin.setToolTip(
+        "Размер батча: -1 = авто (рекомендуется), иначе 1–256. Больше батч — быстрее на GPU, но нужно больше видеопамяти."
+    )
     view._batch_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Batch:", view._batch_spin)
     view._imgsz_spin = NoWheelSpinBox()
     view._imgsz_spin.setRange(64, 2048)
     view._imgsz_spin.setValue(DEFAULT_IMGSZ)
-    view._imgsz_spin.setToolTip("Размер стороны входного изображения в пикселях (64–2048). 640 — стандарт для YOLO.")
+    view._imgsz_spin.setToolTip(
+        "Размер стороны входного изображения в пикселях (64–2048). 640 — стандарт для YOLO."
+    )
     view._imgsz_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Размер изображения:", view._imgsz_spin)
     view._patience_spin = NoWheelSpinBox()
     view._patience_spin.setRange(1, 1000)
     view._patience_spin.setValue(DEFAULT_PATIENCE)
-    view._patience_spin.setToolTip("Early stopping: остановить обучение, если метрика не улучшалась столько эпох подряд.")
+    view._patience_spin.setToolTip(
+        "Early stopping: остановить обучение, если метрика не улучшалась столько эпох подряд."
+    )
     view._patience_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Patience:", view._patience_spin)
     view._workers_spin = NoWheelSpinBox()
@@ -138,7 +146,9 @@ def build_training_ui(view: TrainingView) -> None:
     default_workers = min(32, os.cpu_count() or 8)
     view._workers_spin.setValue(default_workers)
     view._workers_spin.setSpecialValueText("гл. поток")
-    view._workers_spin.setToolTip("Число потоков загрузки данных (по умолчанию = число ядер CPU). 0 = только главный поток; больше — быстрее загрузка, но выше нагрузка на CPU/RAM.")
+    view._workers_spin.setToolTip(
+        "Число потоков загрузки данных (по умолчанию = число ядер CPU). 0 = только главный поток; больше — быстрее загрузка, но выше нагрузка на CPU/RAM."
+    )
     view._workers_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Workers:", view._workers_spin)
     view._optimizer_edit = QLineEdit()
@@ -148,7 +158,9 @@ def build_training_ui(view: TrainingView) -> None:
     params_layout.addRow("Optimizer:", view._optimizer_edit)
     view._delete_cache_cb = QCheckBox("Удалять кэш датасета перед обучением")
     view._delete_cache_cb.setChecked(True)
-    view._delete_cache_cb.setToolTip("Если включено: перед каждым запуском удаляются labels.cache в train/valid, чтобы Ultralytics пересоздал кэш. Выключите для повторных запусков без смены данных (быстрее старт).")
+    view._delete_cache_cb.setToolTip(
+        "Если включено: перед каждым запуском удаляются labels.cache в train/valid, чтобы Ultralytics пересоздал кэш. Выключите для повторных запусков без смены данных (быстрее старт)."
+    )
     view._delete_cache_cb.setStyleSheet(f"color: {t.text_primary};")
     params_layout.addRow(view._delete_cache_cb)
     main_layout.addWidget(view._params_group)
@@ -167,7 +179,9 @@ def build_training_ui(view: TrainingView) -> None:
     view._browse_project_btn.setToolTip("Выбрать папку для runs")
     view._browse_project_btn.clicked.connect(view._browse_project)
     view._delete_runs_btn = SecondaryButton("Удалить старые runs")
-    view._delete_runs_btn.setToolTip("Удалить предыдущие запуски обучения в этой папке (освободить место).")
+    view._delete_runs_btn.setToolTip(
+        "Удалить предыдущие запуски обучения в этой папке (освободить место)."
+    )
     view._delete_runs_btn.clicked.connect(view._delete_old_runs)
     proj_layout.addWidget(view._browse_project_btn)
     proj_layout.addWidget(view._delete_runs_btn)
@@ -192,7 +206,9 @@ def build_training_ui(view: TrainingView) -> None:
     adv_btn_layout = QHBoxLayout()
     adv_btn_layout.addStretch()
     view._advanced_btn = SecondaryButton("Расширенные настройки обучения")
-    view._advanced_btn.setToolTip("Аугментация Albumentations, кэш, lr, mosaic, mixup, seed, веса потерь и др. Пресеты и профили.")
+    view._advanced_btn.setToolTip(
+        "Аугментация Albumentations, кэш, lr, mosaic, mixup, seed, веса потерь и др. Пресеты и профили."
+    )
     view._advanced_btn.clicked.connect(view._open_advanced_settings)
     adv_btn_layout.addWidget(view._advanced_btn)
     adv_btn_layout.addStretch()
@@ -228,7 +244,9 @@ def build_training_ui(view: TrainingView) -> None:
         lbl.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
         grid.addWidget(lbl, 0, col)
         val = QLabel("—")
-        val.setStyleSheet(f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;")
+        val.setStyleSheet(
+            f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;"
+        )
         view._metric_value_labels[key] = val
         grid.addWidget(val, 1, col)
         if key in ("box_loss", "cls_loss", "dfl_loss"):
@@ -239,7 +257,9 @@ def build_training_ui(view: TrainingView) -> None:
     metrics_ly.addLayout(grid)
     # CPU / RAM / GPU внутри карточки
     view._sys_metrics_label = QLabel("CPU: —  RAM: —  GPU: —")
-    view._sys_metrics_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px; margin-top: 4px;")
+    view._sys_metrics_label.setStyleSheet(
+        f"color: {t.text_secondary}; font-size: 11px; margin-top: 4px;"
+    )
     view._sys_metrics_label.setToolTip("Загрузка системы во время обучения.")
     metrics_ly.addWidget(view._sys_metrics_label)
     # Таймеры

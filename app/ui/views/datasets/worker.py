@@ -2,6 +2,7 @@
 Воркер для тяжёлых операций вкладки «Датасет». Выполняет задачи в отдельном потоке,
 эмитит progress и finished, чтобы UI не зависал.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

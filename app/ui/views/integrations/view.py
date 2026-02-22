@@ -3,26 +3,39 @@
 The UI is split into section builders in :mod:`app.ui.views.integrations.sections` to keep this
 module readable.
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QScrollArea,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
-    QTextEdit,
 )
-from PySide6.QtCore import QTimer
 
 from app.config import INTEGRATIONS_CONFIG_PATH
-
+from app.core.events import (
+    JobCancelled,
+    JobFailed,
+    JobFinished,
+    JobLogLine,
+    JobProgress,
+    JobRetrying,
+    JobStarted,
+    JobTimedOut,
+)
+from app.ui.components.buttons import SecondaryButton
+from app.ui.infrastructure.file_dialogs import (
+    get_open_json_path,
+    get_save_json_path,
+)
+from app.ui.theme.tokens import Tokens
 from app.ui.views.integrations.sections import (
     SectionsCtx,
     build_comet,
@@ -35,27 +48,7 @@ from app.ui.views.integrations.sections import (
     build_tuning,
     build_validation,
 )
-
 from app.ui.views.integrations.view_model import IntegrationsViewModel
-from app.core.events import (
-    JobCancelled,
-    JobFailed,
-    JobFinished,
-    JobLogLine,
-    JobProgress,
-    JobRetrying,
-    JobStarted,
-    JobTimedOut,
-)
-
-from app.ui.infrastructure.file_dialogs import (
-    get_open_json_path,
-    get_save_json_path,
-)
-
-from app.ui.components.buttons import PrimaryButton, SecondaryButton
-from app.ui.components.inputs import NoWheelSpinBox
-from app.ui.theme.tokens import Tokens
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -66,7 +59,7 @@ LABEL_WIDTH = 200
 class IntegrationsView(QWidget):
     """Вкладка «Интеграции»: экспорт/импорт конфигурации, ссылки на документацию."""
 
-    def __init__(self, container: 'Container | None' = None, parent: QWidget | None = None) -> None:
+    def __init__(self, container: Container | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._container = container
         self._vm = IntegrationsViewModel(container)
@@ -79,7 +72,8 @@ class IntegrationsView(QWidget):
             self._vm.state_changed.connect(self._on_state_changed)  # type: ignore[attr-defined]
         except Exception:
             import logging
-            logging.getLogger(__name__).debug('Integrations view update failed', exc_info=True)
+
+            logging.getLogger(__name__).debug("Integrations view update failed", exc_info=True)
         # Subscribe to background job events (published from worker threads).
         if self._container:
             bus = self._container.event_bus
@@ -146,19 +140,25 @@ class IntegrationsView(QWidget):
                 elif event.name == "seg_isolate" and event.result is not None:
                     self._toast_ok("Seg isolation", f"Сохранено изображений: {event.result}.")
                 elif event.name == "kfold_split" and isinstance(event.result, list):
-                    self._toast_ok("K-Fold", f"Разбиение выполнено. YAML файлов: {len(event.result)}")
+                    self._toast_ok(
+                        "K-Fold", f"Разбиение выполнено. YAML файлов: {len(event.result)}"
+                    )
                 elif event.name == "kfold_train" and isinstance(event.result, list):
                     self._toast_ok("K-Fold", f"Обучение завершено. Весов: {len(event.result)}")
                 elif event.name == "tune" and event.result:
                     self._toast_ok("Tuning", f"Готово: {event.result}")
                 elif event.name == "sahi_predict":
                     self._toast_ok("SAHI", "Инференс по плиткам завершён.")
-                elif event.name in {"sagemaker_clone_template", "sagemaker_cdk_deploy"} and isinstance(event.result, tuple):
+                elif event.name in {
+                    "sagemaker_clone_template",
+                    "sagemaker_cdk_deploy",
+                } and isinstance(event.result, tuple):
                     ok, msg = event.result
                     (self._toast_ok if ok else self._toast_warn)("SageMaker", msg)
             except Exception:
                 import logging
-                logging.getLogger(__name__).debug('Integrations view update failed', exc_info=True)
+
+                logging.getLogger(__name__).debug("Integrations view update failed", exc_info=True)
         elif isinstance(event, JobFailed):
             self._job_status.setText(f"Задача: {event.name} — ошибка")
             self._btn_cancel_job.setEnabled(False)

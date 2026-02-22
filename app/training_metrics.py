@@ -1,11 +1,9 @@
 """Parse training log lines for Epoch / GPU_mem / box_loss / cls_loss / dfl_loss / Instances / Size."""
+
 import re
-from typing import Optional
 
 # Ultralytics line like: "      all        944      40071       0.27       0.19      0.118     0.0599"
-_METRICS_RE = re.compile(
-    r"\ball\s+(\d+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*$"
-)
+_METRICS_RE = re.compile(r"\ball\s+(\d+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*$")
 
 # Строка прогресса эпохи: "       1/50      9.15G      2.831       2.03   0.002754        423        640: 80%"
 _PROGRESS_RE = re.compile(
@@ -13,7 +11,7 @@ _PROGRESS_RE = re.compile(
 )
 
 
-def parse_metrics_line(line: str) -> Optional[dict[str, float]]:
+def parse_metrics_line(line: str) -> dict[str, float] | None:
     """If line is a metrics row (starts with 'all' and numbers), return dict; else None."""
     line = line.strip()
     m = _METRICS_RE.search(line)
@@ -29,7 +27,7 @@ def parse_metrics_line(line: str) -> Optional[dict[str, float]]:
     }
 
 
-def parse_progress_line(line: str) -> Optional[dict[str, float | int]]:
+def parse_progress_line(line: str) -> dict[str, float | int] | None:
     """Если строка — прогресс батча (1/50  9.15G  box  cls  dfl  instances  640: 80%), возвращает dict."""
     line = line.strip()
     m = _PROGRESS_RE.search(line)

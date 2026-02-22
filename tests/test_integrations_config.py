@@ -1,8 +1,7 @@
 """Тесты загрузки/сохранения конфига интеграций."""
+
 import json
 from pathlib import Path
-
-import pytest
 
 from app.features.integrations_config import (
     default_config,

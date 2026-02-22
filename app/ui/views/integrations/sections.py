@@ -7,9 +7,9 @@ Each function returns a fully wired :class:`~PySide6.QtWidgets.QGroupBox`.
 from __future__ import annotations
 
 import webbrowser
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Callable
 
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -23,10 +23,9 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.ports.integrations import (
+    EXPORT_FORMATS,
     CometConfig,
     DVCConfig,
-    EXPORT_FORMATS,
-    KFoldConfig,
     ModelExportConfig,
     ModelValidationConfig,
     SageMakerConfig,
@@ -76,14 +75,16 @@ def build_comet(ctx: SectionsCtx) -> QGroupBox:
     lay.addWidget(cb)
 
     lay.addWidget(QLabel("Comet API Key:"))
-    le_key = QLineEdit(); le_key.setEchoMode(le_key.EchoMode.Password)
+    le_key = QLineEdit()
+    le_key.setEchoMode(le_key.EchoMode.Password)
     le_key.setText(cfg.api_key)
     le_key.setPlaceholderText("Comet API Key")
     le_key.setStyleSheet(_edit_style())
     lay.addWidget(le_key)
 
     lay.addWidget(QLabel("Project Name:"))
-    le_proj = QLineEdit(); le_proj.setText(cfg.project_name)
+    le_proj = QLineEdit()
+    le_proj.setText(cfg.project_name)
     le_proj.setStyleSheet(_edit_style())
     lay.addWidget(le_proj)
 
@@ -109,7 +110,9 @@ def build_comet(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/comet/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/comet/")
+    )
     row.addWidget(doc)
     panel = SecondaryButton("Открыть панель Comet в браузере")
     panel.clicked.connect(lambda: webbrowser.open("https://www.comet.com/site/"))
@@ -148,7 +151,9 @@ def build_dvc(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/dvc/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/dvc/")
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -170,28 +175,41 @@ def build_sagemaker(ctx: SectionsCtx) -> QGroupBox:
     cfg = ctx.state.sagemaker
 
     lay.addWidget(QLabel("Instance type:"))
-    le_inst = QLineEdit(); le_inst.setText(cfg.instance_type); le_inst.setStyleSheet(_edit_style())
+    le_inst = QLineEdit()
+    le_inst.setText(cfg.instance_type)
+    le_inst.setStyleSheet(_edit_style())
     lay.addWidget(le_inst)
     lay.addWidget(QLabel("Endpoint name:"))
-    le_end = QLineEdit(); le_end.setText(cfg.endpoint_name); le_end.setStyleSheet(_edit_style())
+    le_end = QLineEdit()
+    le_end.setText(cfg.endpoint_name)
+    le_end.setStyleSheet(_edit_style())
     lay.addWidget(le_end)
 
     # optional extras
     lay.addWidget(QLabel("Model path:"))
     row_model = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(getattr(cfg, 'model_path', '')); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit()
+    le_model.setText(getattr(cfg, "model_path", ""))
+    le_model.setStyleSheet(_edit_style())
     row_model.addWidget(le_model, 1)
     b_model = SecondaryButton("Обзор…")
-    b_model.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="Модель")) and le_model.setText(str(p)))
+    b_model.clicked.connect(
+        lambda: (p := get_open_pt_path(ctx.parent, title="Модель")) and le_model.setText(str(p))
+    )
     row_model.addWidget(b_model)
     lay.addLayout(row_model)
 
     lay.addWidget(QLabel("Template cloned path:"))
     row_tpl = QHBoxLayout()
-    le_tpl = QLineEdit(); le_tpl.setText(getattr(cfg, 'template_cloned_path', '')); le_tpl.setStyleSheet(_edit_style())
+    le_tpl = QLineEdit()
+    le_tpl.setText(getattr(cfg, "template_cloned_path", ""))
+    le_tpl.setStyleSheet(_edit_style())
     row_tpl.addWidget(le_tpl, 1)
     b_tpl = SecondaryButton("Обзор…")
-    b_tpl.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Папка шаблона")) and le_tpl.setText(str(p)))
+    b_tpl.clicked.connect(
+        lambda: (p := get_existing_dir(ctx.parent, title="Папка шаблона"))
+        and le_tpl.setText(str(p))
+    )
     row_tpl.addWidget(b_tpl)
     lay.addLayout(row_tpl)
 
@@ -209,13 +227,15 @@ def build_sagemaker(ctx: SectionsCtx) -> QGroupBox:
         c = ctx.vm.reset_sagemaker()
         le_inst.setText(c.instance_type)
         le_end.setText(c.endpoint_name)
-        le_model.setText(getattr(c, 'model_path', ''))
-        le_tpl.setText(getattr(c, 'template_cloned_path', ''))
+        le_model.setText(getattr(c, "model_path", ""))
+        le_tpl.setText(getattr(c, "template_cloned_path", ""))
         ctx.toast_ok("Сброс", "Настройки SageMaker сброшены.")
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/amazon-sagemaker/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/integrations/amazon-sagemaker/")
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -240,7 +260,9 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
     cb.setChecked(cfg.enabled)
     lay.addWidget(cb)
     lay.addWidget(QLabel("Количество фолдов:"))
-    le_k = QLineEdit(); le_k.setText(str(getattr(cfg, 'k_folds', getattr(cfg, 'k', 5)))); le_k.setStyleSheet(_edit_style())
+    le_k = QLineEdit()
+    le_k.setText(str(getattr(cfg, "k_folds", getattr(cfg, "k", 5))))
+    le_k.setStyleSheet(_edit_style())
     lay.addWidget(le_k)
 
     def _save() -> None:
@@ -256,12 +278,16 @@ def build_kfold(ctx: SectionsCtx) -> QGroupBox:
     def _reset() -> None:
         c = ctx.vm.reset_kfold()
         cb.setChecked(c.enabled)
-        le_k.setText(str(getattr(c, 'k_folds', getattr(c, 'k', 5))))
+        le_k.setText(str(getattr(c, "k_folds", getattr(c, "k", 5))))
         ctx.toast_ok("Сброс", "Настройки K-Fold сброшены.")
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/hyperparameter-tuning/#k-fold-cross-validation"))
+    doc.clicked.connect(
+        lambda: webbrowser.open(
+            "https://docs.ultralytics.com/ru/guides/hyperparameter-tuning/#k-fold-cross-validation"
+        )
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -286,7 +312,9 @@ def build_tuning(ctx: SectionsCtx) -> QGroupBox:
     cb.setChecked(cfg.enabled)
     lay.addWidget(cb)
     lay.addWidget(QLabel("Iterations:"))
-    le_it = QLineEdit(); le_it.setText(str(cfg.iterations)); le_it.setStyleSheet(_edit_style())
+    le_it = QLineEdit()
+    le_it.setText(str(cfg.iterations))
+    le_it.setStyleSheet(_edit_style())
     lay.addWidget(le_it)
 
     def _save() -> None:
@@ -307,7 +335,9 @@ def build_tuning(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/hyperparameter-tuning/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/hyperparameter-tuning/")
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -330,30 +360,43 @@ def build_export(ctx: SectionsCtx) -> QGroupBox:
 
     lay.addWidget(QLabel("Модель (.pt) или YAML:"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit()
+    le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", "")))
+    le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick = SecondaryButton("Обзор…")
-    pick.clicked.connect(lambda: (p := get_open_model_or_yaml_path(ctx.parent)) and le_model.setText(str(p)))
+    pick.clicked.connect(
+        lambda: (p := get_open_model_or_yaml_path(ctx.parent)) and le_model.setText(str(p))
+    )
     row_m.addWidget(pick)
     lay.addLayout(row_m)
 
     lay.addWidget(QLabel("Формат:"))
-    cb_fmt = QComboBox(); cb_fmt.addItems(list(EXPORT_FORMATS))
+    cb_fmt = QComboBox()
+    cb_fmt.addItems(list(EXPORT_FORMATS))
     if cfg.format in EXPORT_FORMATS:
         cb_fmt.setCurrentText(cfg.format)
     lay.addWidget(cb_fmt)
 
     lay.addWidget(QLabel("Директория вывода:"))
     row_out = QHBoxLayout()
-    le_out = QLineEdit(); le_out.setText(cfg.output_dir); le_out.setStyleSheet(_edit_style())
+    le_out = QLineEdit()
+    le_out.setText(cfg.output_dir)
+    le_out.setStyleSheet(_edit_style())
     row_out.addWidget(le_out, 1)
     pick_out = SecondaryButton("Обзор…")
-    pick_out.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Директория")) and le_out.setText(str(p)))
+    pick_out.clicked.connect(
+        lambda: (p := get_existing_dir(ctx.parent, title="Директория")) and le_out.setText(str(p))
+    )
     row_out.addWidget(pick_out)
     lay.addLayout(row_out)
 
     def _save() -> None:
-        c = ModelExportConfig(weights_path=le_model.text().strip(), format=cb_fmt.currentText(), output_dir=le_out.text().strip())
+        c = ModelExportConfig(
+            weights_path=le_model.text().strip(),
+            format=cb_fmt.currentText(),
+            output_dir=le_out.text().strip(),
+        )
         ctx.vm.save_export(c)
         ctx.toast_ok("Сохранено", "Настройки экспорта сохранены.")
 
@@ -401,19 +444,29 @@ def build_sahi(ctx: SectionsCtx) -> QGroupBox:
 
     lay.addWidget(QLabel("Модель (.pt):"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit()
+    le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", "")))
+    le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick_m = SecondaryButton("Обзор…")
-    pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="SAHI модель")) and le_model.setText(str(p)))
+    pick_m.clicked.connect(
+        lambda: (p := get_open_pt_path(ctx.parent, title="SAHI модель"))
+        and le_model.setText(str(p))
+    )
     row_m.addWidget(pick_m)
     lay.addLayout(row_m)
 
     lay.addWidget(QLabel("Папка с изображениями:"))
     row_src = QHBoxLayout()
-    le_src = QLineEdit(); le_src.setText(cfg.source_dir); le_src.setStyleSheet(_edit_style())
+    le_src = QLineEdit()
+    le_src.setText(cfg.source_dir)
+    le_src.setStyleSheet(_edit_style())
     row_src.addWidget(le_src, 1)
     pick_src = SecondaryButton("Обзор…")
-    pick_src.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Папка изображений")) and le_src.setText(str(p)))
+    pick_src.clicked.connect(
+        lambda: (p := get_existing_dir(ctx.parent, title="Папка изображений"))
+        and le_src.setText(str(p))
+    )
     row_src.addWidget(pick_src)
     lay.addLayout(row_src)
 
@@ -456,7 +509,9 @@ def build_sahi(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/sahi-tiled-inference/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/sahi-tiled-inference/")
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -482,23 +537,34 @@ def build_seg_isolation(ctx: SectionsCtx) -> QGroupBox:
 
     lay.addWidget(QLabel("Seg model (.pt):"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit()
+    le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", "")))
+    le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick_m = SecondaryButton("Обзор…")
-    pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="Seg model")) and le_model.setText(str(p)))
+    pick_m.clicked.connect(
+        lambda: (p := get_open_pt_path(ctx.parent, title="Seg model")) and le_model.setText(str(p))
+    )
     row_m.addWidget(pick_m)
     lay.addLayout(row_m)
 
     lay.addWidget(QLabel("Источник (файл или папка):"))
-    le_src = QLineEdit(); le_src.setText(cfg.source_path); le_src.setStyleSheet(_edit_style())
+    le_src = QLineEdit()
+    le_src.setText(cfg.source_path)
+    le_src.setStyleSheet(_edit_style())
     lay.addWidget(le_src)
 
     lay.addWidget(QLabel("Директория вывода:"))
     row_out = QHBoxLayout()
-    le_out = QLineEdit(); le_out.setText(cfg.output_dir); le_out.setStyleSheet(_edit_style())
+    le_out = QLineEdit()
+    le_out.setText(cfg.output_dir)
+    le_out.setStyleSheet(_edit_style())
     row_out.addWidget(le_out, 1)
     pick_out = SecondaryButton("Обзор…")
-    pick_out.clicked.connect(lambda: (p := get_existing_dir(ctx.parent, title="Директория вывода")) and le_out.setText(str(p)))
+    pick_out.clicked.connect(
+        lambda: (p := get_existing_dir(ctx.parent, title="Директория вывода"))
+        and le_out.setText(str(p))
+    )
     row_out.addWidget(pick_out)
     lay.addLayout(row_out)
 
@@ -538,7 +604,11 @@ def build_seg_isolation(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/isolating-segmentation-objects/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open(
+            "https://docs.ultralytics.com/ru/guides/isolating-segmentation-objects/"
+        )
+    )
     row.addWidget(doc)
     reset = SecondaryButton("Сбросить по умолчанию")
     reset.clicked.connect(_reset)
@@ -564,24 +634,35 @@ def build_validation(ctx: SectionsCtx) -> QGroupBox:
 
     lay.addWidget(QLabel("Model (.pt):"))
     row_m = QHBoxLayout()
-    le_model = QLineEdit(); le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", ""))); le_model.setStyleSheet(_edit_style())
+    le_model = QLineEdit()
+    le_model.setText(getattr(cfg, "weights_path", getattr(cfg, "model_path", "")))
+    le_model.setStyleSheet(_edit_style())
     row_m.addWidget(le_model, 1)
     pick_m = SecondaryButton("Обзор…")
-    pick_m.clicked.connect(lambda: (p := get_open_pt_path(ctx.parent, title="Модель")) and le_model.setText(str(p)))
+    pick_m.clicked.connect(
+        lambda: (p := get_open_pt_path(ctx.parent, title="Модель")) and le_model.setText(str(p))
+    )
     row_m.addWidget(pick_m)
     lay.addLayout(row_m)
 
     lay.addWidget(QLabel("Dataset YAML:"))
     row_y = QHBoxLayout()
-    le_yaml = QLineEdit(); le_yaml.setText(cfg.data_yaml); le_yaml.setStyleSheet(_edit_style())
+    le_yaml = QLineEdit()
+    le_yaml.setText(cfg.data_yaml)
+    le_yaml.setStyleSheet(_edit_style())
     row_y.addWidget(le_yaml, 1)
     pick_y = SecondaryButton("Обзор…")
-    pick_y.clicked.connect(lambda: (p := get_open_yaml_path(ctx.parent, title="Dataset YAML")) and le_yaml.setText(str(p)))
+    pick_y.clicked.connect(
+        lambda: (p := get_open_yaml_path(ctx.parent, title="Dataset YAML"))
+        and le_yaml.setText(str(p))
+    )
     row_y.addWidget(pick_y)
     lay.addLayout(row_y)
 
     def _save() -> None:
-        c = ModelValidationConfig(weights_path=le_model.text().strip(), data_yaml=le_yaml.text().strip())
+        c = ModelValidationConfig(
+            weights_path=le_model.text().strip(), data_yaml=le_yaml.text().strip()
+        )
         ctx.vm.save_validation(c)
         ctx.toast_ok("Сохранено", "Настройки validation сохранены.")
 
@@ -595,7 +676,9 @@ def build_validation(ctx: SectionsCtx) -> QGroupBox:
 
     row = QHBoxLayout()
     doc = SecondaryButton("Подробнее")
-    doc.clicked.connect(lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/model-evaluation-insights/"))
+    doc.clicked.connect(
+        lambda: webbrowser.open("https://docs.ultralytics.com/ru/guides/model-evaluation-insights/")
+    )
     row.addWidget(doc)
     btn = SecondaryButton("Применить настройки")
     btn.clicked.connect(_save)

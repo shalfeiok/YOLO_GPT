@@ -137,7 +137,9 @@ class JobRunner:
             if t.is_alive():
                 # Cooperative timeout: ask the job to stop; if it doesn't, the inner thread may keep running.
                 token.cancel()
-                self._bus.publish(JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec)))
+                self._bus.publish(
+                    JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec))
+                )
                 raise TimeoutError(f"Job timed out after {timeout_sec}s")
 
             stdout.flush()
@@ -173,7 +175,10 @@ class JobRunner:
                         raise CancelledError("Job cancelled") from e
                     # Retry only for integration/infrastructure failures.
                     is_retryable = isinstance(e, (IntegrationError, InfrastructureError))
-                    if retry_deadline_sec is not None and (time.monotonic() - start_t) >= retry_deadline_sec:
+                    if (
+                        retry_deadline_sec is not None
+                        and (time.monotonic() - start_t) >= retry_deadline_sec
+                    ):
                         is_retryable = False
 
                     if is_retryable and attempt < max_attempts:
@@ -192,7 +197,10 @@ class JobRunner:
                         sleep_s = base if j == 0 else base * (1.0 + random.uniform(-j, j))
                         if sleep_s < 0.0:
                             sleep_s = 0.0
-                        progress(max(0.0, min(0.95, (attempt - 1) / max_attempts)), f"retrying in {sleep_s:.1f}s")
+                        progress(
+                            max(0.0, min(0.95, (attempt - 1) / max_attempts)),
+                            f"retrying in {sleep_s:.1f}s",
+                        )
                         time.sleep(sleep_s)
                         continue
                     self._bus.publish(JobFailed(job_id=job_id, name=name, error=str(e)))

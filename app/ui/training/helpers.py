@@ -1,4 +1,5 @@
 """Вспомогательные функции вкладки «Обучение» (SOLID: чистые функции, тестируемы)."""
+
 from pathlib import Path
 from time import monotonic
 

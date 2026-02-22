@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from queue import Empty
 from threading import Event, Lock, Thread
-from typing import Callable, Optional
 
 from app.config import PREVIEW_MAX_SIZE
 from app.features.detection_visualization import get_backend
-from app.features.detection_visualization.domain import get_config_section, use_gpu_tensor_for_preview
+from app.features.detection_visualization.domain import (
+    get_config_section,
+    use_gpu_tensor_for_preview,
+)
 from app.features.detection_visualization.frame_buffers import FrameSlot, PreviewBuffer
 
 log = logging.getLogger(__name__)
@@ -206,11 +209,15 @@ class DetectionRunner:
             on_render_metrics=_on_render_metrics,
         )
 
-        on_status(f"Превью в окне «{CV2_WIN_NAME}». Нажмите Стоп или Q в окне превью для остановки.")
+        on_status(
+            f"Превью в окне «{CV2_WIN_NAME}». Нажмите Стоп или Q в окне превью для остановки."
+        )
 
         # threads
         if source_kind in ("camera", "video"):
-            self._capture_thread = Thread(target=self._capture_loop, name=f"detection-capture-{run_id}", daemon=True)
+            self._capture_thread = Thread(
+                target=self._capture_loop, name=f"detection-capture-{run_id}", daemon=True
+            )
             self._capture_thread.start()
         else:
             # window/screen capture in inference loop (pull based); nothing to do here
@@ -267,6 +274,7 @@ class DetectionRunner:
             if use_gpu_tensor:
                 try:
                     import torch
+
                     if torch.cuda.is_available():
                         payload = torch.from_numpy(img).cuda()
                     else:
@@ -293,7 +301,9 @@ class DetectionRunner:
                     if source_kind == "screen":
                         frame = self._window_capture.capture_screen() if use_full_screen else None
                     else:
-                        frame = self._window_capture.capture_window(hwnd) if hwnd is not None else None
+                        frame = (
+                            self._window_capture.capture_window(hwnd) if hwnd is not None else None
+                        )
                     self._metrics.set_capture_ms((time.perf_counter() - t0) * 1000.0)
                     if frame is None:
                         time.sleep(0.03)

@@ -2,6 +2,7 @@
 Demo widget: Card, Primary/Secondary buttons, ValidatedSpinBox, Toast, confirm dialog.
 Used as placeholder content for Training tab until Phase 4.
 """
+
 from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
@@ -46,7 +47,10 @@ def create_components_demo_widget(parent: QWidget | None = None) -> QWidget:
         show_toast(container.window(), "Тост: компоненты готовы к Phase 4.", 2500, "success")
 
     def on_confirm() -> None:
-        confirm_stop_training(container.window(), lambda: show_toast(container.window(), "Обучение остановлено (демо).", 1500))
+        confirm_stop_training(
+            container.window(),
+            lambda: show_toast(container.window(), "Обучение остановлено (демо).", 1500),
+        )
 
     btn_toast = PrimaryButton("Показать тост", container)
     btn_toast.clicked.connect(on_toast)

@@ -12,6 +12,7 @@ environments (tests/CI) and keeps the product on a single GUI stack.
 
 from __future__ import annotations
 
+
 def launch(*args, **kwargs):
     raise RuntimeError(
         "This feature UI is implemented as an optional Tk example and is not "

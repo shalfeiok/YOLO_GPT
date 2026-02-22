@@ -1,5 +1,5 @@
 """Тесты доменных моделей гайдов: сегментация, валидация, Solutions."""
-import pytest
+
 
 from app.features.model_validation.domain import ModelValidationConfig
 from app.features.segmentation_isolation.domain import SegIsolationConfig
@@ -69,9 +69,7 @@ class TestSolutionsConfig:
         assert cfg.colormap == "COLORMAP_JET"
 
     def test_from_dict_heatmap(self) -> None:
-        cfg = SolutionsConfig.from_dict(
-            {"solution_type": "Heatmap", "colormap": "COLORMAP_PARULA"}
-        )
+        cfg = SolutionsConfig.from_dict({"solution_type": "Heatmap", "colormap": "COLORMAP_PARULA"})
         assert cfg.solution_type == "Heatmap"
         assert cfg.colormap == "COLORMAP_PARULA"
 

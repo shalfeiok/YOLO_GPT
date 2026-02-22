@@ -2,10 +2,12 @@
 
 Учитывает конфиг интеграций: Albumentations (augmentations), Comet ML (env).
 """
-from pathlib import Path
+
 import logging
+from collections.abc import Callable
+from pathlib import Path
 from queue import Queue
-from typing import Any, Callable, Optional
+from typing import Any
 
 from app.console_redirect import (
     redirect_stdout_stderr_to_queue,
@@ -38,12 +40,12 @@ class TrainingService(ITrainer):
         device: str,
         patience: int,
         project: Path,
-        on_progress: Optional[Callable[[float, str], None]] = None,
-        console_queue: Optional[Queue] = None,
-        weights_path: Optional[Path] = None,
+        on_progress: Callable[[float, str], None] | None = None,
+        console_queue: Queue | None = None,
+        weights_path: Path | None = None,
         workers: int = 0,
         optimizer: str = "",
-        advanced_options: Optional[dict] = None,
+        advanced_options: dict | None = None,
     ) -> Path:
         """Запускает обучение синхронно; возвращает путь к best.pt по завершении.
 
@@ -55,17 +57,21 @@ class TrainingService(ITrainer):
         # Redirect stdout/stderr so full Ultralytics print() output (epoch progress, metrics) reaches UI console and is parsed for metrics
         old_out, old_err = None, None
         if console_queue is not None:
-            old_out, old_err = redirect_stdout_stderr_to_queue(console_queue, also_keep_original=False)
+            old_out, old_err = redirect_stdout_stderr_to_queue(
+                console_queue, also_keep_original=False
+            )
 
         # Интеграции: Comet ML (env), Albumentations (augmentations) — настройки из вкладок «Интеграции» и «Обучение»
         comet_prev: dict = {}
         augmentations_list: list = []
         try:
-            from app.features.integrations_config import load_config
             from app.features.albumentations_integration.domain import AlbumentationsConfig
-            from app.features.albumentations_integration.service import get_albumentations_transforms
+            from app.features.albumentations_integration.service import (
+                get_albumentations_transforms,
+            )
             from app.features.comet_integration.domain import CometConfig
             from app.features.comet_integration.service import apply_comet_env
+            from app.features.integrations_config import load_config
 
             config = load_config()
             comet_cfg = CometConfig.from_dict(config.get("comet", {}))
@@ -118,10 +124,31 @@ class TrainingService(ITrainer):
             if advanced_options:
                 for k, v in advanced_options.items():
                     if k in (
-                        "cache", "amp", "lr0", "lrf", "mosaic", "mixup", "close_mosaic", "seed",
-                        "fliplr", "flipud", "box", "cls", "dfl", "degrees", "translate", "scale",
-                        "shear", "perspective", "hsv_h", "hsv_s", "hsv_v",
-                        "warmup_epochs", "warmup_momentum", "warmup_bias_lr", "weight_decay",
+                        "cache",
+                        "amp",
+                        "lr0",
+                        "lrf",
+                        "mosaic",
+                        "mixup",
+                        "close_mosaic",
+                        "seed",
+                        "fliplr",
+                        "flipud",
+                        "box",
+                        "cls",
+                        "dfl",
+                        "degrees",
+                        "translate",
+                        "scale",
+                        "shear",
+                        "perspective",
+                        "hsv_h",
+                        "hsv_s",
+                        "hsv_v",
+                        "warmup_epochs",
+                        "warmup_momentum",
+                        "warmup_bias_lr",
+                        "weight_decay",
                     ):
                         train_kw[k] = v
             # При cache=True на Windows spawn воркеров приводит к сериализации кэша в память → MemoryError.
@@ -165,10 +192,14 @@ class TrainingService(ITrainer):
             if comet_prev:
                 try:
                     from app.features.comet_integration.service import restore_comet_env
+
                     restore_comet_env(comet_prev)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).debug('Optional integration setup failed', exc_info=True)
+
+                    logging.getLogger(__name__).debug(
+                        "Optional integration setup failed", exc_info=True
+                    )
         if result_holder:
             return result_holder[0]
         return project / "train" / "weights" / "best.pt"

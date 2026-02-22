@@ -1,6 +1,7 @@
 """
 Log list model: QAbstractListModel with level + text, max buffer, thread-safe append.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -71,7 +72,9 @@ class LogListModel(QAbstractListModel):
         if not lines:
             return
         maxlen = self._entries.maxlen
-        new_entries = [(lvl if lvl is not None else _infer_level(line), line) for line, lvl in lines]
+        new_entries = [
+            (lvl if lvl is not None else _infer_level(line), line) for line, lvl in lines
+        ]
         # deque.maxlen is Optional[int]; None means unbounded.
         if maxlen is None or len(self._entries) + len(new_entries) <= maxlen:
             start = len(self._entries)

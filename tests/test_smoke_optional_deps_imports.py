@@ -1,11 +1,10 @@
-
 from __future__ import annotations
 
+import contextlib
 import importlib
 import importlib.abc
 import sys
-import contextlib
-from typing import Iterable
+from collections.abc import Iterable
 
 
 class _Blocker(importlib.abc.MetaPathFinder):

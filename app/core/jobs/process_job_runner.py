@@ -130,7 +130,9 @@ class ProcessJobRunner:
     def __init__(self, event_bus: EventBus, max_workers: int = 2) -> None:
         self._bus = event_bus
         # A small thread pool to supervise processes (start/join/terminate) without blocking UI.
-        self._supervisor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="job-proc")
+        self._supervisor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="job-proc"
+        )
         self._ctx = get_context("spawn")
 
     def submit(
@@ -155,7 +157,9 @@ class ProcessJobRunner:
                 raise CancelledError("Job cancelled")
 
             q: Queue = self._ctx.Queue()
-            p = self._ctx.Process(target=_child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True)
+            p = self._ctx.Process(
+                target=_child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True
+            )
             process_started = False
 
             started = time.monotonic()
@@ -177,7 +181,9 @@ class ProcessJobRunner:
                         if p.is_alive():
                             p.terminate()
                         p.join(timeout=1.0)
-                        self._bus.publish(JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec)))
+                        self._bus.publish(
+                            JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec))
+                        )
                         raise TimeoutError(f"Job timed out after {timeout_sec}s")
 
                     if cancel_evt.is_set() and p.is_alive():
@@ -222,10 +228,14 @@ class ProcessJobRunner:
                         if not math.isfinite(raw_progress):
                             error = f"Malformed child progress payload: {msg!r}"
                             break
-                        prog_val = 0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
+                        prog_val = (
+                            0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
+                        )
                         msg_text = None if m is None else str(m)
                         self._bus.publish(
-                            JobProgress(job_id=job_id, name=name, progress=prog_val, message=msg_text)
+                            JobProgress(
+                                job_id=job_id, name=name, progress=prog_val, message=msg_text
+                            )
                         )
                     elif kind == "log":
                         if len(msg) != 2:
@@ -278,7 +288,9 @@ class ProcessJobRunner:
             if not got_result:
                 exitcode = getattr(p, "exitcode", None)
                 if isinstance(exitcode, int) and exitcode != 0:
-                    raise RuntimeError(f"Job process exited with code {exitcode} without a result payload")
+                    raise RuntimeError(
+                        f"Job process exited with code {exitcode} without a result payload"
+                    )
                 raise RuntimeError("Job process exited without a result payload")
             return cast(T, result)
 
@@ -290,7 +302,9 @@ class ProcessJobRunner:
                 attempt += 1
                 try:
                     res = _run_attempt()
-                    self._bus.publish(JobProgress(job_id=job_id, name=name, progress=1.0, message="finished"))
+                    self._bus.publish(
+                        JobProgress(job_id=job_id, name=name, progress=1.0, message="finished")
+                    )
                     self._bus.publish(JobFinished(job_id=job_id, name=name, result=res))
                     return res
                 except CancelledError:
@@ -299,7 +313,10 @@ class ProcessJobRunner:
                     raise
                 except Exception as e:  # noqa: BLE001
                     is_retryable = isinstance(e, (IntegrationError, InfrastructureError))
-                    if retry_deadline_sec is not None and (time.monotonic() - start_t) >= retry_deadline_sec:
+                    if (
+                        retry_deadline_sec is not None
+                        and (time.monotonic() - start_t) >= retry_deadline_sec
+                    ):
                         is_retryable = False
 
                     if is_retryable and attempt < max_attempts and not cancel_evt.is_set():
