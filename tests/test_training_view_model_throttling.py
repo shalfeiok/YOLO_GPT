@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.events import TrainingProgress
+from app.core.events.job_events import JobLogLine
 
 try:
     from app.ui.views.training.view_model import TrainingViewModel, _coerce_timeout_sec
