@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QLabel, QStackedWidget, QWidget
 
 from app.ui.components.demo import create_components_demo_widget
@@ -46,6 +47,7 @@ class StackController:
         self._factories = dict(factories) if factories else {}
         self._factories.setdefault("training", lambda: create_components_demo_widget())
         self._created: set[str] = set()
+        self._pending_create: set[str] = set()
 
         for tab_id in TAB_IDS:
             placeholder = _placeholder_widget("Загрузка…", tab_id)
@@ -57,12 +59,30 @@ class StackController:
             return
         index = TAB_IDS.index(tab_id)
         if tab_id not in self._created:
-            self._created.add(tab_id)
+            self._schedule_create(tab_id)
+        self._stack.setCurrentIndex(index)
+
+    def _schedule_create(self, tab_id: str) -> None:
+        if tab_id in self._created or tab_id in self._pending_create:
+            return
+        self._pending_create.add(tab_id)
+
+        def _create() -> None:
+            self._pending_create.discard(tab_id)
+            if tab_id in self._created:
+                return
+            index = TAB_IDS.index(tab_id)
             factory = self._factories.get(tab_id) or (lambda: _default_factory(tab_id))
             widget = factory()
-            self._stack.removeWidget(self._stack.widget(index))
+            old_widget = self._stack.widget(index)
+            self._stack.removeWidget(old_widget)
+            old_widget.deleteLater()
             self._stack.insertWidget(index, widget)
-        self._stack.setCurrentIndex(index)
+            self._created.add(tab_id)
+
+        # Defer heavy tab construction to next event-loop tick so switching tabs
+        # doesn't freeze UI on first open and the placeholder can render.
+        QTimer.singleShot(0, _create)
 
     def tab_index(self, tab_id: str) -> int:
         if tab_id not in TAB_IDS:
