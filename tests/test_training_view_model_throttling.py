@@ -5,7 +5,7 @@ import pytest
 from app.core.events import TrainingProgress
 
 try:
-    from app.ui.views.training.view_model import TrainingViewModel
+    from app.ui.views.training.view_model import TrainingViewModel, _coerce_timeout_sec
 except ImportError as exc:  # pragma: no cover - environment-specific skip
     pytest.skip(
         f"TrainingViewModel import unavailable in this environment: {exc}", allow_module_level=True
@@ -63,3 +63,36 @@ def test_should_publish_log_line_limits_repeated_lines() -> None:
     assert results == [True, True, True, False, False]
 
     assert vm._should_publish_log_line("other") is True
+
+
+def test_resolve_run_spec_applies_profile_defaults() -> None:
+    vm, _ = _mk_vm_for_unit_tests()
+
+    spec = vm._resolve_run_spec(
+        data_yaml=__import__("pathlib").Path("data.yaml"),
+        model_name="yolov8n.pt",
+        epochs=10,
+        batch=8,
+        imgsz=640,
+        device="cpu",
+        patience=5,
+        project=__import__("pathlib").Path("runs/train"),
+        weights_path=None,
+        workers=8,
+        optimizer="SGD",
+        advanced_options={"run_profile": "deterministic"},
+    )
+
+    assert spec.deterministic is True
+    assert spec.seed == 42
+    assert spec.workers <= 2
+    assert spec.cache == "disk"
+
+
+def test_coerce_timeout_sec() -> None:
+    assert _coerce_timeout_sec(None) is None
+    assert _coerce_timeout_sec("") is None
+    assert _coerce_timeout_sec("abc") is None
+    assert _coerce_timeout_sec(0) is None
+    assert _coerce_timeout_sec(-5) is None
+    assert _coerce_timeout_sec("12.5") == 12.5

@@ -25,6 +25,8 @@ from app.core.events.job_events import (
 )
 
 T = TypeVar("T")
+LOG_BATCH_INTERVAL_SEC = 0.15
+LOG_BATCH_MAX_LINES = 40
 
 
 class CancelToken:
@@ -86,6 +88,22 @@ class JobRunner:
                 return
             self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))
 
+        pending_log_lines: list[str] = []
+        last_log_flush_ts = 0.0
+
+        def flush_logs(*, force: bool = False) -> None:
+            nonlocal last_log_flush_ts
+            if not pending_log_lines:
+                return
+            now = time.monotonic()
+            if not force and (now - last_log_flush_ts) < LOG_BATCH_INTERVAL_SEC:
+                return
+            while pending_log_lines:
+                chunk = pending_log_lines[:LOG_BATCH_MAX_LINES]
+                del pending_log_lines[:LOG_BATCH_MAX_LINES]
+                log_line("\n".join(chunk))
+            last_log_flush_ts = now
+
         class _LineEmitter(io.TextIOBase):
             def __init__(self) -> None:
                 self._buf = ""
@@ -94,13 +112,16 @@ class JobRunner:
                 self._buf += s
                 while "\n" in self._buf:
                     line, self._buf = self._buf.split("\n", 1)
-                    log_line(line)
+                    if line.strip():
+                        pending_log_lines.append(line)
+                    flush_logs()
                 return len(s)
 
             def flush(self) -> None:
                 if self._buf.strip():
-                    log_line(self._buf)
+                    pending_log_lines.append(self._buf)
                 self._buf = ""
+                flush_logs(force=True)
 
         self._bus.publish(JobStarted(job_id=job_id, name=name))
         progress(0.0, "started")

@@ -453,3 +453,73 @@ def test_process_job_runner_fails_on_infinite_progress_payload(
 
     assert len(failed) == 1
     assert "Malformed child progress payload" in failed[0].error
+
+
+class _MalformedLogQueue:
+    def get(self, timeout=None):
+        return ("log", "a", "b")
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _MalformedLogCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _MalformedLogQueue()
+
+
+def test_process_job_runner_fails_on_malformed_log_message(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _MalformedLogCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("bad-log", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child log message"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child log message" in failed[0].error
+
+
+class _MalformedCancelledQueue:
+    def get(self, timeout=None):
+        return ("cancelled", "one", "two")
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _MalformedCancelledCtx(_FakeDrainCtx):
+    def Queue(self):
+        return _MalformedCancelledQueue()
+
+
+def test_process_job_runner_fails_on_malformed_cancelled_message(monkeypatch) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _MalformedCancelledCtx())
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("bad-cancelled", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child cancelled message"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child cancelled message" in failed[0].error
