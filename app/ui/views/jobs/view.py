@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core.observability.crash_bundle import create_crash_bundle
+from app.core.observability.run_manifest import get_run_folder
 from app.ui.infrastructure.file_dialogs import get_save_zip_path
 from app.ui.views.jobs.policy_dialog import JobsPolicyDialog
 
@@ -49,6 +51,7 @@ class JobsView(QWidget):
         self._registry = container.job_registry
         self._subs = []
         self._selected_job_id: str | None = None
+        self._refresh_scheduled = False
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -113,6 +116,8 @@ class JobsView(QWidget):
         self._copy_btn.clicked.connect(self._on_copy_log)
         self._copy_summary_btn = QPushButton("Скопировать summary")
         self._copy_summary_btn.clicked.connect(self._on_copy_summary)
+        self._open_run_btn = QPushButton("Open run folder")
+        self._open_run_btn.clicked.connect(self._on_open_run_folder)
         self._bundle_btn2 = QPushButton("Crash bundle")
         self._bundle_btn2.clicked.connect(self._on_crash_bundle)
         btn_row.addWidget(self._cancel_btn)
@@ -120,6 +125,7 @@ class JobsView(QWidget):
         btn_row.addStretch(1)
         btn_row.addWidget(self._copy_btn)
         btn_row.addWidget(self._copy_summary_btn)
+        btn_row.addWidget(self._open_run_btn)
         btn_row.addWidget(self._bundle_btn2)
         bottom_layout.addLayout(btn_row)
 
@@ -169,7 +175,14 @@ class JobsView(QWidget):
 
     def _on_job_event(self, _e) -> None:
         # Job events can arrive from worker threads
-        QTimer.singleShot(0, self._refresh)
+        if self._refresh_scheduled:
+            return
+        self._refresh_scheduled = True
+        QTimer.singleShot(120, self._refresh_debounced)
+
+    def _refresh_debounced(self) -> None:
+        self._refresh_scheduled = False
+        self._refresh()
 
     def _refresh(self) -> None:
         flt = self._filter_edit.text().strip().lower()
@@ -239,6 +252,7 @@ class JobsView(QWidget):
             self._retry_btn.setEnabled(False)
             self._copy_btn.setEnabled(False)
             self._copy_summary_btn.setEnabled(False)
+            self._open_run_btn.setEnabled(False)
             return
 
         self._log.setPlainText("\n".join(rec.logs))
@@ -249,6 +263,7 @@ class JobsView(QWidget):
         self._retry_btn.setEnabled(rec.rerun is not None and rec.status in {"failed", "cancelled", "finished", "timed_out"})
         self._copy_btn.setEnabled(True)
         self._copy_summary_btn.setEnabled(True)
+        self._open_run_btn.setEnabled(get_run_folder(rec.job_id) is not None)
 
     def _on_cancel(self) -> None:
         rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
@@ -315,6 +330,17 @@ class JobsView(QWidget):
             found = doc.find(needle, end, QTextEdit.FindFlag.FindBackward)
         if not found.isNull():
             self._log.setTextCursor(found)
+
+    def _on_open_run_folder(self) -> None:
+        rec = self._registry.get(self._selected_job_id) if self._selected_job_id else None
+        if rec is None:
+            return
+        folder = get_run_folder(rec.job_id)
+        if folder is None:
+            if getattr(self._container, "notifications", None):
+                self._container.notifications.warning("Для этой задачи не найден run folder")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
     def _on_clear(self) -> None:
         self._registry.clear()
