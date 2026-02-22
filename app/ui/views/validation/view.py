@@ -52,14 +52,16 @@ class ValidationView(QWidget):
         cfg_group = QGroupBox("Параметры валидации")
         form = QFormLayout(cfg_group)
 
-        self._weights = QLineEdit()
+        self._weights = QLineEdit("weights/yolo11n.pt")
+        self._weights.setToolTip("Путь к файлу весов (.pt)")
         btn_w = SecondaryButton("…")
         btn_w.clicked.connect(self._pick_weights)
         wr = QHBoxLayout(); wr.addWidget(self._weights, 1); wr.addWidget(btn_w)
         wc = QWidget(); wc.setLayout(wr)
         form.addRow("Веса (.pt):", wc)
 
-        self._data = QLineEdit()
+        self._data = QLineEdit("dataset/data.yaml")
+        self._data.setToolTip("Путь к data.yaml для валидации")
         btn_d = SecondaryButton("…")
         btn_d.clicked.connect(self._pick_data)
         dr = QHBoxLayout(); dr.addWidget(self._data, 1); dr.addWidget(btn_d)
@@ -67,6 +69,7 @@ class ValidationView(QWidget):
         form.addRow("Dataset (data.yaml):", dc)
 
         self._device = QLineEdit("cpu")
+        self._device.setToolTip("Устройство, например cpu или cuda:0")
         form.addRow("Устройство:", self._device)
         self._imgsz = QSpinBox(); self._imgsz.setRange(64, 4096); self._imgsz.setValue(640)
         form.addRow("Image size:", self._imgsz)
@@ -79,6 +82,7 @@ class ValidationView(QWidget):
 
         btn_row = QHBoxLayout()
         self._run = PrimaryButton("Запустить валидацию")
+        self._run.setToolTip("Запуск валидации в фоне")
         self._run.clicked.connect(self._start)
         self._export = SecondaryButton("Экспорт в JSON")
         self._export.clicked.connect(self._export_json)

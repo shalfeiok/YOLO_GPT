@@ -38,6 +38,7 @@ class ExperimentsView(QWidget):
         root = QVBoxLayout(self)
         top = QHBoxLayout()
         self._flt = QLineEdit()
+        self._flt.setToolTip("Фильтрация запусков по имени")
         self._flt.setPlaceholderText("Фильтр по названию")
         self._flt.textChanged.connect(self._apply)
         self._refresh = QPushButton("Обновить список")
@@ -66,9 +67,10 @@ class ExperimentsView(QWidget):
 
         right = QWidget()
         rl = QVBoxLayout(right)
-        self._img = QLabel("results.png")
+        self._img = QLabel("results preview")
         self._img.setMinimumHeight(220)
         self._img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._img.setToolTip("Превью графика метрик results.png/results.jpg")
         rl.addWidget(self._img)
         self._args = QTreeWidget()
         self._args.setHeaderLabels(["Param", "Value"])
@@ -186,9 +188,13 @@ class ExperimentsView(QWidget):
         x = self._cur()
         if not x:
             return
-        rp = x["dir"] / "results.png"
-        if rp.exists():
-            self._img.setPixmap(QPixmap(str(rp)).scaledToHeight(220))
+        candidates = [x["dir"] / "results.png", x["dir"] / "results.jpg", x["dir"] / "confusion_matrix.png", x["dir"] / "PR_curve.png"]
+        existing = next((c for c in candidates if c.exists()), None)
+        if existing is not None:
+            self._img.setPixmap(QPixmap(str(existing)).scaledToHeight(220))
+        else:
+            self._img.setPixmap(QPixmap())
+            self._img.setText("Нет изображения превью (results.png отсутствует)")
         self._args.clear()
         for k, v in x["args"].items():
             self._args.addTopLevelItem(QTreeWidgetItem([str(k), str(v)]))
