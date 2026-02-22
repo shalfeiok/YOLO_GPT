@@ -146,6 +146,10 @@ class Container:
     def job_runner(self) -> JobRunner:
         """Shared background job runner (thread pool) for long-running tasks."""
 
+        # Ensure JobRegistry subscribes to EventBus before first JobStarted publish.
+        # Some jobs are very short-lived; if registry is created after submit(),
+        # the Jobs view can miss all events and appear empty.
+        _ = self.job_registry
         if self._job_runner is None:
             self._job_runner = JobRunner(self.event_bus)
         return self._job_runner
@@ -154,6 +158,8 @@ class Container:
     def process_job_runner(self) -> ProcessJobRunner:
         """Background process runner for CPU-heavy / isolated jobs."""
 
+        # Same ordering guarantee as job_runner(): registry must be subscribed first.
+        _ = self.job_registry
         if self._process_job_runner is None:
             store = JsonlJobEventStore(get_app_state_dir() / "jobs")
             self._process_job_runner = ProcessJobRunner(self.event_bus, event_store=store)
