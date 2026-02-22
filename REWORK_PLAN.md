@@ -9,7 +9,7 @@
 ## Backlog
 - [x] ✅ Task 0 — Full audit and normalize this rework plan format.
 - [x] ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
-- [ ] Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
+- [x] ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - [x] ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - [ ] Task C1 — Make training execution use ProcessJobRunner by default with cancel/timeout mapping.
 - [ ] Task C2 — Harden IPC payload validation/tests for process runner progress/log message contract.
@@ -18,7 +18,7 @@
 - [x] ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - [x] ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
 - [ ] Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
-- [ ] Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
+- [x] ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
 - [ ] Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
 ## Audit Backlog Details
@@ -45,19 +45,29 @@
 ## Done
 - ✅ Task 0 — Full audit and normalize this rework plan format.
 - ✅ Task A0 — Fix application container crash in ProcessJobRunner wiring.
+- ✅ Task A1 — Crash-safe tabs: ensure StackController error boundary has UI fallback, traceback actions, and coverage.
 - ✅ Task B1 — Batch/throttle job logs in runners and UI pipeline to reduce event spam.
 - ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
+- ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
 
 ## Changelog
-- 2026-02-22 — pending — chore(plan): audit and rebuild REWORK_PLAN backlog
+- 2026-02-22 — 5cc7881 — chore(plan): audit and rebuild REWORK_PLAN backlog
 
-- 2026-02-22 — pending — fix(container): remove invalid ProcessJobRunner kwargs
-- 2026-02-22 — pending — perf(jobs): batch log events in thread/process runners
-- 2026-02-22 — pending — feat(jobs): add artifact shortcuts for manifest/weights/plots
-- 2026-02-22 — pending — refactor(di): move UI-only deps to ui container shim
-- 2026-02-22 — pending — fix(observability): use timezone.utc for py310 compatibility
-- 2026-02-22 — pending — fix(logging): replace datetime.UTC for py310 compatibility
-- 2026-02-22 — pending — style: format touched files with ruff format
-- 2026-02-22 — pending — fix(lint): resolve ruff issues in touched files
+- 2026-02-22 — 39adc79 — fix(container): remove invalid ProcessJobRunner kwargs
+- 2026-02-22 — 408c8c4 — perf(jobs): batch log events in thread/process runners
+- 2026-02-22 — 693c054 — feat(jobs): add artifact shortcuts for manifest/weights/plots
+- 2026-02-22 — f755ec3 — refactor(di): move UI-only deps to ui container shim
+- 2026-02-22 — 34997cf — fix(observability): use timezone.utc for py310 compatibility
+- 2026-02-22 — 12d7ee1 — fix(logging): replace datetime.UTC for py310 compatibility
+- 2026-02-22 — 9b8a729 — style: format touched files with ruff format
+- 2026-02-22 — 01cc160 — fix(lint): resolve ruff issues in touched files
+
+- 2026-02-22 — 463c9f6 — fix(ui): expose crash-safe ErrorWidget and add action coverage
+
+- 2026-02-22 — 8980b9c — test(core): split batched job log events in registry and add regression test
+
+- 2026-02-22 — a91a73f — chore(plan): reconcile changelog commit hashes
+
+- 2026-02-22 — a7374e7 — chore(plan): fix last changelog hash after amend
