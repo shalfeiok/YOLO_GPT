@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-
 def _split_label_line(line: str) -> list[str]:
     """Разбивает строку метки по пробелам и запятым (поддержка CSV-формата)."""
     line = line.strip()

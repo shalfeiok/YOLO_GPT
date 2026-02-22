@@ -15,7 +15,6 @@ def convert_voc_to_yolo(source_dir: Path) -> Path:
     root = Path(source_dir).resolve()
     xml_dir = root / "XML_annotations"
     ids_dir = root / "ids"
-    images_dir = root / "images"
     labels_dir = root / "labels"
     if not xml_dir.is_dir() or not ids_dir.is_dir():
         raise FileNotFoundError(

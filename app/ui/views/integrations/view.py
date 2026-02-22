@@ -6,7 +6,16 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from app.core.events import JobCancelled, JobFailed, JobFinished, JobLogLine, JobProgress, JobRetrying, JobStarted, JobTimedOut
+from app.core.events import (
+    JobCancelled,
+    JobFailed,
+    JobFinished,
+    JobLogLine,
+    JobProgress,
+    JobRetrying,
+    JobStarted,
+    JobTimedOut,
+)
 from app.ui.views.integrations.view_model import IntegrationsViewModel
 from app.ui.views.integrations.view_parts import (
     IntegrationsConfigActionsMixin,
@@ -44,7 +53,16 @@ class IntegrationsView(
             logging.getLogger(__name__).debug("Integrations view update failed", exc_info=True)
         if self._container:
             bus = self._container.event_bus
-            for et in (JobStarted, JobProgress, JobFinished, JobFailed, JobCancelled, JobRetrying, JobTimedOut, JobLogLine):
+            for et in (
+                JobStarted,
+                JobProgress,
+                JobFinished,
+                JobFailed,
+                JobCancelled,
+                JobRetrying,
+                JobTimedOut,
+                JobLogLine,
+            ):
                 self._subs.append(bus.subscribe_weak(et, self._on_job_event))
         self._build_ui()
 
