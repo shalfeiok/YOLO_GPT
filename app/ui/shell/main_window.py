@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
             factories = {
                 "training": lambda: TrainingView(container, signals),
                 "detection": lambda: DetectionView(container),
-                "datasets": lambda: DatasetsView(),
+                "datasets": lambda: DatasetsView(container=container),
                 "integrations": lambda: IntegrationsView(container),
                 "jobs": lambda: JobsView(container),
             }
