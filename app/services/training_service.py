@@ -8,6 +8,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from queue import Queue
+from threading import Event
 from typing import Any
 
 from app.console_redirect import (
@@ -29,10 +30,11 @@ class TrainingService(ITrainer):
     """
 
     def __init__(self) -> None:
-        self._stop_requested = False
+        self._stop_requested = Event()
 
     def train(
         self,
+        *,
         data_yaml: Path,
         model_name: str,
         epochs: int,
@@ -47,13 +49,14 @@ class TrainingService(ITrainer):
         workers: int = 0,
         optimizer: str = "",
         advanced_options: dict | None = None,
-    ) -> Path:
+    ) -> Path | None:
         """Запускает обучение синхронно; возвращает путь к best.pt по завершении.
 
         Использует конфиг интеграций (Albumentations, Comet). Для UI-консоли может писать строки в очередь.
         """
-        self._stop_requested = False
+        self._stop_requested.clear()
         result_holder: list[Path] = []
+        cancelled = False
 
         # Redirect stdout/stderr so full Ultralytics print() output (epoch progress, metrics) reaches UI console and is parsed for metrics
         old_out, old_err = None, None
@@ -90,7 +93,7 @@ class TrainingService(ITrainer):
             project.mkdir(parents=True, exist_ok=True)
 
             def on_epoch_end(trainer: Any) -> None:
-                if self._stop_requested:
+                if self._stop_requested.is_set():
                     raise StopTrainingRequested("Остановка по запросу пользователя")
                 if on_progress and getattr(trainer, "epochs", None):
                     total = trainer.epochs
@@ -118,11 +121,13 @@ class TrainingService(ITrainer):
             }
             if optimizer and optimizer.strip():
                 train_kw["optimizer"] = optimizer.strip()
-            # Всегда передаём augmentations: пустой список отключает встроенные albumentations Ultralytics,
-            # иначе используются трансформы из настроек «Обучение → Аугментация».
-            train_kw["augmentations"] = augmentations_list
+            # Передаём кастомные augmentations только если они настроены,
+            # иначе сохраняем встроенные аугментации Ultralytics по умолчанию.
+            if augmentations_list:
+                train_kw["augmentations"] = augmentations_list
             # Расширенные настройки из диалога (cache, lr0, lrf, mosaic, mixup, seed, box, cls, dfl и др.)
             if advanced_options:
+                ignored_advanced_options: list[str] = []
                 for k, v in advanced_options.items():
                     if k in (
                         "cache",
@@ -152,6 +157,13 @@ class TrainingService(ITrainer):
                         "weight_decay",
                     ):
                         train_kw[k] = v
+                    else:
+                        ignored_advanced_options.append(str(k))
+                if ignored_advanced_options:
+                    log.warning(
+                        "Unknown advanced training options were ignored: %s",
+                        ", ".join(sorted(ignored_advanced_options)),
+                    )
             # При cache=True на Windows spawn воркеров приводит к сериализации кэша в память → MemoryError.
             # Загрузка из кэша в одном процессе (workers=0) стабильна и быстра.
             if train_kw.get("cache"):
@@ -182,6 +194,7 @@ class TrainingService(ITrainer):
             if on_progress:
                 on_progress(1.0, "Training finished.")
         except StopTrainingRequested:
+            cancelled = True
             if on_progress:
                 on_progress(-1.0, "Обучение остановлено.")
             if console_queue:
@@ -201,9 +214,11 @@ class TrainingService(ITrainer):
                     logging.getLogger(__name__).debug(
                         "Optional integration setup failed", exc_info=True
                     )
+        if cancelled:
+            return None
         if result_holder:
             return result_holder[0]
-        return project / "train" / "weights" / "best.pt"
+        return None
 
     def stop(self) -> None:
-        self._stop_requested = True
+        self._stop_requested.set()

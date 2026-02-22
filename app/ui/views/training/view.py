@@ -61,6 +61,7 @@ class TrainingView(QWidget):
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
         self._bus_subs: list[object] = []
+        self._last_metric_signature: tuple[object, object, object, object, object] | None = None
         self._build_ui()
         self._connect_signals()
         self._subscribe_job_logs()
@@ -370,7 +371,9 @@ class TrainingView(QWidget):
     def _on_job_log_line(self, event: JobLogLine) -> None:
         if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
             return
-        lines = event.line.splitlines()
+        lines = [ln.strip() for ln in event.line.splitlines() if ln.strip()]
+        if not lines:
+            return
         QTimer.singleShot(0, lambda ls=lines: self._on_console_lines_batch(ls))
 
     def _connect_signals(self) -> None:
@@ -440,13 +443,18 @@ class TrainingView(QWidget):
         if batch_pct is not None:
             stats += f"  ·  батч {batch_pct}%"
         self._stats_label.setText(stats)
-        self._metrics_dashboard.push_metrics(m)
+
+        signature = (m.get("epoch"), m.get("batch_pct"), box, cls, dfl)
+        if signature != self._last_metric_signature:
+            self._last_metric_signature = signature
+            self._metrics_dashboard.push_metrics(m)
 
     def _on_training_finished(self, best_path: Path | None, error: str | None) -> None:
         self._training_start_time = None
         self._epoch_start_time = None
         self._current_metrics.clear()
         self._metrics_start.clear()
+        self._last_metric_signature = None
         self._timer_elapsed_total.setText("—")
         self._timer_elapsed_epoch.setText("—")
         self._timer_eta_epoch.setText("—")

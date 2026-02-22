@@ -10,6 +10,5 @@ mss>=9.0.0
 onnxruntime>=1.16.0
 PyYAML>=6.0
 psutil>=5.9.0
-nvidia-ml-py>=12.535.0
+nvidia-ml-py>=12.535.0; platform_system == "Windows" or platform_system == "Linux"
 pyqtgraph>=0.13.0
-d3dshot==0.1.3; platform_system == "Windows"

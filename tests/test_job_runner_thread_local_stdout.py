@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import sys
 
 from app.core.events import EventBus
 from app.core.events.job_events import JobLogLine
@@ -38,3 +39,15 @@ def test_job_runner_routes_stdout_per_thread() -> None:
     texts = list(by_job.values())
     assert any("A-0" in t and "B-0" not in t for t in texts)
     assert any("B-0" in t and "A-0" not in t for t in texts)
+
+
+def test_job_runner_restores_stdio_on_shutdown() -> None:
+    bus = EventBus()
+    original_out = sys.stdout
+    original_err = sys.stderr
+
+    runner = JobRunner(bus, max_workers=1)
+    runner.shutdown()
+
+    assert sys.stdout is original_out
+    assert sys.stderr is original_err

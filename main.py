@@ -24,6 +24,7 @@ from app.ui.infrastructure import (
 )
 from app.ui.infrastructure.application import run_application
 from app.ui.shell import MainWindow
+from app.ui.theme.manager import ThemeManager
 
 
 def main() -> None:
@@ -32,8 +33,6 @@ def main() -> None:
     setup_logging()
     app = create_application()
     settings = AppSettings()
-    from app.ui.theme.manager import ThemeManager
-
     theme_manager = ThemeManager(settings)
     theme_manager.set_theme(settings.get_theme())
 

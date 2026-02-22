@@ -88,3 +88,27 @@ def test_duplicate_job_started_does_not_reset_state() -> None:
     assert rec.progress == 0.5
     assert rec.message == "half"
     assert rec.logs == ["hello"]
+
+
+def test_close_unsubscribes_registry_handlers() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    registry.close()
+    bus.publish(JobStarted(job_id="closed", name="task"))
+
+    assert registry.get("closed") is None
+
+
+def test_repeated_log_lines_are_collapsed() -> None:
+    bus = EventBus()
+    registry = JobRegistry(bus)
+
+    bus.publish(JobStarted(job_id="j-log", name="task"))
+    bus.publish(JobLogLine(job_id="j-log", name="task", line="same"))
+    bus.publish(JobLogLine(job_id="j-log", name="task", line="same"))
+    bus.publish(JobLogLine(job_id="j-log", name="task", line="other"))
+
+    rec = registry.get("j-log")
+    assert rec is not None
+    assert rec.logs == ["same", "other"]
