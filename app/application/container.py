@@ -7,7 +7,6 @@ the application layer and wires up concrete implementations.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from app.application.ports.capture import CapturePort, FrameSource, FrameSourceSpec
 from app.application.ports.detection import DetectionPort, DetectorSpec
@@ -40,10 +39,6 @@ from app.services.adapters import (
     MetricsAdapter,
 )
 
-if TYPE_CHECKING:
-    from app.ui.infrastructure.notifications import NotificationCenter
-    from app.ui.theme.manager import ThemeManager
-
 
 class Container:
     """Resolves application services. Single place to swap implementations if needed."""
@@ -66,8 +61,6 @@ class Container:
         self._detector_onnx: IDetector | None = None
         self._window_capture: IWindowCapture | None = None
         self._dataset_builder: IDatasetConfigBuilder | None = None
-        self._theme_manager: ThemeManager | None = None
-        self._notifications: NotificationCenter | None = None
         self._capture: CapturePort | None = None
         self._detection: DetectionPort | None = None
         self._metrics: MetricsPort | None = None
@@ -165,8 +158,7 @@ class Container:
         # Same ordering guarantee as job_runner(): registry must be subscribed first.
         _ = self.job_registry
         if self._process_job_runner is None:
-            store = JsonlJobEventStore(get_app_state_dir() / "jobs")
-            self._process_job_runner = ProcessJobRunner(self.event_bus, event_store=store)
+            self._process_job_runner = ProcessJobRunner(self.event_bus)
         return self._process_job_runner
 
     @property
@@ -202,34 +194,6 @@ class Container:
     def dataset_config_builder(self) -> IDatasetConfigBuilder:
         """Backward-compatible alias used by legacy training view code."""
         return self.dataset_builder
-
-    @property
-    def theme_manager(self) -> ThemeManager:
-        if self._theme_manager is None:
-            raise RuntimeError("ThemeManager must be injected from UI")
-        return self._theme_manager
-
-    @theme_manager.setter
-    def theme_manager(self, theme_manager: ThemeManager) -> None:
-        """Backward-compatible setter for UI code that assigns container.theme_manager."""
-        self._theme_manager = theme_manager
-
-    def set_theme_manager(self, theme_manager: ThemeManager) -> None:
-        self._theme_manager = theme_manager
-
-    @property
-    def notifications(self) -> NotificationCenter:
-        if self._notifications is None:
-            raise RuntimeError("NotificationCenter must be injected from UI")
-        return self._notifications
-
-    @notifications.setter
-    def notifications(self, notifications: NotificationCenter) -> None:
-        """Backward-compatible setter for UI code that assigns container.notifications."""
-        self._notifications = notifications
-
-    def set_notifications(self, notifications: NotificationCenter) -> None:
-        self._notifications = notifications
 
     # --- Paths ---
     @property
