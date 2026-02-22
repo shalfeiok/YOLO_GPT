@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import math
 import queue
 import random
 import time
@@ -155,7 +156,7 @@ class ProcessJobRunner:
 
             q: Queue = self._ctx.Queue()
             p = self._ctx.Process(target=_child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True)
-            p.start()
+            process_started = False
 
             started = time.monotonic()
             result: T | None = None
@@ -168,6 +169,8 @@ class ProcessJobRunner:
             drain_deadline: float | None = None
 
             try:
+                p.start()
+                process_started = True
                 while True:
                     if timeout_sec is not None and (time.monotonic() - started) > timeout_sec:
                         cancel_evt.set()
@@ -216,6 +219,9 @@ class ProcessJobRunner:
                         except (TypeError, ValueError):
                             error = f"Malformed child progress payload: {msg!r}"
                             break
+                        if not math.isfinite(raw_progress):
+                            error = f"Malformed child progress payload: {msg!r}"
+                            break
                         prog_val = 0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
                         msg_text = None if m is None else str(m)
                         self._bus.publish(
@@ -256,10 +262,11 @@ class ProcessJobRunner:
                         break
 
             finally:
-                p.join(timeout=0.5)
-                if p.is_alive():
-                    p.terminate()
+                if process_started:
                     p.join(timeout=0.5)
+                    if p.is_alive():
+                        p.terminate()
+                        p.join(timeout=0.5)
                 with contextlib.suppress(Exception):
                     _close_ipc_queue(q)
 
