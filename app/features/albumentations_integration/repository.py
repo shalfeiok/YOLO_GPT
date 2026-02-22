@@ -1,6 +1,5 @@
 """Read/write Albumentations section from integrations config (delegates to integrations_config)."""
 
-
 from app.features.albumentations_integration.domain import AlbumentationsConfig
 from app.features.integrations_config import load_config, save_config
 

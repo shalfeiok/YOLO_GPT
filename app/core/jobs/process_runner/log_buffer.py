@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import re
 import time
 
+from app.console_redirect import strip_ansi
 from app.core.events import EventBus
 from app.core.events.job_events import JobLogLine
 
 LOG_BATCH_INTERVAL_SEC = 0.15
 LOG_BATCH_MAX_LINES = 40
+_CTRL_RE = re.compile(r"[\x00-\x08\x0B-\x1F\x7F-\x9F]")
+
+
+def _clean_log_line(line: str) -> str:
+    return _CTRL_RE.sub("", strip_ansi(str(line))).strip()
 
 
 class JobLogBuffer:
@@ -18,8 +25,8 @@ class JobLogBuffer:
         self._last_flush_ts = 0.0
 
     def add_line(self, line: str) -> None:
-        ln = str(line).rstrip("\n")
-        if ln.strip():
+        ln = _clean_log_line(line)
+        if ln:
             self._pending.append(ln)
             self.flush()
 

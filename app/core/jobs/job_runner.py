@@ -3,12 +3,13 @@ from __future__ import annotations
 import contextlib
 import io
 import random
+import sys
 import time
 import uuid
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from threading import Event, Thread
+from threading import Event, RLock, get_ident
 from typing import Any, Generic, TypeVar, cast
 
 from app.core.errors import CancelledError, InfrastructureError, IntegrationError
@@ -27,6 +28,50 @@ from app.core.events.job_events import (
 T = TypeVar("T")
 LOG_BATCH_INTERVAL_SEC = 0.15
 LOG_BATCH_MAX_LINES = 40
+
+
+class _ThreadLocalTextRouter(io.TextIOBase):
+    def __init__(self, fallback: io.TextIOBase) -> None:
+        self._fallback = fallback
+        self._targets: dict[int, io.TextIOBase] = {}
+        self._lock = RLock()
+
+    def bind_current(self, target: io.TextIOBase) -> int:
+        tid = get_ident()
+        with self._lock:
+            self._targets[tid] = target
+        return tid
+
+    def unbind(self, tid: int) -> None:
+        with self._lock:
+            self._targets.pop(tid, None)
+
+    def _target(self) -> io.TextIOBase:
+        with self._lock:
+            return self._targets.get(get_ident(), self._fallback)
+
+    def write(self, s: str) -> int:
+        return self._target().write(s)
+
+    def flush(self) -> None:
+        self._target().flush()
+
+
+_STDOUT_ROUTER: _ThreadLocalTextRouter | None = None
+_STDERR_ROUTER: _ThreadLocalTextRouter | None = None
+
+
+def _ensure_stdio_routers() -> tuple[_ThreadLocalTextRouter, _ThreadLocalTextRouter]:
+    global _STDOUT_ROUTER, _STDERR_ROUTER
+    if _STDOUT_ROUTER is None:
+        out = _ThreadLocalTextRouter(cast(io.TextIOBase, sys.stdout))
+        sys.stdout = out
+        _STDOUT_ROUTER = out
+    if _STDERR_ROUTER is None:
+        err = _ThreadLocalTextRouter(cast(io.TextIOBase, sys.stderr))
+        sys.stderr = err
+        _STDERR_ROUTER = err
+    return _STDOUT_ROUTER, _STDERR_ROUTER
 
 
 class CancelToken:
@@ -63,6 +108,7 @@ class JobRunner:
     def __init__(self, event_bus: EventBus, max_workers: int = 4) -> None:
         self._bus = event_bus
         self._pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="job")
+        self._stdout_router, self._stderr_router = _ensure_stdio_routers()
 
     def submit(
         self,
@@ -133,43 +179,37 @@ class JobRunner:
             stdout = _LineEmitter()
             stderr = _LineEmitter()
 
-            # Fast path: no timeout requested => run directly in this worker thread.
-            if timeout_sec is None:
-                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    result = fn(token, progress)
+            start_ts = time.monotonic()
+
+            def _check_timeout() -> None:
+                if timeout_sec is None:
+                    return
+                if (time.monotonic() - start_ts) > float(timeout_sec):
+                    token.cancel()
+                    self._bus.publish(
+                        JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec))
+                    )
+                    raise TimeoutError(f"Job timed out after {timeout_sec}s")
+
+            def _progress_with_timeout(p: float, msg: str | None = None) -> None:
+                _check_timeout()
+                progress(p, msg)
+
+            stdout_tid = self._stdout_router.bind_current(stdout)
+            stderr_tid = self._stderr_router.bind_current(stderr)
+            try:
+                _check_timeout()
+                with contextlib.redirect_stdout(self._stdout_router), contextlib.redirect_stderr(
+                    self._stderr_router
+                ):
+                    result = fn(token, _progress_with_timeout)
+                _check_timeout()
+                return result
+            finally:
                 stdout.flush()
                 stderr.flush()
-                return result
-
-            # Best-effort timeout: run fn in an inner thread so we can join with a deadline.
-            result_box: dict[str, Any] = {}
-            err_box: dict[str, BaseException] = {}
-
-            def _inner() -> None:
-                try:
-                    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                        result_box["result"] = fn(token, progress)
-                except BaseException as e:  # noqa: BLE001
-                    err_box["error"] = e
-
-            t = Thread(target=_inner, name=f"job-inner-{job_id[:8]}", daemon=True)
-            t.start()
-            t.join(timeout=timeout_sec)
-            if t.is_alive():
-                # Cooperative timeout: ask the job to stop; if it doesn't, the inner thread may keep running.
-                token.cancel()
-                self._bus.publish(
-                    JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec))
-                )
-                raise TimeoutError(f"Job timed out after {timeout_sec}s")
-
-            stdout.flush()
-            stderr.flush()
-            if "error" in err_box:
-                raise err_box["error"]
-            if "result" not in result_box:
-                raise RuntimeError("Job finished without result")
-            return cast(T, result_box["result"])
+                self._stdout_router.unbind(stdout_tid)
+                self._stderr_router.unbind(stderr_tid)
 
         def _run() -> T:
             max_attempts = max(1, retries + 1)
@@ -229,3 +269,6 @@ class JobRunner:
 
         fut = self._pool.submit(_run)
         return JobHandle(job_id=job_id, name=name, future=fut, cancel_token=token)
+
+    def shutdown(self) -> None:
+        self._pool.shutdown(wait=False, cancel_futures=True)

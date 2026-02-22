@@ -63,7 +63,9 @@ class ProcessJobRunner:
                 raise CancelledError("Job cancelled")
 
             q: Queue = self._ctx.Queue()
-            p = self._ctx.Process(target=child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True)
+            p = self._ctx.Process(
+                target=child_entry, args=(cast(Any, fn), cancel_evt, q), daemon=True
+            )
             process_started = False
             started = time.monotonic()
             result: T | None = None
@@ -81,7 +83,9 @@ class ProcessJobRunner:
                         if p.is_alive():
                             p.terminate()
                         p.join(timeout=1.0)
-                        self._bus.publish(JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec)))
+                        self._bus.publish(
+                            JobTimedOut(job_id=job_id, name=name, timeout_sec=float(timeout_sec))
+                        )
                         raise TimeoutError(f"Job timed out after {timeout_sec}s")
 
                     if cancel_evt.is_set() and p.is_alive():
@@ -97,7 +101,9 @@ class ProcessJobRunner:
                     try:
                         msg = q.get(timeout=0.15 if alive else 0.03)
                     except queue.Empty:
-                        if alive or (drain_deadline is not None and time.monotonic() < drain_deadline):
+                        if alive or (
+                            drain_deadline is not None and time.monotonic() < drain_deadline
+                        ):
                             continue
                         break
 
@@ -133,7 +139,9 @@ class ProcessJobRunner:
             if not got_result:
                 exitcode = getattr(p, "exitcode", None)
                 if isinstance(exitcode, int) and exitcode != 0:
-                    raise RuntimeError(f"Job process exited with code {exitcode} without a result payload")
+                    raise RuntimeError(
+                        f"Job process exited with code {exitcode} without a result payload"
+                    )
                 raise RuntimeError("Job process exited without a result payload")
             return cast(T, result)
 
@@ -145,21 +153,41 @@ class ProcessJobRunner:
                 attempt += 1
                 try:
                     res = _run_attempt()
-                    self._bus.publish(JobProgress(job_id=job_id, name=name, progress=1.0, message="finished"))
+                    self._bus.publish(
+                        JobProgress(job_id=job_id, name=name, progress=1.0, message="finished")
+                    )
                     self._bus.publish(JobFinished(job_id=job_id, name=name, result=res))
                     return res
                 except (CancelledError, TimeoutError):
                     raise
                 except Exception as e:  # noqa: BLE001
                     is_retryable = isinstance(e, (IntegrationError, InfrastructureError))
-                    if retry_deadline_sec is not None and (time.monotonic() - start_t) >= retry_deadline_sec:
+                    if (
+                        retry_deadline_sec is not None
+                        and (time.monotonic() - start_t) >= retry_deadline_sec
+                    ):
                         is_retryable = False
                     if is_retryable and attempt < max_attempts and not cancel_evt.is_set():
-                        self._bus.publish(JobRetrying(job_id=job_id, name=name, attempt=attempt, max_attempts=max_attempts, error=str(e)))
+                        self._bus.publish(
+                            JobRetrying(
+                                job_id=job_id,
+                                name=name,
+                                attempt=attempt,
+                                max_attempts=max_attempts,
+                                error=str(e),
+                            )
+                        )
                         base = min(10.0, retry_backoff_sec * (1.6 ** (attempt - 1)))
                         j = 0.0 if retry_jitter <= 0 else min(0.9, float(retry_jitter))
                         sleep_s = base if j == 0 else base * (1.0 + random.uniform(-j, j))
-                        self._bus.publish(JobProgress(job_id=job_id, name=name, progress=max(0.0, min(0.95, (attempt - 1) / max_attempts)), message=f"retrying in {max(0.0, sleep_s):.1f}s"))
+                        self._bus.publish(
+                            JobProgress(
+                                job_id=job_id,
+                                name=name,
+                                progress=max(0.0, min(0.95, (attempt - 1) / max_attempts)),
+                                message=f"retrying in {max(0.0, sleep_s):.1f}s",
+                            )
+                        )
                         time.sleep(max(0.0, sleep_s))
                         continue
                     self._bus.publish(JobFailed(job_id=job_id, name=name, error=str(e)))
@@ -185,7 +213,14 @@ class ProcessJobRunner:
             if not math.isfinite(raw_progress):
                 return f"Malformed child progress payload: {msg!r}"
             prog_val = 0.0 if raw_progress < 0 else 1.0 if raw_progress > 1 else raw_progress
-            self._bus.publish(JobProgress(job_id=job_id, name=name, progress=prog_val, message=None if message is None else str(message)))
+            self._bus.publish(
+                JobProgress(
+                    job_id=job_id,
+                    name=name,
+                    progress=prog_val,
+                    message=None if message is None else str(message),
+                )
+            )
             return None
         if kind == "log":
             if len(msg) != 2:
@@ -202,3 +237,6 @@ class ProcessJobRunner:
             self._bus.publish(JobCancelled(job_id=job_id, name=name))
             return "cancelled"
         return f"Unknown child message kind: {kind!r}"
+
+    def shutdown(self) -> None:
+        self._supervisor.shutdown(wait=False, cancel_futures=True)
