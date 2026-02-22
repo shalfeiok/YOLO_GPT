@@ -7,7 +7,7 @@
 - [x] Group 4: Throttling/batching to reduce UI spam
 - [x] Group 5: TrainingRunSpec + reproducible profiles
 - [x] Group 6: Run manifests + open run folder from Jobs
-- [ ] Group 7: IPC contract tests for ProcessJobRunner edge-cases
+- [x] Group 7: IPC contract tests for ProcessJobRunner edge-cases
 - [ ] Group 8: Formatting pass (ruff/black)
 
 ## Current group details
@@ -28,3 +28,8 @@
 - [x] Create manifests for training/detection/dataset jobs on start
 - [x] Add "Open run folder" action in Jobs UI
 - [x] Add tests for manifest registration and lookup
+
+### Group 7 (done)
+- [x] Validate malformed/unknown IPC envelopes fail fast
+- [x] Validate NaN/inf progress payloads are rejected
+- [x] Validate queue cleanup when child process fails to start

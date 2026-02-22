@@ -409,3 +409,45 @@ def test_process_job_runner_fails_on_non_finite_progress_payload(monkeypatch) ->
 
     assert len(failed) == 1
     assert "Malformed child progress payload" in failed[0].error
+
+
+class _InfProgressQueue:
+    def __init__(self, value: float) -> None:
+        self._value = value
+
+    def get(self, timeout=None):
+        return ("progress", self._value, "inf-progress")
+
+    def close(self):
+        return None
+
+    def join_thread(self):
+        return None
+
+
+class _InfProgressCtx(_FakeDrainCtx):
+    def __init__(self, value: float) -> None:
+        self._value = value
+
+    def Queue(self):
+        return _InfProgressQueue(self._value)
+
+
+@pytest.mark.parametrize("bad_value", [float("inf"), float("-inf")])
+def test_process_job_runner_fails_on_infinite_progress_payload(monkeypatch, bad_value: float) -> None:
+    bus = EventBus()
+    runner = ProcessJobRunner(bus, max_workers=1)
+    monkeypatch.setattr(runner, "_ctx", _InfProgressCtx(bad_value))
+
+    failed: list[JobFailed] = []
+    bus.subscribe(JobFailed, failed.append)
+
+    def _dummy(_cancel_evt, _progress):
+        return "ok"
+
+    handle = runner.submit("inf-progress", _dummy)
+    with pytest.raises(RuntimeError, match="Malformed child progress payload"):
+        handle.future.result(timeout=2)
+
+    assert len(failed) == 1
+    assert "Malformed child progress payload" in failed[0].error
