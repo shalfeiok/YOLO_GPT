@@ -1,3 +1,4 @@
+#commit и версия
 """Абстрактные интерфейсы (SOLID: Dependency Inversion).
 
 Определяет контракты для обучения (ITrainer), детекции (IDetector),

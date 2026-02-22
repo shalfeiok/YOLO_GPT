@@ -1,3 +1,4 @@
+#commit и версия
 from __future__ import annotations
 
 import time

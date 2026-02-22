@@ -1,3 +1,4 @@
+#commit и версия
 """
 Entry point for Qt-based YOLO Desktop Studio UI.
 

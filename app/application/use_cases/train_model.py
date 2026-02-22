@@ -1,3 +1,4 @@
+#commit и версия
 """Train model use case.
 
 This wraps the low-level trainer service behind a stable, UI-friendly API.
