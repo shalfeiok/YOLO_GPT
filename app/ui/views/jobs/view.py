@@ -220,8 +220,13 @@ class JobsView(QWidget):
 
             # Progress as a real progress bar (better UX than plain text)
             bar = QProgressBar()
-            bar.setRange(0, 100)
-            bar.setValue(int(j.progress * 100))
+            if j.status in {"running", "retrying"} and j.progress <= 0.0:
+                bar.setRange(0, 0)
+                bar.setFormat("Выполняется…")
+            else:
+                bar.setRange(0, 100)
+                bar.setValue(int(j.progress * 100))
+                bar.setFormat(f"{int(j.progress * 100)}%")
             bar.setTextVisible(True)
             self._table.setCellWidget(r, 3, bar)
             self._table.setItem(r, 4, QTableWidgetItem(j.message or j.error or ""))

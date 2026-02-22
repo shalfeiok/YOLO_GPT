@@ -11,6 +11,7 @@ from app.application.jobs.risky_job_fns import (
     tune_job,
 )
 from app.application.ports.integrations import (
+    JobsPolicyConfig,
     KFoldConfig,
     ModelExportConfig,
     ModelValidationConfig,
@@ -85,23 +86,54 @@ class IntegrationsActionsMixin:
 
         return run_cdk_deploy(template_dir)
 
+    def _load_jobs_policy(self) -> JobsPolicyConfig:
+        if self._container is None:
+            return JobsPolicyConfig()
+        try:
+            return self._container.integrations.load_jobs_policy()
+        except Exception:
+            return JobsPolicyConfig()
+
+    def _policy_kwargs(
+        self, *, min_timeout_sec: int = 0, min_retries: int = 0, min_backoff_sec: float = 0.0
+    ) -> dict[str, Any]:
+        policy = self._load_jobs_policy()
+        timeout_sec = max(int(policy.default_timeout_sec), int(min_timeout_sec))
+        retries = max(int(policy.retries), int(min_retries))
+        retry_backoff_sec = max(float(policy.retry_backoff_sec), float(min_backoff_sec))
+        out: dict[str, Any] = {
+            "retries": retries,
+            "retry_backoff_sec": retry_backoff_sec,
+            "retry_jitter": float(policy.retry_jitter),
+        }
+        if timeout_sec > 0:
+            out["timeout_sec"] = timeout_sec
+        if int(policy.retry_deadline_sec) > 0:
+            out["retry_deadline_sec"] = int(policy.retry_deadline_sec)
+        return out
+
+    def _register_handle(self, name: str, fn, kwargs: dict[str, Any], handle: Any) -> str:
+        self._jobs[handle.job_id] = handle
+        reg = self._container.job_registry
+        reg.set_cancel(handle.job_id, handle.cancel)
+
+        def _rerun() -> str:
+            return (
+                self._submit_process_job(name, fn, **kwargs)
+                if hasattr(handle, "cancel_evt")
+                else self._submit_thread_job(name, fn, **kwargs)
+            )
+
+        reg.set_rerun(handle.job_id, _rerun)
+        return handle.job_id
+
     def _submit_thread_job(self, name: str, fn, **kwargs: Any) -> str:
         h = self._container.job_runner.submit(name, fn, **kwargs)
-        self._jobs[h.job_id] = h
-        reg = self._container.job_registry
-        reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(h.job_id, lambda: self._container.job_runner.submit(name, fn, **kwargs))
-        return h.job_id
+        return self._register_handle(name, fn, kwargs, h)
 
     def _submit_process_job(self, name: str, fn, **kwargs: Any) -> str:
         h = self._container.process_job_runner.submit(name, fn, **kwargs)
-        self._jobs[h.job_id] = h
-        reg = self._container.job_registry
-        reg.set_cancel(h.job_id, h.cancel)
-        reg.set_rerun(
-            h.job_id, lambda: self._container.process_job_runner.submit(name, fn, **kwargs)
-        )
-        return h.job_id
+        return self._register_handle(name, fn, kwargs, h)
 
     def export_model_async(self, cfg: ModelExportConfig) -> str:
         if not self._container:

@@ -1,41 +1,35 @@
 # FIX_REPORT
 
 ## Summary
-Сделан единый исправляющий проход по новым регрессиям: очищен «битый» вывод логов (escape/control символы), восстановлен поток задач (включая training/integrations) и обновление метрик/графика обучения через job events, добавлено корректное завершение обучения и окна визуализации детекции при закрытии приложения, а также централизованный shutdown контейнера и раннеров.
+Выполнен единый исправляющий проход по проблемам Jobs/Progress: восстановлена работа политики задач, добавлена корректная регистрация/повтор/отмена jobs для интеграций, улучшено отображение прогресса (в т.ч. для долгих задач без точной доли выполнения), возвращено появление детекции в списке задач и добавлены этапные прогрессы для операций с датасетами.
 
 ## Issues Found
 
-### Crash / incorrect behavior
-- В логах задач отображались управляющие escape-символы (`\x1b...`), что давало «квадратики» и мусор в UI.
-- При закрытии приложения обучение могло продолжаться в фоне, а окно визуализации детекции оставалось открытым.
-
 ### Jobs
-- Для training job не регистрировался `cancel` action в `JobRegistry`, из-за чего управление задачей было неполным.
-- После предыдущих изменений данные для training-метрик перестали доходить в UI, т.к. локальная консоль убрана, а парсинг по job events не был подключён.
+- В `IntegrationsActionsMixin` был потерян `_policy_kwargs`, из-за чего часть запусков интеграций могла ломаться до создания jobs.
+- `rerun` для jobs интеграций был привязан к «сырому» submit без повторной регистрации handle/действий.
+- Детекция не регистрировала cancel-action в registry и не отправляла «живой» progress во время работы.
 
-### Freeze / lifecycle
-- Не было централизованного безопасного shutdown фоновых раннеров/контейнера при выходе из приложения.
+### Progress
+- Progress bar в Jobs часто оставался на 0% для задач с невычислимым прогрессом.
+- Dataset операции имели только 0%/100% без промежуточных стадий.
+
+### Policy
+- Политика timeout/retry не применялась из-за отсутствующего `_policy_kwargs` в integrations actions.
 
 ## Fixes Applied
-- `app/core/jobs/process_runner/log_buffer.py`
-  - добавлена очистка лог-строк: `strip_ansi` + удаление control chars регулярным выражением;
-  - устранён вывод «квадратиков»/мусора в логах задач.
-- `app/ui/views/training/view.py`
-  - добавлена подписка на `JobLogLine` и `JobProgress` для активной training-задачи;
-  - восстановлено обновление метрик/графика через `_on_console_lines_batch` из job log events;
-  - добавлен `shutdown()` + `closeEvent()` для остановки обучения и отписки от event bus.
-- `app/ui/views/training/view_model.py`
-  - training handle теперь регистрирует `cancel` в `job_registry` (`set_cancel`), чтобы корректно работать из «Задач».
+- `app/ui/views/integrations/view_model_parts/actions.py`
+  - восстановлены `_load_jobs_policy()` и `_policy_kwargs()`;
+  - добавлен единый `_register_handle()`;
+  - `_submit_thread_job()`/`_submit_process_job()` теперь используют общую регистрацию cancel/rerun и корректно повторно создают jobs через те же submit-методы.
+- `app/ui/views/jobs/view.py`
+  - для running/retrying с 0 прогресса включён indeterminate progress bar (`setRange(0,0)` + "Выполняется…");
+  - для известных значений отображается процент в формате.
 - `app/ui/views/detection/view.py`
-  - добавлен `shutdown()` + `closeEvent()` с принудительным вызовом `_stop_detection()`;
-  - окно визуализации и пайплайн детекции останавливаются при закрытии приложения.
-- `app/ui/shell/main_window.py`
-  - при закрытии окна теперь вызывается `shutdown()` у созданных вкладок;
-  - добавлен вызов `container.shutdown()`.
-- `app/application/container.py`
-  - добавлен централизованный `shutdown()` (останавливает trainer и гасит job/process runners).
-- `app/core/jobs/job_runner.py`, `app/core/jobs/process_runner/runner.py`
-  - добавлены методы `shutdown()` для штатного завершения thread/process executors.
+  - при старте детекции регистрируется cancel в `job_registry`;
+  - добавлены progress-события в старт/рабочий цикл (через FPS tick), чтобы задача была видна и «живая» в Jobs.
+- `app/ui/views/datasets/worker.py`
+  - добавлены этапные `progress.emit(...)` для всех операций (prepare/augment/export/merge/rename), чтобы progress bar не стоял на 0 весь runtime.
 
 ## Verification Checklist
 - `python -m compileall .`
@@ -44,13 +38,8 @@
 - `ruff format <changed_files>`
 
 ## Manual QA
-1. Запустить `python main.py`.
-2. Стартовать обучение и убедиться, что:
-   - задача появляется во вкладке «Задачи»;
-   - логи без мусорных escape-символов;
-   - метрики/график на вкладке обучения обновляются.
-3. Стартовать детекцию и убедиться, что задача отображается в «Задачах».
-4. Закрыть приложение во время активных обучения/детекции:
-   - отдельное окно визуализации детекции закрывается;
-   - обучение не продолжается в фоне.
-5. Проверить, что отмена training из «Задач» работает.
+1. Открыть Jobs и запустить операции из Integrations (export/validate/tune/sahi и т.п.) — задачи появляются, policy применяется.
+2. Запустить `prepare_yolo`/augment/export classes/merge/rename в Datasets — progress bar показывает промежуточные стадии.
+3. Запустить Detection — задача появляется в Jobs, progress не «мертвый» на 0.
+4. Проверить Cancel/Retry у интеграционных задач после первого и повторного запуска.
+5. Открыть диалог «Политика» в Jobs, изменить значения, запустить новую задачу и убедиться, что timeout/retry применились.
