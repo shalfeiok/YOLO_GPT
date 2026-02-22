@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.ports.metrics import MetricsPort
-from app.core.events.job_events import JobLogLine, JobProgress
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -60,11 +59,9 @@ class TrainingView(QWidget):
         self._trained_choices: list[tuple[str, Path]] = []
         self._dataset_rows: list[tuple[QLabel, QLineEdit, QPushButton]] = []
         self._metrics_timer = None
-        self._bus_subs: list[object] = []
-        self._last_metric_signature: tuple[object, object, object, object, object] | None = None
+        self._last_metric_signature: tuple[object, object, object, object] | None = None
         self._build_ui()
         self._connect_signals()
-        self._subscribe_job_logs()
 
     def _build_ui(self) -> None:
         build_training_ui(self)
@@ -358,24 +355,6 @@ class TrainingView(QWidget):
             self._timer_eta_epoch.setText("—")
             self._timer_eta_total.setText("—")
 
-    def _subscribe_job_logs(self) -> None:
-        bus = self._container.event_bus
-        self._bus_subs.append(bus.subscribe_weak(JobLogLine, self._on_job_log_line))
-        self._bus_subs.append(bus.subscribe_weak(JobProgress, self._on_job_progress))
-
-    def _on_job_progress(self, event: JobProgress) -> None:
-        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
-            return
-        QTimer.singleShot(0, lambda e=event: self._on_progress(e.progress, e.message or ""))
-
-    def _on_job_log_line(self, event: JobLogLine) -> None:
-        if getattr(self._vm, "_active_job_id", None) != event.job_id or event.name != "training":
-            return
-        lines = [ln.strip() for ln in event.line.splitlines() if ln.strip()]
-        if not lines:
-            return
-        QTimer.singleShot(0, lambda ls=lines: self._on_console_lines_batch(ls))
-
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
@@ -387,11 +366,14 @@ class TrainingView(QWidget):
         self._status_label.setText(msg)
 
     def _on_console_lines_batch(self, lines: list[str]) -> None:
+        updated = False
         for line in lines:
             parsed = self._vm.parse_metrics_from_line(line)
             if parsed:
                 self._current_metrics.update(parsed)
-                self._update_metrics_display()
+                updated = True
+        if updated:
+            self._update_metrics_display()
 
     def _update_metrics_display(self) -> None:
         m = self._current_metrics
@@ -444,7 +426,7 @@ class TrainingView(QWidget):
             stats += f"  ·  батч {batch_pct}%"
         self._stats_label.setText(stats)
 
-        signature = (m.get("epoch"), m.get("batch_pct"), box, cls, dfl)
+        signature = (m.get("epoch"), box, cls, dfl)
         if signature != self._last_metric_signature:
             self._last_metric_signature = signature
             self._metrics_dashboard.push_metrics(m)

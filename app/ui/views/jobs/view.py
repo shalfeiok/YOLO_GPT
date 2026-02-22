@@ -153,6 +153,7 @@ class JobsView(QWidget):
         self._find_next_btn.clicked.connect(self._on_find_next)
         self._autoscroll = QCheckBox("Автоскролл")
         self._autoscroll.setChecked(True)
+        self._autoscroll.toggled.connect(self._on_autoscroll_toggled)
         log_controls.addWidget(self._log_search, 2)
         log_controls.addWidget(self._find_prev_btn)
         log_controls.addWidget(self._find_next_btn)
@@ -197,8 +198,6 @@ class JobsView(QWidget):
     def _on_job_event_ui(self, event) -> None:
         if self._is_closing:
             return
-        if isinstance(event, JobLogLine) and event.job_id == self._selected_job_id:
-            self._append_log_lines(event.line.splitlines())
         self._refresh()
 
     def _refresh(self) -> None:
@@ -288,6 +287,8 @@ class JobsView(QWidget):
 
         if self._details_job_id != rec.job_id or len(rec.logs) < self._details_log_count:
             self._log.setPlainText("\n".join(rec.logs))
+            if self._autoscroll.isChecked():
+                self._log.moveCursor(self._log.textCursor().MoveOperation.End)
         elif len(rec.logs) > self._details_log_count:
             self._append_log_lines(rec.logs[self._details_log_count :])
         self._details_job_id = rec.job_id
@@ -357,6 +358,10 @@ class JobsView(QWidget):
             self._log.insertPlainText("\n")
         self._log.insertPlainText("\n".join(lines))
         if self._autoscroll.isChecked():
+            self._log.moveCursor(self._log.textCursor().MoveOperation.End)
+
+    def _on_autoscroll_toggled(self, enabled: bool) -> None:
+        if enabled:
             self._log.moveCursor(self._log.textCursor().MoveOperation.End)
 
     def _on_find_next(self) -> None:
