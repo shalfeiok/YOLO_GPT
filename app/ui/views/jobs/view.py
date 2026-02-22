@@ -49,6 +49,7 @@ class JobsView(QWidget):
         self._registry = container.job_registry
         self._subs = []
         self._selected_job_id: str | None = None
+        self._refresh_scheduled = False
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -169,7 +170,14 @@ class JobsView(QWidget):
 
     def _on_job_event(self, _e) -> None:
         # Job events can arrive from worker threads
-        QTimer.singleShot(0, self._refresh)
+        if self._refresh_scheduled:
+            return
+        self._refresh_scheduled = True
+        QTimer.singleShot(120, self._refresh_debounced)
+
+    def _refresh_debounced(self) -> None:
+        self._refresh_scheduled = False
+        self._refresh()
 
     def _refresh(self) -> None:
         flt = self._filter_edit.text().strip().lower()
