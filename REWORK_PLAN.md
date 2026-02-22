@@ -18,7 +18,7 @@
 - [x] ✅ Task D2 — Jobs UI artifacts links (run folder, weights, plots, manifest).
 - [x] ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - [x] ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
-- [ ] Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
+- [x] ✅ Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
 - [x] ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
 - [x] ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
@@ -55,6 +55,7 @@
 - ✅ Task D1 — Wire TrainingRunSpec profile selection end-to-end and persist manifest spec from resolved run spec.
 - ✅ Task E1 — Remove UI-only dependencies from application container; keep UI composition in UI layer.
 - ✅ Task F0 — Fix Python 3.10 compatibility in run manifest timestamps.
+- ✅ Task F1 — Tooling/docs sanity pass (README/requirements/pre-commit/pyproject) and close gaps for Windows predictability.
 - ✅ Task F2 — Expand smoke tests for core contracts (EventBus, JobRegistry, ProcessJobRunner) without ML/Qt deps.
 - ✅ Task F3 — CI workflow check (lint + tests) stable on GitHub Actions.
 
@@ -96,4 +97,8 @@
 
 - 2026-02-22 — 1a06f09 — chore(plan): fix C2 changelog hash after amend
 
-- 2026-02-22 — SHA_FINALPLAN — chore(plan): correct plan hash references
+- 2026-02-22 — a7f7e52 — chore(plan): correct plan hash references
+
+- 2026-02-22 — 28c59a3 — docs: improve Windows-first README and tooling checks
+
+- 2026-02-22 — 75519a4 — chore(plan): sync README commit hash after amend
