@@ -171,7 +171,10 @@ class OpenCVBackend(IVisualizationBackend):
         use_cuda = self._settings.get("use_cuda_resize", True)
 
         # OpenCV на Windows нестабильно создаёт окна с пробелами в имени — используем только ASCII и run_id
-        cv2_window_name = "YOLO_%d" % run_id
+        cv2_window_name = (
+            "".join(ch if ch.isalnum() or ch in "_-" else "_" for ch in str(window_name))
+            or f"YOLO_{run_id}"
+        )
 
         def display_loop() -> None:
             self._running = True
@@ -224,6 +227,8 @@ class OpenCVBackend(IVisualizationBackend):
                             if out is not None:
                                 out = np.ascontiguousarray(out)
                                 cv2.imshow(cv2_window_name, out)
+                                if max_w > 0 and max_h > 0:
+                                    cv2.resizeWindow(cv2_window_name, max_w, max_h)
                             if on_render_metrics:
                                 on_render_metrics((time.perf_counter() - t0) * 1000.0)
                         except Exception:
