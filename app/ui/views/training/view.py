@@ -30,6 +30,7 @@ from app.application.settings import settings_diff
 from app.application.settings.models import TrainingSettings
 from app.application.use_cases.train_model import normalize_training_device
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
+from app.ui.common import GuardedStoreUpdate
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
 from app.ui.infrastructure.lifecycle import SubscriptionManager
@@ -39,6 +40,10 @@ from app.ui.training.constants import MAX_DATASETS
 from app.ui.training.device_utils import is_cuda_available
 from app.ui.training.helpers import scan_trained_weights
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
+from app.ui.views.training.model_selection import (
+    CUSTOM_MODEL_CHOICE,
+    resolve_model_choice_label,
+)
 from app.ui.views.training.sections import build_training_ui
 from app.ui.views.training.train_args import build_training_launch_args
 from app.ui.views.training.view_model import TrainingViewModel
@@ -60,7 +65,7 @@ class TrainingView(QWidget):
         self._metrics: MetricsPort = container.metrics
         self._vm = TrainingViewModel(container, signals)
         self._settings = SettingsController(container.settings_store)
-        self._is_applying_store_state = False
+        self._guarded_store_update = GuardedStoreUpdate()
         self._store_unsubscribe = None
         self._advisor_unsubscribe = None
         self._subscriptions = SubscriptionManager()
@@ -203,16 +208,13 @@ class TrainingView(QWidget):
             edit.setText(path)
 
     def _on_dataset_paths_changed(self) -> None:
-        if self._is_applying_store_state:
-            return
-        self._settings.update_training(
+        self._guarded_update_training(
             dataset_paths=tuple(str(p) for p in self._get_dataset_paths())
         )
 
     def _apply_training_settings_to_ui(self) -> None:
         training = self._settings.training()
-        self._is_applying_store_state = True
-        try:
+        with self._guarded_store_update.applying():
             while len(self._dataset_rows) > 1:
                 row = self._dataset_rows.pop()
                 row[0].parentWidget().deleteLater()
@@ -235,15 +237,28 @@ class TrainingView(QWidget):
             self._optimizer_edit.setText(training.optimizer)
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
-            for i in range(self._model_combo.count()):
-                if (
-                    self._get_model_id_for_choice(self._model_combo.itemText(i))
-                    == training.model_name
-                ):
-                    self._model_combo.setCurrentIndex(i)
-                    break
-        finally:
-            self._is_applying_store_state = False
+            base_choices = [
+                (
+                    self._model_combo.itemText(i),
+                    self._get_model_id_for_choice(self._model_combo.itemText(i)) or "",
+                )
+                for i in range(self._model_combo.count())
+            ]
+            selected_label = resolve_model_choice_label(
+                model_name=training.model_name,
+                weights_path=training.weights_path,
+                trained_choices=self._trained_choices,
+                base_choices=base_choices,
+            )
+            if selected_label is not None:
+                model_idx = self._model_combo.findText(selected_label)
+                if model_idx >= 0:
+                    self._model_combo.setCurrentIndex(model_idx)
+
+    def _guarded_update_training(self, **changes) -> None:
+        if self._guarded_store_update.should_ignore_user_change():
+            return
+        self._settings.update_training(**changes)
 
     def _on_training_settings_changed(self, _training) -> None:
         self._apply_training_settings_to_ui()
@@ -264,7 +279,7 @@ class TrainingView(QWidget):
         if self._trained_choices:
             labels.append("—— Дообучение ——")
             labels.extend(t[0] for t in self._trained_choices)
-        labels.append("Наша модель (файл…)…")
+        labels.append(CUSTOM_MODEL_CHOICE)
         return labels
 
     def _refresh_model_list(self) -> None:
@@ -284,7 +299,7 @@ class TrainingView(QWidget):
         return (100, 300)
 
     def _on_model_changed(self, choice: str) -> None:
-        if choice == "Наша модель (файл…)…":
+        if choice == CUSTOM_MODEL_CHOICE:
             self._weights_frame.show()
             self._model_hint_label.setText("Укажите путь к своим весам (.pt) для дообучения.")
             self._epochs_recommended.setText("")
@@ -298,16 +313,15 @@ class TrainingView(QWidget):
             else:
                 self._model_hint_label.setText("")
                 self._epochs_recommended.setText("")
-        if not self._is_applying_store_state:
-            model_id, weights_path = self._get_model_id_and_weights()
-            self._settings.update_training(
-                model_name=model_id or self._settings.training().model_name,
-                weights_path=None if weights_path is None else str(weights_path),
-            )
+        model_id, weights_path = self._get_model_id_and_weights()
+        self._update_training_field(
+            model_name=model_id or self._settings.training().model_name,
+            weights_path=None if weights_path is None else str(weights_path),
+        )
 
     def _get_model_id_and_weights(self) -> tuple[str, Path | None]:
         choice = self._model_combo.currentText()
-        if choice == "Наша модель (файл…)…":
+        if choice == CUSTOM_MODEL_CHOICE:
             p = self._weights_edit.text().strip()
             if p and Path(p).exists():
                 return ("", Path(p))
@@ -329,13 +343,13 @@ class TrainingView(QWidget):
         )
         if path:
             self._weights_edit.setText(path)
-            self._settings.update_training(weights_path=path)
+            self._update_training_field(weights_path=path)
 
     def _browse_project(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Папка для runs", self._project_edit.text())
         if path:
             self._project_edit.setText(path)
-            self._settings.update_training(project=path)
+            self._update_training_field(project=path)
 
     def _delete_old_runs(self) -> None:
         p = Path(self._project_edit.text().strip())
@@ -448,9 +462,7 @@ class TrainingView(QWidget):
             self._timer_eta_total.setText("—")
 
     def _update_training_field(self, **changes) -> None:
-        if self._is_applying_store_state:
-            return
-        self._settings.update_training(**changes)
+        self._guarded_update_training(**changes)
 
     def _on_device_combo_changed(self, _index: int) -> None:
         value = str(self._device_combo.currentData() or "auto")
@@ -649,7 +661,9 @@ class TrainingView(QWidget):
         launch_device = normalize_training_device(launch_args.device)
         if launch_device != launch_args.device:
             self._update_training_field(device=launch_device)
-            launch_args = build_training_launch_args(self._settings.training(), data_yaml=out_yaml, log_path=log_path)
+            launch_args = build_training_launch_args(
+                self._settings.training(), data_yaml=out_yaml, log_path=log_path
+            )
         self._status_label.setText(
             f"Запуск: device={launch_args.device} workers={launch_args.workers} batch={launch_args.batch} imgsz={launch_args.imgsz}"
         )
