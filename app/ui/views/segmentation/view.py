@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from pathlib import Path
 
 import cv2
@@ -24,6 +25,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import PREVIEW_MAX_SIZE
+from app.core.events.job_events import JobFailed, JobFinished, JobStarted
+from app.ui.components.model_utils import make_best_model_checkbox
 
 
 class SegWorker(QThread):
@@ -94,9 +97,12 @@ class SegWorker(QThread):
 
 
 class SegmentationView(QWidget):
-    def __init__(self, _container) -> None:
+    def __init__(self, container) -> None:
         super().__init__()
+        self._bus = container.event_bus
         self._worker: SegWorker | None = None
+        self._job_id: str | None = None
+        self._job_failed = False
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -114,6 +120,8 @@ class SegmentationView(QWidget):
         w = QWidget()
         w.setLayout(row)
         f.addRow("Веса:", w)
+        self._use_best = make_best_model_checkbox(self, self._weights)
+        f.addRow("", self._use_best)
 
         self._source = QComboBox()
         self._source.addItems(["Full Screen", "Window", "Camera", "Video File"])
@@ -132,7 +140,8 @@ class SegmentationView(QWidget):
         f.addRow("Видео:", vw)
 
         self._device = QComboBox()
-        self._device.addItems(["cpu", "cuda:0"])
+        self._device.addItems(["cuda:0", "cpu"])
+        self._device.setCurrentText("cuda:0")
         self._device.setToolTip("Устройство инференса")
         f.addRow("Устройство:", self._device)
 
@@ -189,7 +198,8 @@ class SegmentationView(QWidget):
     def _toggle(self):
         if self._worker and self._worker.isRunning():
             self._worker.stop()
-            self._worker.wait()
+            self._start.setEnabled(False)
+            self._worker.finished.connect(self._on_stopped)
             return
         if not Path(self._weights.text()).exists():
             QMessageBox.warning(self, "Ошибка", "Укажите веса")
@@ -208,8 +218,26 @@ class SegmentationView(QWidget):
         }
         self._worker = SegWorker(cfg)
         self._worker.frame_ready.connect(self._on_frame)
-        self._worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка", e))
+        self._worker.failed.connect(self._on_failed)
+        self._worker.finished.connect(self._on_stopped)
+        self._job_failed = False
+        self._job_id = uuid.uuid4().hex
+        self._bus.publish(JobStarted(job_id=self._job_id, name="segmentation"))
         self._worker.start()
+        self._start.setText("Стоп")
+
+    def _on_failed(self, error: str) -> None:
+        QMessageBox.critical(self, "Ошибка", error)
+        if self._job_id:
+            self._job_failed = True
+            self._bus.publish(JobFailed(job_id=self._job_id, name="segmentation", error=error))
+
+    def _on_stopped(self) -> None:
+        self._start.setEnabled(True)
+        self._start.setText("Старт / Стоп")
+        if self._job_id and not self._job_failed:
+            self._bus.publish(JobFinished(job_id=self._job_id, name="segmentation", result=None))
+        self._job_id = None
 
     def _on_frame(self, frame: np.ndarray, fps: float):
         h, w, _ = frame.shape

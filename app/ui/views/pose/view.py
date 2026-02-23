@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from pathlib import Path
 
 import cv2
@@ -24,6 +25,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import PREVIEW_MAX_SIZE
+from app.core.events.job_events import JobFailed, JobFinished, JobStarted
+from app.ui.components.model_utils import make_best_model_checkbox
 
 COCO_SKELETON = [
     (5, 7),
@@ -124,9 +127,12 @@ class PoseWorker(QThread):
 
 
 class PoseView(QWidget):
-    def __init__(self, _container) -> None:
+    def __init__(self, container) -> None:
         super().__init__()
+        self._bus = container.event_bus
         self._w = None
+        self._job_id: str | None = None
+        self._job_failed = False
         self._ui()
 
     def _ui(self):
@@ -144,6 +150,8 @@ class PoseView(QWidget):
         ww = QWidget()
         ww.setLayout(wr)
         f.addRow("Веса:", ww)
+        self._use_best = make_best_model_checkbox(self, self._weights)
+        f.addRow("", self._use_best)
 
         self._source = QComboBox()
         self._source.addItems(["Full Screen", "Window", "Camera", "Video File"])
@@ -161,7 +169,8 @@ class PoseView(QWidget):
         f.addRow("Видео:", vw)
 
         self._device = QComboBox()
-        self._device.addItems(["cpu", "cuda:0"])
+        self._device.addItems(["cuda:0", "cpu"])
+        self._device.setCurrentText("cuda:0")
         f.addRow("Устройство:", self._device)
 
         self._render = QComboBox()
@@ -212,7 +221,8 @@ class PoseView(QWidget):
     def _toggle(self):
         if self._w and self._w.isRunning():
             self._w.stop()
-            self._w.wait()
+            self._btn.setEnabled(False)
+            self._w.finished.connect(self._on_stopped)
             return
         if not Path(self._weights.text()).exists():
             QMessageBox.warning(self, "Ошибка", "Выберите веса")
@@ -231,8 +241,24 @@ class PoseView(QWidget):
             }
         )
         self._w.frame_ready.connect(self._on_frame)
-        self._w.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка", e))
+        self._w.failed.connect(self._on_failed)
+        self._w.finished.connect(self._on_stopped)
+        self._job_failed = False
+        self._job_id = uuid.uuid4().hex
+        self._bus.publish(JobStarted(job_id=self._job_id, name="pose"))
         self._w.start()
+
+    def _on_failed(self, error: str) -> None:
+        QMessageBox.critical(self, "Ошибка", error)
+        if self._job_id:
+            self._job_failed = True
+            self._bus.publish(JobFailed(job_id=self._job_id, name="pose", error=error))
+
+    def _on_stopped(self) -> None:
+        self._btn.setEnabled(True)
+        if self._job_id and not self._job_failed:
+            self._bus.publish(JobFinished(job_id=self._job_id, name="pose", result=None))
+        self._job_id = None
 
     def _on_frame(self, frame, fps):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

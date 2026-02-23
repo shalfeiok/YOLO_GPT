@@ -34,6 +34,7 @@ from app.core.paths import PROJECT_ROOT
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.cards import Card
 from app.ui.components.inputs import NoWheelSpinBox
+from app.ui.components.model_utils import make_best_model_checkbox
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
 from app.ui.views.metrics.dashboard import MetricsDashboardWidget
@@ -104,6 +105,8 @@ def build_training_ui(view: TrainingView) -> None:
     weights_layout.addWidget(view._weights_edit)
     weights_layout.addWidget(view._browse_weights_btn)
     model_layout.addRow("Путь к весам:", view._weights_frame)
+    view._use_best_weights_cb = make_best_model_checkbox(view, view._weights_edit)
+    model_layout.addRow("", view._use_best_weights_cb)
     view._weights_frame.hide()
     main_layout.addWidget(view._model_group)
 

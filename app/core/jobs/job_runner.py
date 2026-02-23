@@ -25,6 +25,7 @@ from app.core.events.job_events import (
     JobStarted,
     JobTimedOut,
 )
+from app.console_redirect import strip_ansi
 
 T = TypeVar("T")
 LOG_BATCH_INTERVAL_SEC = 0.15
@@ -154,7 +155,7 @@ class JobRunner:
             self._bus.publish(JobProgress(job_id=job_id, name=name, progress=pp, message=msg))
 
         def log_line(line: str) -> None:
-            ln = line.rstrip("\n")
+            ln = strip_ansi(line).rstrip("\n")
             if not ln:
                 return
             self._bus.publish(JobLogLine(job_id=job_id, name=name, line=ln))

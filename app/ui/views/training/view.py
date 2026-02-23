@@ -529,7 +529,7 @@ class TrainingView(QWidget):
             epochs=epochs,
             batch=batch,
             imgsz=imgsz,
-            device="",
+            device="cuda:0",
             patience=patience,
             project=project,
             weights_path=weights_path,
