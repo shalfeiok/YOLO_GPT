@@ -45,7 +45,7 @@ class JobRegistry:
         self,
         event_bus: EventBus,
         *,
-        max_log_lines: int = 400,
+        max_log_lines: int | None = None,
         max_jobs: int = 200,
         store: JobEventStore | None = None,
         replay_on_start: bool = True,
@@ -185,11 +185,8 @@ class JobRegistry:
             parts = [part for part in str(e.line).splitlines() if part.strip()]
             if not parts:
                 return
-            for part in parts:
-                if rec.logs and rec.logs[-1] == part:
-                    continue
-                rec.logs.append(part)
-            if len(rec.logs) > self._max_log_lines:
+            rec.logs.extend(parts)
+            if self._max_log_lines is not None and len(rec.logs) > self._max_log_lines:
                 rec.logs = rec.logs[-self._max_log_lines :]
         if persist:
             self._persist(e)

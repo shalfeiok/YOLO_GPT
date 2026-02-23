@@ -42,7 +42,6 @@ if TYPE_CHECKING:
 CONSOLE_POLL_MS = 80
 CONSOLE_BATCH_MAX = 100  # emit up to this many lines per poll to reduce signal traffic
 JOB_PROGRESS_MIN_INTERVAL_S = 0.15
-MAX_SAME_LOG_LINE_STREAK = 3
 
 log = logging.getLogger(__name__)
 
@@ -76,8 +75,6 @@ class TrainingViewModel(QObject):
         self._active_job_id: str | None = None
         self._last_job_progress_ts: float = 0.0
         self._last_job_progress_key: tuple[int, str] | None = None
-        self._last_log_line: str | None = None
-        self._last_log_repeat_count = 0
 
         # Subscribe UI to application events via EventBus.
         self._subs = []
@@ -284,8 +281,6 @@ class TrainingViewModel(QObject):
         self._active_job_id = None
         self._last_job_progress_ts = 0.0
         self._last_job_progress_key = None
-        self._last_log_line = None
-        self._last_log_repeat_count = 0
 
         # Prefer process-based execution by default to keep UI responsive and enforce hard cancel.
         cfg = {
@@ -369,7 +364,7 @@ class TrainingViewModel(QObject):
                     return
                 clean_line = strip_ansi(line)
                 batch.append(clean_line)
-                if self._active_job_id and self._should_publish_log_line(clean_line):
+                if self._active_job_id:
                     self._container.event_bus.publish(
                         JobLogLine(job_id=self._active_job_id, name="training", line=clean_line)
                     )
@@ -394,14 +389,6 @@ class TrainingViewModel(QObject):
             return
         self._container.train_model_use_case.stop()
         self._join_training_thread_async()
-
-    def _should_publish_log_line(self, line: str) -> bool:
-        if line == self._last_log_line:
-            self._last_log_repeat_count += 1
-        else:
-            self._last_log_line = line
-            self._last_log_repeat_count = 1
-        return self._last_log_repeat_count <= MAX_SAME_LOG_LINE_STREAK
 
     def parse_metrics_from_line(self, line: str) -> dict | None:
         """Return parsed metrics dict from a console line, or None."""

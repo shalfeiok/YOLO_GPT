@@ -4,7 +4,7 @@ from app.training_metrics import parse_metrics_line, parse_progress_line
 
 
 class TestParseMetricsLine:
-    """Парсинг строки метрик (all  gpu_mem  instances  box  cls  dfl  size)."""
+    """Парсинг строки валидационных метрик (all images instances P R mAP50 mAP50-95)."""
 
     def test_returns_none_for_empty(self) -> None:
         assert parse_metrics_line("") is None
@@ -18,19 +18,19 @@ class TestParseMetricsLine:
         line = "      all        944      40071       0.27       0.19      0.118     0.0599"
         out = parse_metrics_line(line)
         assert out is not None
-        assert out["gpu_mem"] == 944
+        assert out["images"] == 944
         assert out["instances"] == 40071
-        assert out["box_loss"] == 0.27
-        assert out["cls_loss"] == 0.19
-        assert out["dfl_loss"] == 0.118
-        assert out["size"] == 0.0599
+        assert out["precision"] == 0.27
+        assert out["recall"] == 0.19
+        assert out["map50"] == 0.118
+        assert out["map50_95"] == 0.0599
 
     def test_parses_with_leading_spaces(self) -> None:
         line = " all 1 2 0.1 0.2 0.3 0.4"
         out = parse_metrics_line(line)
         assert out is not None
-        assert out["gpu_mem"] == 1
-        assert out["box_loss"] == 0.1
+        assert out["images"] == 1
+        assert out["precision"] == 0.1
 
 
 class TestParseProgressLine:
@@ -51,6 +51,7 @@ class TestParseProgressLine:
         assert out["gpu_mem"] == 9.15
         assert out["box_loss"] == 2.831
         assert out["batch_pct"] == 80
+        assert out["size"] == 640.0
 
     def test_parses_without_G_suffix(self) -> None:
         line = " 1/10 5.0 1.0 1.0 1.0 100 640: 50%"
@@ -60,3 +61,13 @@ class TestParseProgressLine:
         assert out["epoch_total"] == 10
         assert out["gpu_mem"] == 5.0
         assert out["batch_pct"] == 50
+
+    def test_parses_scientific_notation_and_mib_memory(self) -> None:
+        line = " 12/100 9152M 1.2e-03 2.5e-04 3.3e-05 16 640: 100%"
+        out = parse_progress_line(line)
+        assert out is not None
+        assert out["epoch"] == 12
+        assert out["epoch_total"] == 100
+        assert out["gpu_mem"] == 9152 / 1024
+        assert out["box_loss"] == 1.2e-03
+        assert out["batch_pct"] == 100
