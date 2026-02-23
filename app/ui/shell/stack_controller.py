@@ -26,7 +26,7 @@ from app.ui.components.demo import create_components_demo_widget
 log = logging.getLogger(__name__)
 
 # Tab ids in order (must match sidebar order)
-TAB_IDS = ("datasets", "training", "detection", "validation", "segmentation", "pose", "classification", "tracking", "autoannotation", "benchmark", "experiments", "integrations", "jobs")
+TAB_IDS = ("datasets", "training", "training_advisor", "detection", "validation", "segmentation", "pose", "classification", "tracking", "autoannotation", "benchmark", "experiments", "integrations", "jobs")
 
 
 def _placeholder_widget(title: str, subtitle: str = "") -> QWidget:
@@ -40,6 +40,7 @@ def _default_factory(tab_id: str) -> QWidget:
     titles = {
         "datasets": "Датасеты",
         "training": "Обучение",
+        "training_advisor": "Советник по обучению",
         "detection": "Детекция",
         "validation": "Валидация",
         "segmentation": "Сегментация",

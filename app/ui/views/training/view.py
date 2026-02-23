@@ -128,6 +128,10 @@ class TrainingView(QWidget):
                 f"color: {t.text_primary}; font-family: Consolas; font-size: 12px; min-width: 48px;"
             )
         self._metrics_dashboard.refresh_theme()
+        if hasattr(self, "_apply_advisor_btn"):
+            self._apply_advisor_btn.setEnabled(
+                self._container.advisor_store.state.recommended_training_config is not None
+            )
 
     def _add_dataset_row(self, layout: QVBoxLayout, num: int, initial: str = "") -> None:
         row = QWidget()
@@ -359,6 +363,10 @@ class TrainingView(QWidget):
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
         self._signals.training_finished.connect(self._on_training_finished)
+        self._apply_advisor_btn.setToolTip("Сначала выполните анализ во вкладке «Советник по обучению»")
+        self._apply_advisor_btn.setEnabled(
+            self._container.advisor_store.state.recommended_training_config is not None
+        )
 
     def _on_progress(self, pct: float, msg: str) -> None:
         if pct >= 0:
@@ -538,12 +546,57 @@ class TrainingView(QWidget):
             log_path=log_path,
             advanced_options=self._advanced_options,
         )
+        self._container.last_training_state = self.get_current_training_state()
 
     def _workers_value(self) -> int:
         return self._workers_spin.value()
 
     def _optimizer_value(self) -> str:
         return self._optimizer_edit.text().strip()
+
+    def get_current_training_state(self) -> dict:
+        model_id, weights_path = self._get_model_id_and_weights()
+        return {
+            "dataset_paths": [str(p) for p in self._get_dataset_paths()],
+            "model_name": model_id or "yolo11n.pt",
+            "weights_path": None if weights_path is None else str(weights_path),
+            "project": self._project_edit.text().strip(),
+            "device": "cuda:0",
+            "epochs": self._epochs_spin.value(),
+            "batch": self._batch_spin.value(),
+            "imgsz": self._imgsz_spin.value(),
+            "patience": self._patience_spin.value(),
+            "workers": self._workers_value(),
+            "optimizer": self._optimizer_value(),
+            "advanced_options": dict(self._advanced_options),
+        }
+
+    def apply_training_state(self, state: dict) -> None:
+        self._epochs_spin.setValue(int(state.get("epochs", self._epochs_spin.value())))
+        self._batch_spin.setValue(int(state.get("batch", self._batch_spin.value())))
+        self._imgsz_spin.setValue(int(state.get("imgsz", self._imgsz_spin.value())))
+        self._patience_spin.setValue(int(state.get("patience", self._patience_spin.value())))
+        self._workers_spin.setValue(int(state.get("workers", self._workers_spin.value())))
+        self._optimizer_edit.setText(str(state.get("optimizer", self._optimizer_value())))
+        self._advanced_options = dict(state.get("advanced_options") or self._advanced_options)
+
+    def _apply_advisor_recommendations(self) -> None:
+        rec = self._container.advisor_store.state.recommended_training_config
+        if rec is None:
+            QMessageBox.information(self, "Советник по обучению", "Нет доступных рекомендаций")
+            return
+        diff = self._container.apply_advisor_recommendations_use_case.execute(rec, self)
+        if not diff:
+            QMessageBox.information(self, "Советник по обучению", "Изменения не требуются")
+            return
+        preview = "\n".join(f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff)
+        QMessageBox.information(self, "Предпросмотр изменений", preview)
+        self._undo_advisor_btn.setEnabled(True)
+
+    def _undo_advisor_apply(self) -> None:
+        diff = self._container.apply_advisor_recommendations_use_case.undo(self)
+        if diff:
+            self._undo_advisor_btn.setEnabled(False)
 
     def shutdown(self) -> None:
         self._vm.stop_training()
