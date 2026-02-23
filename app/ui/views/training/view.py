@@ -26,12 +26,14 @@ from PySide6.QtWidgets import (
 from app.application.ports.metrics import MetricsPort
 from app.application.settings import settings_diff
 from app.application.settings.models import TrainingSettings
+from app.application.advisor_state import AdvisorState
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import MAX_DATASETS
 from app.ui.training.helpers import scan_trained_weights
+from app.ui.views.training.train_args import build_training_launch_args
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
 from app.ui.views.training.sections import build_training_ui
 from app.ui.views.training.view_model import TrainingViewModel
@@ -56,6 +58,7 @@ class TrainingView(QWidget):
         self._settings = SettingsController(container.settings_store)
         self._is_applying_store_state = False
         self._store_unsubscribe = None
+        self._advisor_unsubscribe = None
         self._current_metrics: dict = {}
         self._metrics_start: dict = {}
         self._training_start_time: float | None = None
@@ -211,7 +214,6 @@ class TrainingView(QWidget):
             self._optimizer_edit.setText(training.optimizer)
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
-            self._advanced_options = dict(training.advanced_options)
             for i in range(self._model_combo.count()):
                 if self._get_model_id_for_choice(self._model_combo.itemText(i)) == training.model_name:
                     self._model_combo.setCurrentIndex(i)
@@ -221,6 +223,16 @@ class TrainingView(QWidget):
 
     def _on_training_settings_changed(self, _training) -> None:
         self._apply_training_settings_to_ui()
+
+    def _on_advisor_state_changed(self, state: AdvisorState) -> None:
+        has_recommendations = state.recommended_training_config is not None
+        self._apply_advisor_btn.setEnabled(has_recommendations)
+        if has_recommendations:
+            self._apply_advisor_btn.setToolTip("Нажмите, чтобы применить рекомендации советника")
+        else:
+            self._apply_advisor_btn.setToolTip(
+                "Сначала выполните анализ во вкладке «Советник по обучению»"
+            )
 
     def _model_values(self) -> list[str]:
         labels = [m.label for m in YOLO_MODEL_CHOICES]
@@ -434,11 +446,11 @@ class TrainingView(QWidget):
             lambda text: self._update_training_field(weights_path=text.strip() or None)
         )
         self._store_unsubscribe = self._settings.subscribe_training(self._on_training_settings_changed)
-        self._apply_training_settings_to_ui()
-        self._apply_advisor_btn.setToolTip("Сначала выполните анализ во вкладке «Советник по обучению»")
-        self._apply_advisor_btn.setEnabled(
-            self._container.advisor_store.state.recommended_training_config is not None
+        self._advisor_unsubscribe = self._container.advisor_store.subscribe(
+            self._on_advisor_state_changed
         )
+        self._apply_training_settings_to_ui()
+        self._on_advisor_state_changed(self._container.advisor_store.state)
 
     def _on_progress(self, pct: float, msg: str) -> None:
         if pct >= 0:
@@ -553,8 +565,8 @@ class TrainingView(QWidget):
             else:
                 QMessageBox.critical(self, "Ошибка", msg)
             return
-        project = Path(training.project)
-        combined_dir = project.parent / "combined_dataset"
+        launch_project = Path(training.project)
+        combined_dir = launch_project.parent / "combined_dataset"
         out_yaml = combined_dir / "data.yaml"
         try:
             self._container.dataset_builder.build_multi(dataset_paths, out_yaml)
@@ -577,7 +589,7 @@ class TrainingView(QWidget):
         out_yaml = out_yaml.resolve()
         from datetime import datetime
 
-        log_dir = project / "logs"
+        log_dir = launch_project / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         self._start_btn.setEnabled(False)
@@ -586,26 +598,12 @@ class TrainingView(QWidget):
         self._current_metrics = {}
         self._metrics_start = {}
         self._training_start_time = time.time()
-        self._total_epochs = training.epochs
+        launch_args = build_training_launch_args(training, data_yaml=out_yaml, log_path=log_path)
+        self._total_epochs = launch_args.epochs
         self._epoch_start_time = None
         self._last_epoch = None
         self._metrics_dashboard.clear()
-        weights_path = Path(training.weights_path) if training.weights_path else None
-        self._vm.start_training(
-            data_yaml=out_yaml,
-            model_name=training.model_name,
-            epochs=training.epochs,
-            batch=training.batch,
-            imgsz=training.imgsz,
-            device=training.device,
-            patience=training.patience,
-            project=project,
-            weights_path=weights_path,
-            workers=training.workers,
-            optimizer=training.optimizer,
-            log_path=log_path,
-            advanced_options=dict(training.advanced_options),
-        )
+        self._vm.start_training(**launch_args.as_view_model_kwargs())
 
     def _apply_advisor_recommendations(self) -> None:
         rec = self._container.advisor_store.state.recommended_training_config
@@ -617,16 +615,24 @@ class TrainingView(QWidget):
         if not diff:
             QMessageBox.information(self, "Советник по обучению", "Изменения не требуются")
             return
-        preview = "\n".join(
-            f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff
+        applied_diff = self._container.apply_advisor_recommendations_use_case.execute(rec)
+        self._apply_training_settings_to_ui()
+        applied_preview = "\n".join(
+            f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in applied_diff
         )
-        QMessageBox.information(self, "Предпросмотр изменений", preview)
-        self._container.apply_advisor_recommendations_use_case.execute(rec)
+        QMessageBox.information(
+            self,
+            "Рекомендации применены",
+            "Применены изменения:\n" + applied_preview,
+        )
         self._undo_advisor_btn.setEnabled(True)
 
     def _undo_advisor_apply(self) -> None:
         diff = self._container.apply_advisor_recommendations_use_case.undo()
         if diff:
+            preview = "\n".join(f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff)
+            self._apply_training_settings_to_ui()
+            QMessageBox.information(self, "Отмена применения", "Откат выполнен:\n" + preview)
             self._undo_advisor_btn.setEnabled(False)
 
     def shutdown(self) -> None:
@@ -634,6 +640,9 @@ class TrainingView(QWidget):
         if self._store_unsubscribe is not None:
             self._store_unsubscribe()
             self._store_unsubscribe = None
+        if self._advisor_unsubscribe is not None:
+            self._advisor_unsubscribe()
+            self._advisor_unsubscribe = None
         bus = self._container.event_bus
         for sub in self._bus_subs:
             bus.unsubscribe(sub)
