@@ -64,3 +64,41 @@ def test_train_model_job_uses_training_service(monkeypatch, tmp_path: Path) -> N
     kwargs = calls["kwargs"]
     assert kwargs["workers"] == 2
     assert kwargs["advanced_options"]["cache"] == "disk"
+
+
+
+def test_train_model_job_normalizes_device(monkeypatch, tmp_path: Path) -> None:
+    calls: dict[str, object] = {}
+
+    class _FakeTrainingService:
+        def stop(self) -> None:
+            return None
+
+        def train(self, **kwargs):
+            calls["kwargs"] = kwargs
+            return tmp_path / "best.pt"
+
+    fake_mod = types.ModuleType("app.services.training_service")
+    fake_mod.TrainingService = _FakeTrainingService
+    monkeypatch.setitem(sys.modules, "app.services.training_service", fake_mod)
+
+    train_model_job(
+        _CancelEvt(cancelled=False),
+        lambda *_args, **_kwargs: None,
+        cfg={
+            "data_yaml": str(tmp_path / "data.yaml"),
+            "model_name": "yolov8n.pt",
+            "epochs": 1,
+            "batch": 4,
+            "imgsz": 640,
+            "device": "cuda:0",
+            "patience": 5,
+            "project": str(tmp_path / "runs"),
+            "weights_path": None,
+            "workers": 2,
+            "optimizer": "SGD",
+            "advanced_options": {},
+        },
+    )
+
+    assert calls["kwargs"]["device"] == "0"

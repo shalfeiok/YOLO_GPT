@@ -7,6 +7,7 @@ This wraps the low-level trainer service behind a stable, UI-friendly API.
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -25,6 +26,35 @@ from app.core.observability.timing import timed
 from app.interfaces import ITrainer
 
 log = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _cuda_available() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
+
+def normalize_training_device(requested: str) -> str:
+    raw = (requested or "").strip()
+    val = raw.lower()
+
+    if val in {"", "auto"}:
+        return "0" if _cuda_available() else "cpu"
+    if val == "cpu":
+        return "cpu"
+    if val.startswith("cuda:"):
+        idx = val.split(":", 1)[1].strip()
+        return idx if idx.isdigit() else "0"
+    if val.startswith("gpu "):
+        tail = val.split(" ", 1)[1].strip()
+        return tail if tail.isdigit() else raw
+    if all(part.strip().isdigit() for part in val.split(",")):
+        return val
+    return raw
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +147,7 @@ def build_training_run_spec(
         epochs=request.epochs,
         batch=request.batch,
         imgsz=request.imgsz,
-        device=request.device,
+        device=normalize_training_device(request.device),
         patience=request.patience,
         project=request.project,
         weights_path=request.weights_path,

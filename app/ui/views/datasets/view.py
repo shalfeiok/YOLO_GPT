@@ -223,10 +223,18 @@ class DatasetsView(QWidget):
         main.setSpacing(t.space_md)
 
         # ---- 1. Привести к YOLO ----
+        prepare_actions = QHBoxLayout()
+        prepare_actions.setContentsMargins(0, 0, 0, 0)
+        create_data_yaml_btn = SecondaryButton("Создать data.yaml")
+        create_data_yaml_btn.clicked.connect(self._on_create_data_yaml)
+        prepare_actions.addWidget(create_data_yaml_btn)
+        prepare_actions.addStretch()
+        prepare_actions_w = QWidget()
+        prepare_actions_w.setLayout(prepare_actions)
         main.addWidget(
             self._make_row(
                 "1. Привести к формату YOLO",
-                None,
+                prepare_actions_w,
                 "prepare_yolo",
                 self._on_apply_prepare,
             )
@@ -548,6 +556,13 @@ class DatasetsView(QWidget):
         path = QFileDialog.getExistingDirectory(self, "Куда сохранять", self._out_edit.text())
         if path:
             self._out_edit.setText(path)
+
+    def _on_create_data_yaml(self) -> None:
+        if self._thread.isRunning():
+            QMessageBox.warning(self, "Занято", "Дождитесь завершения текущей операции.")
+            return
+        src = self._src_edit.text().strip()
+        self._start_worker("prepare_yolo", "create_data_yaml", {"src": src})
 
     def _on_apply_prepare(self) -> None:
         src = self._src_edit.text().strip()

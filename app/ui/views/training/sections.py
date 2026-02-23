@@ -37,6 +37,7 @@ from app.ui.components.inputs import NoWheelSpinBox
 from app.ui.components.model_utils import make_best_model_checkbox
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import METRICS_HEADERS_RU, METRICS_TOOLTIP_RU_BASE
+from app.ui.training.device_utils import detect_devices
 from app.ui.views.metrics.dashboard import MetricsDashboardWidget
 
 if TYPE_CHECKING:
@@ -160,6 +161,15 @@ def build_training_ui(view: TrainingView) -> None:
     )
     view._workers_spin.setStyleSheet(view._spin_style())
     params_layout.addRow("Workers:", view._workers_spin)
+    view._device_combo = QComboBox()
+    view._device_combo.setMinimumHeight(28)
+    view._device_combo.setStyleSheet(view._combo_style())
+    view._device_combo.setToolTip(
+        "Auto выберет GPU 0 если доступен, иначе CPU."
+    )
+    for value, label in detect_devices():
+        view._device_combo.addItem(label, value)
+    params_layout.addRow("Device:", view._device_combo)
     view._optimizer_edit = QLineEdit()
     view._optimizer_edit.setPlaceholderText("авто")
     view._optimizer_edit.setStyleSheet(view._line_edit_style())

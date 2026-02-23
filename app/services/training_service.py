@@ -130,9 +130,10 @@ class TrainingService(ITrainer):
 
             model.add_callback("on_train_epoch_end", on_epoch_end)
 
-            train_device = None  # auto = prefer GPU
-            if device and device.strip().lower() == "cpu":
-                train_device = "cpu"
+            train_device: str | None = None
+            device_raw = (device or "").strip()
+            if device_raw:
+                train_device = device_raw
 
             data_path = str(data_yaml)
             train_kw: dict = {
@@ -172,16 +173,18 @@ class TrainingService(ITrainer):
                 train_kw["workers"] = 0
 
             log.info(
-                "Starting YOLO training with args: imgsz=%s batch=%s epochs=%s patience=%s workers=%s mosaic=%s mixup=%s close_mosaic=%s",
+                "Starting YOLO training with args: imgsz=%s batch=%s epochs=%s patience=%s workers=%s device=%s mosaic=%s mixup=%s close_mosaic=%s",
                 train_kw.get("imgsz"),
                 train_kw.get("batch"),
                 train_kw.get("epochs"),
                 train_kw.get("patience"),
                 train_kw.get("workers"),
+                train_kw.get("device"),
                 train_kw.get("mosaic"),
                 train_kw.get("mixup"),
                 train_kw.get("close_mosaic"),
             )
+            log.info("ULTRALYTICS_TRAIN device=%s", train_kw.get("device"))
 
             try:
                 results = model.train(**train_kw)

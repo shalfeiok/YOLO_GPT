@@ -2,6 +2,15 @@
 
 from .capture_service import OpenCVFrameSource, WindowCaptureService
 from .dataset_augment_service import AUGMENT_OPTIONS, create_augmented_dataset
+from .data_yaml_generator import (
+    CreateDataYamlUseCase,
+    DataYamlBuildResult,
+    DataYamlWriter,
+    DatasetLayoutResolver,
+    DatasetTypeDetector,
+    NamesResolver,
+    generate_data_yaml,
+)
 from .dataset_service import DatasetConfigBuilder
 from .dataset_visualize import (
     draw_boxes,
@@ -35,6 +44,13 @@ __all__ = [
     "rename_class_in_dataset",
     "create_augmented_dataset",
     "AUGMENT_OPTIONS",
+    "generate_data_yaml",
+    "DataYamlBuildResult",
+    "CreateDataYamlUseCase",
+    "DatasetTypeDetector",
+    "DatasetLayoutResolver",
+    "NamesResolver",
+    "DataYamlWriter",
     "load_classes_from_dataset",
     "draw_boxes",
     "get_sample_image_path",
