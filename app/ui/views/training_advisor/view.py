@@ -114,7 +114,7 @@ class TrainingAdvisorView(QWidget):
         if not self._weights.text().strip() or not self._dataset.text().strip():
             QMessageBox.warning(self, "Советник по обучению", "Укажите пути к весам и датасету")
             return
-        current_cfg = TrainingConfig.from_current_state(self._container.last_training_state or {})
+        current_cfg = self._container.settings_store.get_snapshot().training.to_training_config()
         request = AnalyzeTrainingRequest(
             model_weights_path=Path(self._weights.text().strip()),
             dataset_path=Path(self._dataset.text().strip()),

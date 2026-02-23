@@ -15,6 +15,7 @@ from app.application.ports.detection import DetectionPort, DetectorSpec
 from app.application.ports.integrations import IntegrationsPort
 from app.application.ports.metrics import MetricsPort
 from app.application.advisor_state import AdvisorStore
+from app.application.settings.store import AppSettingsStore
 from app.application.use_cases.training_advisor import (
     AnalyzeTrainingAndRecommendUseCase,
     ApplyAdvisorRecommendationsUseCase,
@@ -76,7 +77,7 @@ class Container:
         self._detection: DetectionPort | None = None
         self._metrics: MetricsPort | None = None
         self._integrations: IntegrationsPort | None = None
-        self.last_training_state: dict = {}
+        self._settings_store: AppSettingsStore | None = None
         self._advisor_store: AdvisorStore | None = None
         self._analyze_training_advisor_uc: AnalyzeTrainingAndRecommendUseCase | None = None
         self._apply_advisor_recommendations_uc: ApplyAdvisorRecommendationsUseCase | None = None
@@ -252,6 +253,12 @@ class Container:
         return self._advisor_store
 
     @property
+    def settings_store(self) -> AppSettingsStore:
+        if self._settings_store is None:
+            self._settings_store = AppSettingsStore()
+        return self._settings_store
+
+    @property
     def analyze_training_advisor_use_case(self) -> AnalyzeTrainingAndRecommendUseCase:
         if self._analyze_training_advisor_uc is None:
             self._analyze_training_advisor_uc = AnalyzeTrainingAndRecommendUseCase(
@@ -265,7 +272,9 @@ class Container:
     @property
     def apply_advisor_recommendations_use_case(self) -> ApplyAdvisorRecommendationsUseCase:
         if self._apply_advisor_recommendations_uc is None:
-            self._apply_advisor_recommendations_uc = ApplyAdvisorRecommendationsUseCase()
+            self._apply_advisor_recommendations_uc = ApplyAdvisorRecommendationsUseCase(
+                self.settings_store
+            )
         return self._apply_advisor_recommendations_uc
 
     def create_frame_source(self, source: str | FrameSourceSpec) -> FrameSource:

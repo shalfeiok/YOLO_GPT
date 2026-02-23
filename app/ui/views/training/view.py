@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.ports.metrics import MetricsPort
+from app.application.settings import settings_diff
+from app.application.settings.models import TrainingSettings
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -33,6 +35,7 @@ from app.ui.training.helpers import scan_trained_weights
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
 from app.ui.views.training.sections import build_training_ui
 from app.ui.views.training.view_model import TrainingViewModel
+from app.ui.infrastructure.settings_controller import SettingsController
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -50,6 +53,9 @@ class TrainingView(QWidget):
         self._signals = signals
         self._metrics: MetricsPort = container.metrics
         self._vm = TrainingViewModel(container, signals)
+        self._settings = SettingsController(container.settings_store)
+        self._is_applying_store_state = False
+        self._store_unsubscribe = None
         self._current_metrics: dict = {}
         self._metrics_start: dict = {}
         self._training_start_time: float | None = None
@@ -145,6 +151,7 @@ class TrainingView(QWidget):
             "Путь к папке датасета (с data.yaml и подпапками train/valid или train/val)."
         )
         edit.setStyleSheet(self._line_edit_style())
+        edit.textChanged.connect(self._on_dataset_paths_changed)
         btn = SecondaryButton("…")
         btn.setToolTip("Выбрать папку датасета")
         idx = len(self._dataset_rows)
@@ -178,6 +185,42 @@ class TrainingView(QWidget):
         path = QFileDialog.getExistingDirectory(self, "Выберите папку датасета", edit.text())
         if path:
             edit.setText(path)
+
+    def _on_dataset_paths_changed(self) -> None:
+        if self._is_applying_store_state:
+            return
+        self._settings.update_training(dataset_paths=tuple(str(p) for p in self._get_dataset_paths()))
+
+    def _apply_training_settings_to_ui(self) -> None:
+        training = self._settings.training()
+        self._is_applying_store_state = True
+        try:
+            while len(self._dataset_rows) > 1:
+                row = self._dataset_rows.pop()
+                row[0].parentWidget().deleteLater()
+            dataset_values = list(training.dataset_paths) or [""]
+            if self._dataset_rows:
+                self._dataset_rows[0][1].setText(dataset_values[0])
+            for idx, path in enumerate(dataset_values[1:], start=2):
+                self._add_dataset_row(self._ds_group.layout(), idx, path)
+            self._epochs_spin.setValue(training.epochs)
+            self._batch_spin.setValue(training.batch)
+            self._imgsz_spin.setValue(training.imgsz)
+            self._patience_spin.setValue(training.patience)
+            self._workers_spin.setValue(training.workers)
+            self._optimizer_edit.setText(training.optimizer)
+            self._project_edit.setText(training.project)
+            self._weights_edit.setText(training.weights_path or "")
+            self._advanced_options = dict(training.advanced_options)
+            for i in range(self._model_combo.count()):
+                if self._get_model_id_for_choice(self._model_combo.itemText(i)) == training.model_name:
+                    self._model_combo.setCurrentIndex(i)
+                    break
+        finally:
+            self._is_applying_store_state = False
+
+    def _on_training_settings_changed(self, _training) -> None:
+        self._apply_training_settings_to_ui()
 
     def _model_values(self) -> list[str]:
         labels = [m.label for m in YOLO_MODEL_CHOICES]
@@ -219,6 +262,12 @@ class TrainingView(QWidget):
             else:
                 self._model_hint_label.setText("")
                 self._epochs_recommended.setText("")
+        if not self._is_applying_store_state:
+            model_id, weights_path = self._get_model_id_and_weights()
+            self._settings.update_training(
+                model_name=model_id or self._settings.training().model_name,
+                weights_path=None if weights_path is None else str(weights_path),
+            )
 
     def _get_model_id_and_weights(self) -> tuple[str, Path | None]:
         choice = self._model_combo.currentText()
@@ -244,11 +293,13 @@ class TrainingView(QWidget):
         )
         if path:
             self._weights_edit.setText(path)
+            self._settings.update_training(weights_path=path)
 
     def _browse_project(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Папка для runs", self._project_edit.text())
         if path:
             self._project_edit.setText(path)
+            self._settings.update_training(project=path)
 
     def _delete_old_runs(self) -> None:
         p = Path(self._project_edit.text().strip())
@@ -359,10 +410,31 @@ class TrainingView(QWidget):
             self._timer_eta_epoch.setText("—")
             self._timer_eta_total.setText("—")
 
+    def _update_training_field(self, **changes) -> None:
+        if self._is_applying_store_state:
+            return
+        self._settings.update_training(**changes)
+
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
         self._signals.training_finished.connect(self._on_training_finished)
+        self._epochs_spin.valueChanged.connect(lambda v: self._update_training_field(epochs=int(v)))
+        self._batch_spin.valueChanged.connect(lambda v: self._update_training_field(batch=int(v)))
+        self._imgsz_spin.valueChanged.connect(lambda v: self._update_training_field(imgsz=int(v)))
+        self._patience_spin.valueChanged.connect(lambda v: self._update_training_field(patience=int(v)))
+        self._workers_spin.valueChanged.connect(lambda v: self._update_training_field(workers=int(v)))
+        self._optimizer_edit.textChanged.connect(
+            lambda text: self._update_training_field(optimizer=text.strip() or "auto")
+        )
+        self._project_edit.textChanged.connect(
+            lambda text: self._update_training_field(project=text.strip())
+        )
+        self._weights_edit.textChanged.connect(
+            lambda text: self._update_training_field(weights_path=text.strip() or None)
+        )
+        self._store_unsubscribe = self._settings.subscribe_training(self._on_training_settings_changed)
+        self._apply_training_settings_to_ui()
         self._apply_advisor_btn.setToolTip("Сначала выполните анализ во вкладке «Советник по обучению»")
         self._apply_advisor_btn.setEnabled(
             self._container.advisor_store.state.recommended_training_config is not None
@@ -467,12 +539,13 @@ class TrainingView(QWidget):
         confirm_stop_training(self.window(), self._vm.stop_training)
 
     def _open_advanced_settings(self) -> None:
-        dlg = AdvancedTrainingSettingsDialog(self._advanced_options, self)
+        dlg = AdvancedTrainingSettingsDialog(dict(self._settings.training().advanced_options), self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self._advanced_options = dlg.get_values()
+            self._update_training_field(advanced_options=dlg.get_values())
 
     def _start_training(self) -> None:
-        dataset_paths = self._get_dataset_paths()
+        training = self._settings.training()
+        dataset_paths = [Path(p) for p in training.dataset_paths if Path(p).is_dir()]
         if not dataset_paths:
             msg = "Укажите хотя бы один датасет (папку с data.yaml и train/valid)."
             if self._container.notifications:
@@ -480,7 +553,7 @@ class TrainingView(QWidget):
             else:
                 QMessageBox.critical(self, "Ошибка", msg)
             return
-        project = Path(self._project_edit.text().strip())
+        project = Path(training.project)
         combined_dir = project.parent / "combined_dataset"
         out_yaml = combined_dir / "data.yaml"
         try:
@@ -502,20 +575,6 @@ class TrainingView(QWidget):
                         except OSError:
                             pass
         out_yaml = out_yaml.resolve()
-        model_id, weights_path = self._get_model_id_and_weights()
-        if not model_id and not weights_path:
-            msg = "Выберите базовую модель или укажите путь к весам (.pt)."
-            if self._container.notifications:
-                self._container.notifications.warning(msg)
-            else:
-                QMessageBox.critical(self, "Ошибка", msg)
-            return
-        epochs = self._epochs_spin.value()
-        batch = self._batch_spin.value()
-        imgsz = self._imgsz_spin.value()
-        patience = self._patience_spin.value()
-        workers = self._workers_value()
-        optimizer = self._optimizer_value()
         from datetime import datetime
 
         log_dir = project / "logs"
@@ -527,79 +586,54 @@ class TrainingView(QWidget):
         self._current_metrics = {}
         self._metrics_start = {}
         self._training_start_time = time.time()
-        self._total_epochs = epochs
+        self._total_epochs = training.epochs
         self._epoch_start_time = None
         self._last_epoch = None
         self._metrics_dashboard.clear()
+        weights_path = Path(training.weights_path) if training.weights_path else None
         self._vm.start_training(
             data_yaml=out_yaml,
-            model_name=model_id or "yolo11n.pt",
-            epochs=epochs,
-            batch=batch,
-            imgsz=imgsz,
-            device="cuda:0",
-            patience=patience,
+            model_name=training.model_name,
+            epochs=training.epochs,
+            batch=training.batch,
+            imgsz=training.imgsz,
+            device=training.device,
+            patience=training.patience,
             project=project,
             weights_path=weights_path,
-            workers=workers,
-            optimizer=optimizer,
+            workers=training.workers,
+            optimizer=training.optimizer,
             log_path=log_path,
-            advanced_options=self._advanced_options,
+            advanced_options=dict(training.advanced_options),
         )
-        self._container.last_training_state = self.get_current_training_state()
-
-    def _workers_value(self) -> int:
-        return self._workers_spin.value()
-
-    def _optimizer_value(self) -> str:
-        return self._optimizer_edit.text().strip()
-
-    def get_current_training_state(self) -> dict:
-        model_id, weights_path = self._get_model_id_and_weights()
-        return {
-            "dataset_paths": [str(p) for p in self._get_dataset_paths()],
-            "model_name": model_id or "yolo11n.pt",
-            "weights_path": None if weights_path is None else str(weights_path),
-            "project": self._project_edit.text().strip(),
-            "device": "cuda:0",
-            "epochs": self._epochs_spin.value(),
-            "batch": self._batch_spin.value(),
-            "imgsz": self._imgsz_spin.value(),
-            "patience": self._patience_spin.value(),
-            "workers": self._workers_value(),
-            "optimizer": self._optimizer_value(),
-            "advanced_options": dict(self._advanced_options),
-        }
-
-    def apply_training_state(self, state: dict) -> None:
-        self._epochs_spin.setValue(int(state.get("epochs", self._epochs_spin.value())))
-        self._batch_spin.setValue(int(state.get("batch", self._batch_spin.value())))
-        self._imgsz_spin.setValue(int(state.get("imgsz", self._imgsz_spin.value())))
-        self._patience_spin.setValue(int(state.get("patience", self._patience_spin.value())))
-        self._workers_spin.setValue(int(state.get("workers", self._workers_spin.value())))
-        self._optimizer_edit.setText(str(state.get("optimizer", self._optimizer_value())))
-        self._advanced_options = dict(state.get("advanced_options") or self._advanced_options)
 
     def _apply_advisor_recommendations(self) -> None:
         rec = self._container.advisor_store.state.recommended_training_config
         if rec is None:
             QMessageBox.information(self, "Советник по обучению", "Нет доступных рекомендаций")
             return
-        diff = self._container.apply_advisor_recommendations_use_case.execute(rec, self)
+        current = self._settings.training()
+        diff = settings_diff(current, TrainingSettings.from_training_config(rec))
         if not diff:
             QMessageBox.information(self, "Советник по обучению", "Изменения не требуются")
             return
-        preview = "\n".join(f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff)
+        preview = "\n".join(
+            f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff
+        )
         QMessageBox.information(self, "Предпросмотр изменений", preview)
+        self._container.apply_advisor_recommendations_use_case.execute(rec)
         self._undo_advisor_btn.setEnabled(True)
 
     def _undo_advisor_apply(self) -> None:
-        diff = self._container.apply_advisor_recommendations_use_case.undo(self)
+        diff = self._container.apply_advisor_recommendations_use_case.undo()
         if diff:
             self._undo_advisor_btn.setEnabled(False)
 
     def shutdown(self) -> None:
         self._vm.stop_training()
+        if self._store_unsubscribe is not None:
+            self._store_unsubscribe()
+            self._store_unsubscribe = None
         bus = self._container.event_bus
         for sub in self._bus_subs:
             bus.unsubscribe(sub)
