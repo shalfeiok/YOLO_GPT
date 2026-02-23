@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from app.application.advisor_state import TrainingConfigTarget
+from app.application.settings import AppSettingsStore, settings_diff
+from app.application.settings.models import TrainingSettings
 from app.core.training_advisor.dataset_inspector import DatasetInspector
 from app.core.training_advisor.model_evaluator import ModelEvaluator
 from app.core.training_advisor.models import AdvisorReport
 from app.core.training_advisor.recommendation_engine import RecommendationEngine
 from app.core.training_advisor.run_artifacts_reader import RunArtifactsReader
-from app.domain.training_config import TrainingConfig, diff_training_config
+from app.domain.training_config import TrainingConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,18 +62,20 @@ class AnalyzeTrainingAndRecommendUseCase:
 
 
 class ApplyAdvisorRecommendationsUseCase:
-    def __init__(self) -> None:
-        self._undo_snapshot: TrainingConfig | None = None
+    def __init__(self, settings_store: AppSettingsStore) -> None:
+        self._settings_store = settings_store
+        self._undo_snapshot: TrainingSettings | None = None
 
-    def execute(self, recommended_training_config: TrainingConfig, target: TrainingConfigTarget) -> list[dict]:
-        current = TrainingConfig.from_current_state(target.get_current_training_state())
+    def execute(self, recommended_training_config: TrainingConfig) -> list[dict]:
+        current = self._settings_store.get_snapshot().training
+        recommended = TrainingSettings.from_training_config(recommended_training_config)
         self._undo_snapshot = current
-        target.apply_training_state(recommended_training_config.to_dict())
-        return diff_training_config(current, recommended_training_config)
+        self._settings_store.update_training(**asdict(recommended))
+        return settings_diff(current, recommended)
 
-    def undo(self, target: TrainingConfigTarget) -> list[dict]:
+    def undo(self) -> list[dict]:
         if self._undo_snapshot is None:
             return []
-        now = TrainingConfig.from_current_state(target.get_current_training_state())
-        target.apply_training_state(self._undo_snapshot.to_dict())
-        return diff_training_config(now, self._undo_snapshot)
+        now = self._settings_store.get_snapshot().training
+        self._settings_store.update_training(**asdict(self._undo_snapshot))
+        return settings_diff(now, self._undo_snapshot)
