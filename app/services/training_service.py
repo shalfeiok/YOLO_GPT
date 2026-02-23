@@ -21,6 +21,34 @@ from app.interfaces import ITrainer
 
 log = logging.getLogger(__name__)
 
+ALLOWED_ADVANCED_TRAINING_KEYS = {
+    "cache",
+    "amp",
+    "lr0",
+    "lrf",
+    "mosaic",
+    "mixup",
+    "close_mosaic",
+    "seed",
+    "fliplr",
+    "flipud",
+    "box",
+    "cls",
+    "dfl",
+    "degrees",
+    "translate",
+    "scale",
+    "shear",
+    "perspective",
+    "hsv_h",
+    "hsv_s",
+    "hsv_v",
+    "warmup_epochs",
+    "warmup_momentum",
+    "warmup_bias_lr",
+    "weight_decay",
+}
+
 
 class TrainingService(ITrainer):
     """Сервис обучения Ultralytics YOLO.
@@ -129,33 +157,7 @@ class TrainingService(ITrainer):
             if advanced_options:
                 ignored_advanced_options: list[str] = []
                 for k, v in advanced_options.items():
-                    if k in (
-                        "cache",
-                        "amp",
-                        "lr0",
-                        "lrf",
-                        "mosaic",
-                        "mixup",
-                        "close_mosaic",
-                        "seed",
-                        "fliplr",
-                        "flipud",
-                        "box",
-                        "cls",
-                        "dfl",
-                        "degrees",
-                        "translate",
-                        "scale",
-                        "shear",
-                        "perspective",
-                        "hsv_h",
-                        "hsv_s",
-                        "hsv_v",
-                        "warmup_epochs",
-                        "warmup_momentum",
-                        "warmup_bias_lr",
-                        "weight_decay",
-                    ):
+                    if k in ALLOWED_ADVANCED_TRAINING_KEYS:
                         train_kw[k] = v
                     else:
                         ignored_advanced_options.append(str(k))
@@ -168,6 +170,18 @@ class TrainingService(ITrainer):
             # Загрузка из кэша в одном процессе (workers=0) стабильна и быстра.
             if train_kw.get("cache"):
                 train_kw["workers"] = 0
+
+            log.info(
+                "Starting YOLO training with args: imgsz=%s batch=%s epochs=%s patience=%s workers=%s mosaic=%s mixup=%s close_mosaic=%s",
+                train_kw.get("imgsz"),
+                train_kw.get("batch"),
+                train_kw.get("epochs"),
+                train_kw.get("patience"),
+                train_kw.get("workers"),
+                train_kw.get("mosaic"),
+                train_kw.get("mixup"),
+                train_kw.get("close_mosaic"),
+            )
 
             try:
                 results = model.train(**train_kw)

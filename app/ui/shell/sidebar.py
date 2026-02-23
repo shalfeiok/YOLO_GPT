@@ -100,8 +100,8 @@ class CollapsibleSidebar(QFrame):
             ("training", "Обучение", "Обучение моделей YOLO", QStyle.StandardPixmap.SP_MediaPlay),
             (
                 "training_advisor",
-                "Советник по обучению",
-                "Анализ датасета/модели и рекомендации перед обучением",
+                "Советник",
+                "Советник по обучению: анализ и рекомендации перед запуском",
                 QStyle.StandardPixmap.SP_FileDialogDetailedView,
             ),
             ("detection", "Детекция", "Детекция в реальном времени", QStyle.StandardPixmap.SP_ComputerIcon),

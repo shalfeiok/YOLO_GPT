@@ -211,7 +211,6 @@ def build_training_ui(view: TrainingView) -> None:
     main_layout.addWidget(view._stats_label)
 
     # Расширенные настройки (по центру над Старт/Стоп)
-    view._advanced_options: dict = {}
     adv_btn_layout = QHBoxLayout()
     adv_btn_layout.addStretch()
     view._advanced_btn = SecondaryButton("Расширенные настройки обучения")
