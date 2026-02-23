@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Callable
 from typing import Protocol
 
 from app.core.training_advisor.models import AdvisorReport
@@ -27,6 +28,7 @@ class TrainingConfigTarget(Protocol):
 class AdvisorStore:
     def __init__(self) -> None:
         self._state = AdvisorState()
+        self._subscribers: list[Callable[[AdvisorState], None]] = []
 
     @property
     def state(self) -> AdvisorState:
@@ -41,3 +43,14 @@ class AdvisorStore:
             dataset_path=dataset,
             run_folder_path=run_folder,
         )
+        for callback in list(self._subscribers):
+            callback(self._state)
+
+    def subscribe(self, callback: Callable[[AdvisorState], None]) -> Callable[[], None]:
+        self._subscribers.append(callback)
+
+        def _unsubscribe() -> None:
+            if callback in self._subscribers:
+                self._subscribers.remove(callback)
+
+        return _unsubscribe

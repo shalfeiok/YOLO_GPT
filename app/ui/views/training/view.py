@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from app.application.ports.metrics import MetricsPort
 from app.application.settings import settings_diff
 from app.application.settings.models import TrainingSettings
+from app.application.advisor_state import AdvisorState
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -57,6 +58,7 @@ class TrainingView(QWidget):
         self._settings = SettingsController(container.settings_store)
         self._is_applying_store_state = False
         self._store_unsubscribe = None
+        self._advisor_unsubscribe = None
         self._current_metrics: dict = {}
         self._metrics_start: dict = {}
         self._training_start_time: float | None = None
@@ -221,6 +223,16 @@ class TrainingView(QWidget):
 
     def _on_training_settings_changed(self, _training) -> None:
         self._apply_training_settings_to_ui()
+
+    def _on_advisor_state_changed(self, state: AdvisorState) -> None:
+        has_recommendations = state.recommended_training_config is not None
+        self._apply_advisor_btn.setEnabled(has_recommendations)
+        if has_recommendations:
+            self._apply_advisor_btn.setToolTip("Нажмите, чтобы применить рекомендации советника")
+        else:
+            self._apply_advisor_btn.setToolTip(
+                "Сначала выполните анализ во вкладке «Советник по обучению»"
+            )
 
     def _model_values(self) -> list[str]:
         labels = [m.label for m in YOLO_MODEL_CHOICES]
@@ -434,11 +446,11 @@ class TrainingView(QWidget):
             lambda text: self._update_training_field(weights_path=text.strip() or None)
         )
         self._store_unsubscribe = self._settings.subscribe_training(self._on_training_settings_changed)
-        self._apply_training_settings_to_ui()
-        self._apply_advisor_btn.setToolTip("Сначала выполните анализ во вкладке «Советник по обучению»")
-        self._apply_advisor_btn.setEnabled(
-            self._container.advisor_store.state.recommended_training_config is not None
+        self._advisor_unsubscribe = self._container.advisor_store.subscribe(
+            self._on_advisor_state_changed
         )
+        self._apply_training_settings_to_ui()
+        self._on_advisor_state_changed(self._container.advisor_store.state)
 
     def _on_progress(self, pct: float, msg: str) -> None:
         if pct >= 0:
@@ -628,6 +640,9 @@ class TrainingView(QWidget):
         if self._store_unsubscribe is not None:
             self._store_unsubscribe()
             self._store_unsubscribe = None
+        if self._advisor_unsubscribe is not None:
+            self._advisor_unsubscribe()
+            self._advisor_unsubscribe = None
         bus = self._container.event_bus
         for sub in self._bus_subs:
             bus.unsubscribe(sub)
