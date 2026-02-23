@@ -39,6 +39,7 @@ strict_equality = true
 
 # Gradual strictness: tighten later.
 ignore_missing_imports = true
+enable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
 module = [

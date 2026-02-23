@@ -4,6 +4,7 @@ Main window: collapsible sidebar + stacked content, lazy tabs, keyboard navigati
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QByteArray, QTimer
@@ -55,20 +56,21 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
         factories = None
         if container is not None and signals is not None:
-            from app.ui.views.datasets.view import DatasetsView
-            from app.ui.views.detection.view import DetectionView
             from app.ui.views.autoannotation.view import AutoAnnotationView
             from app.ui.views.benchmark.view import BenchmarkView
             from app.ui.views.classification.view import ClassificationView
+            from app.ui.views.datasets.view import DatasetsView
+            from app.ui.views.detection.view import DetectionView
+            from app.ui.views.docs.view import DocsView
             from app.ui.views.experiments.view import ExperimentsView
+            from app.ui.views.integrations.view import IntegrationsView
+            from app.ui.views.jobs.view import JobsView
             from app.ui.views.pose.view import PoseView
             from app.ui.views.segmentation.view import SegmentationView
             from app.ui.views.tracking.view import TrackingView
-            from app.ui.views.validation.view import ValidationView
-            from app.ui.views.integrations.view import IntegrationsView
-            from app.ui.views.jobs.view import JobsView
             from app.ui.views.training.view import TrainingView
             from app.ui.views.training_advisor.view import TrainingAdvisorView
+            from app.ui.views.validation.view import ValidationView
 
             factories = {
                 "training": lambda: TrainingView(container, signals),
@@ -85,6 +87,7 @@ class MainWindow(QMainWindow):
                 "experiments": lambda: ExperimentsView(container),
                 "integrations": lambda: IntegrationsView(container),
                 "jobs": lambda: JobsView(container),
+                "docs": lambda: DocsView(container),
             }
         else:
             factories = {}
@@ -161,22 +164,25 @@ class MainWindow(QMainWindow):
         self._settings.set_sidebar_collapsed(self._sidebar.is_collapsed())
         self._settings.sync()
 
+    def _safe_shutdown_tab(self, tab, tab_name: str) -> None:
+        if tab is None or not hasattr(tab, "shutdown"):
+            return
+        try:
+            tab.shutdown()
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Failed to shutdown tab %s (%s)", tab_name, type(tab).__name__
+            )
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self._save_geometry()
         for i in range(self._stack.count()):
-            w = self._stack.widget(i)
-            if w is not None and hasattr(w, "shutdown"):
-                try:
-                    w.shutdown()
-                except Exception:
-                    import logging
-
-                    logging.getLogger(__name__).exception("Failed to shutdown tab widget")
+            widget = self._stack.widget(i)
+            tab_name = TAB_IDS[i] if i < len(TAB_IDS) else f"tab_{i}"
+            self._safe_shutdown_tab(widget, tab_name)
         if self._container is not None and hasattr(self._container, "shutdown"):
             try:
                 self._container.shutdown()
             except Exception:
-                import logging
-
                 logging.getLogger(__name__).exception("Failed to shutdown container")
         super().closeEvent(event)

@@ -37,6 +37,7 @@ from app.core.events.job_events import (
 from app.core.observability.crash_bundle import create_crash_bundle
 from app.core.observability.run_manifest import get_run_folder
 from app.ui.infrastructure.file_dialogs import get_save_zip_path
+from app.ui.infrastructure.lifecycle import SubscriptionManager
 from app.ui.views.jobs.policy_dialog import JobsPolicyDialog
 
 
@@ -49,6 +50,8 @@ class JobsView(QWidget):
         self._bus = container.event_bus
         self._registry = container.job_registry
         self._subs = []
+        self._subscriptions = SubscriptionManager()
+        self._is_shutdown = False
         self._selected_job_id: str | None = None
         self._is_closing = False
         self._details_job_id: str | None = None
@@ -171,22 +174,62 @@ class JobsView(QWidget):
         splitter.setStretchFactor(1, 3)
 
         # Subscribe to job events (thread-safe UI updates)
-        self._subs.append(self._bus.subscribe_weak(JobStarted, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobProgress, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobLogLine, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobFinished, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobFailed, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobCancelled, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobRetrying, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobTimedOut, self._on_job_event))
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobStarted, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobProgress, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobLogLine, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobFinished, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobFailed, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobCancelled, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobRetrying, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobTimedOut, self._on_job_event)
+            )
+        )
 
         self._refresh()
 
+    def shutdown(self) -> None:
+        if getattr(self, "_is_shutdown", False):
+            return
+        self._is_shutdown = True
+        subscriptions = getattr(self, "_subscriptions", None)
+        if subscriptions is not None:
+            subscriptions.dispose_all(bus=self._bus)
+        if hasattr(self, "_subs"):
+            self._subs.clear()
+
     def closeEvent(self, event) -> None:  # noqa: N802
         self._is_closing = True
-        for s in self._subs:
-            self._bus.unsubscribe(s)
-        self._subs.clear()
+        self.shutdown()
         super().closeEvent(event)
 
     def _on_job_event(self, event) -> None:
