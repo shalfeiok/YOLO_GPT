@@ -98,6 +98,12 @@ class CollapsibleSidebar(QFrame):
         nav_items = [
             ("datasets", "Датасеты", "Управление датасетами и подготовка к YOLO", QStyle.StandardPixmap.SP_DirIcon),
             ("training", "Обучение", "Обучение моделей YOLO", QStyle.StandardPixmap.SP_MediaPlay),
+            (
+                "training_advisor",
+                "Training Advisor",
+                "Анализ датасета/модели и рекомендации перед обучением",
+                QStyle.StandardPixmap.SP_FileDialogDetailedView,
+            ),
             ("detection", "Детекция", "Детекция в реальном времени", QStyle.StandardPixmap.SP_ComputerIcon),
             ("validation", "Валидация", "Валидация и метрики модели", QStyle.StandardPixmap.SP_DialogApplyButton),
             ("segmentation", "Сегментация", "Сегментация в реальном времени", QStyle.StandardPixmap.SP_DirOpenIcon),
