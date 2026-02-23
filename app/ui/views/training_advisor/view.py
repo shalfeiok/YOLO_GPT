@@ -48,22 +48,22 @@ class TrainingAdvisorView(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        form_box = QGroupBox("Training Advisor")
+        form_box = QGroupBox("Советник по обучению")
         form = QFormLayout(form_box)
         self._weights = QLineEdit()
         self._dataset = QLineEdit()
         self._run = QLineEdit()
-        form.addRow("Path to model weights (.pt):", self._path_row(self._weights, True))
-        form.addRow("Dataset path (data.yaml or root):", self._path_row(self._dataset, False))
-        form.addRow("Optional run/exp folder:", self._path_row(self._run, False, folder_only=True))
+        form.addRow("Путь к весам модели (.pt):", self._path_row(self._weights, True))
+        form.addRow("Путь к датасету (data.yaml или папка):", self._path_row(self._dataset, False))
+        form.addRow("Папка прошлого запуска (опционально):", self._path_row(self._run, False, folder_only=True))
         mode_row = QHBoxLayout()
-        self._quick = QRadioButton("Quick")
-        self._deep = QRadioButton("Deep")
+        self._quick = QRadioButton("Быстрый анализ")
+        self._deep = QRadioButton("Глубокий анализ")
         self._quick.setChecked(True)
         mode_row.addWidget(self._quick)
         mode_row.addWidget(self._deep)
-        form.addRow("Mode:", self._widget_from_layout(mode_row))
-        self._analyze_btn = QPushButton("Analyze")
+        form.addRow("Режим:", self._widget_from_layout(mode_row))
+        self._analyze_btn = QPushButton("Проанализировать")
         self._analyze_btn.clicked.connect(self._analyze)
         form.addRow("", self._analyze_btn)
         root.addWidget(form_box)
@@ -73,10 +73,10 @@ class TrainingAdvisorView(QWidget):
         root.addWidget(self._result, 1)
 
         actions = QHBoxLayout()
-        self._export_btn = QPushButton("Export recommended config")
+        self._export_btn = QPushButton("Экспорт рекомендаций")
         self._export_btn.setEnabled(False)
         self._export_btn.clicked.connect(self._export)
-        self._send_btn = QPushButton("Send to Training")
+        self._send_btn = QPushButton("Передать в обучение")
         self._send_btn.setEnabled(False)
         self._send_btn.clicked.connect(self._send_to_training)
         actions.addWidget(self._export_btn)
@@ -95,11 +95,11 @@ class TrainingAdvisorView(QWidget):
 
         def _pick() -> None:
             if folder_only:
-                path = QFileDialog.getExistingDirectory(self, "Select folder")
+                path = QFileDialog.getExistingDirectory(self, "Выберите папку")
             elif edit is self._weights:
-                path, _ = QFileDialog.getOpenFileName(self, "Select weights", filter="PyTorch (*.pt)")
+                path, _ = QFileDialog.getOpenFileName(self, "Выберите веса", filter="PyTorch (*.pt)")
             else:
-                path = QFileDialog.getExistingDirectory(self, "Select dataset folder")
+                path = QFileDialog.getExistingDirectory(self, "Выберите папку датасета")
             if path:
                 edit.setText(path)
 
@@ -112,7 +112,7 @@ class TrainingAdvisorView(QWidget):
 
     def _analyze(self) -> None:
         if not self._weights.text().strip() or not self._dataset.text().strip():
-            QMessageBox.warning(self, "Training Advisor", "Weights and dataset paths are required")
+            QMessageBox.warning(self, "Советник по обучению", "Укажите пути к весам и датасету")
             return
         current_cfg = TrainingConfig.from_current_state(self._container.last_training_state or {})
         request = AnalyzeTrainingRequest(
@@ -123,7 +123,7 @@ class TrainingAdvisorView(QWidget):
             current_training_config=current_cfg,
         )
         self._analyze_btn.setEnabled(False)
-        self._result.setPlainText("Analyzing...")
+        self._result.setPlainText("Выполняется анализ...")
         self._worker = _AnalyzerWorker(self, request, self._container.analyze_training_advisor_use_case)
         self._worker.done.connect(self._on_report)
         self._worker.start()
@@ -131,14 +131,14 @@ class TrainingAdvisorView(QWidget):
     def _on_report(self, report, error) -> None:
         self._analyze_btn.setEnabled(True)
         if error:
-            self._result.setPlainText(f"Error: {error}")
+            self._result.setPlainText(f"Ошибка: {error}")
             return
         self._report = report
-        lines = ["# Dataset Health", str(report.dataset_health), "", "# Run Summary", str(report.run_summary), "", "# Model Eval", str(report.model_eval), "", "# Recommendations"]
+        lines = ["# Состояние датасета", str(report.dataset_health), "", "# Сводка запуска", str(report.run_summary), "", "# Оценка модели", str(report.model_eval), "", "# Рекомендации"]
         for item in report.recommendations:
             lines.append(f"- {item.param}: {item.current} -> {item.recommended} ({item.reason}, conf={item.confidence:.2f})")
         if report.diff:
-            lines.append("\n# Diff")
+            lines.append("\n# Изменения")
             for d in report.diff:
                 lines.append(f"- {d['param']}: {d['current']} -> {d['recommended']}")
         self._result.setPlainText("\n".join(lines))
@@ -148,7 +148,7 @@ class TrainingAdvisorView(QWidget):
     def _export(self) -> None:
         if not self._report:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "Export config", "advisor_recommended.yaml", "YAML (*.yaml);;JSON (*.json)")
+        path, _ = QFileDialog.getSaveFileName(self, "Экспорт конфигурации", "advisor_recommended.yaml", "YAML (*.yaml);;JSON (*.json)")
         if not path:
             return
         export_training_config(Path(path), self._report.recommended_training_config)
@@ -162,4 +162,4 @@ class TrainingAdvisorView(QWidget):
             dataset=self._dataset.text().strip(),
             run_folder=self._run.text().strip() or None,
         )
-        QMessageBox.information(self, "Training Advisor", "Recommendations sent to Training tab")
+        QMessageBox.information(self, "Советник по обучению", "Рекомендации переданы во вкладку «Обучение»")

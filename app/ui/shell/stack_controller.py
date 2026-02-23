@@ -40,7 +40,7 @@ def _default_factory(tab_id: str) -> QWidget:
     titles = {
         "datasets": "Датасеты",
         "training": "Обучение",
-        "training_advisor": "Training Advisor",
+        "training_advisor": "Советник по обучению",
         "detection": "Детекция",
         "validation": "Валидация",
         "segmentation": "Сегментация",

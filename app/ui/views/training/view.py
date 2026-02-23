@@ -363,7 +363,7 @@ class TrainingView(QWidget):
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
         self._signals.training_finished.connect(self._on_training_finished)
-        self._apply_advisor_btn.setToolTip("Run analysis in Training Advisor tab first")
+        self._apply_advisor_btn.setToolTip("Сначала выполните анализ во вкладке «Советник по обучению»")
         self._apply_advisor_btn.setEnabled(
             self._container.advisor_store.state.recommended_training_config is not None
         )
@@ -583,14 +583,14 @@ class TrainingView(QWidget):
     def _apply_advisor_recommendations(self) -> None:
         rec = self._container.advisor_store.state.recommended_training_config
         if rec is None:
-            QMessageBox.information(self, "Training Advisor", "No recommendations available")
+            QMessageBox.information(self, "Советник по обучению", "Нет доступных рекомендаций")
             return
         diff = self._container.apply_advisor_recommendations_use_case.execute(rec, self)
         if not diff:
-            QMessageBox.information(self, "Training Advisor", "No changes required")
+            QMessageBox.information(self, "Советник по обучению", "Изменения не требуются")
             return
         preview = "\n".join(f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff)
-        QMessageBox.information(self, "Advisor diff preview", preview)
+        QMessageBox.information(self, "Предпросмотр изменений", preview)
         self._undo_advisor_btn.setEnabled(True)
 
     def _undo_advisor_apply(self) -> None:
