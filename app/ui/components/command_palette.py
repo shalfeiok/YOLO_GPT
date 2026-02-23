@@ -41,6 +41,7 @@ def _default_commands() -> list[CommandItem]:
         CommandItem("tab_experiments", "Перейти: Эксперименты", "experiments"),
         CommandItem("tab_integrations", "Перейти: Интеграции", "integrations"),
         CommandItem("tab_jobs", "Перейти: Задачи", "jobs background"),
+        CommandItem("tab_docs", "Перейти: Документация", "docs documentation"),
         CommandItem("theme_light", "Тема: Светлая", "light"),
         CommandItem("theme_dark", "Тема: Тёмная", "dark"),
     ]
@@ -163,6 +164,7 @@ class CommandPalette(QDialog):
             "tab_experiments": "experiments",
             "tab_integrations": "integrations",
             "tab_jobs": "jobs",
+            "tab_docs": "docs",
         }
         return m.get(id_)
 

@@ -8,6 +8,7 @@ from typing import Any
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -17,7 +18,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
-    QDoubleSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
 from app.ui.components.model_utils import make_best_model_checkbox
+from app.ui.infrastructure.lifecycle import SubscriptionManager
 
 
 class ValidationView(QWidget):
@@ -41,13 +42,27 @@ class ValidationView(QWidget):
         self._last_result: dict[str, Any] | None = None
         self._result_dir: Path | None = None
         self._subs = []
+        self._subscriptions = SubscriptionManager()
+        self._is_shutdown = False
         self._job_event_signal.connect(self._on_job_event_ui)
         self._build_ui()
         from app.core.events.job_events import JobFailed, JobFinished, JobLogLine
 
-        self._subs.append(self._bus.subscribe_weak(JobLogLine, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobFinished, self._on_job_event))
-        self._subs.append(self._bus.subscribe_weak(JobFailed, self._on_job_event))
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobLogLine, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobFinished, self._on_job_event)
+            )
+        )
+        self._subs.append(
+            self._subscriptions.add_subscription(
+                self._bus.subscribe_weak(JobFailed, self._on_job_event)
+            )
+        )
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -58,8 +73,11 @@ class ValidationView(QWidget):
         self._weights.setToolTip("Путь к файлу весов (.pt)")
         btn_w = SecondaryButton("…")
         btn_w.clicked.connect(self._pick_weights)
-        wr = QHBoxLayout(); wr.addWidget(self._weights, 1); wr.addWidget(btn_w)
-        wc = QWidget(); wc.setLayout(wr)
+        wr = QHBoxLayout()
+        wr.addWidget(self._weights, 1)
+        wr.addWidget(btn_w)
+        wc = QWidget()
+        wc.setLayout(wr)
         form.addRow("Веса (.pt):", wc)
         self._use_best = make_best_model_checkbox(self, self._weights)
         form.addRow("", self._use_best)
@@ -68,8 +86,11 @@ class ValidationView(QWidget):
         self._data.setToolTip("Путь к data.yaml для валидации")
         btn_d = SecondaryButton("…")
         btn_d.clicked.connect(self._pick_data)
-        dr = QHBoxLayout(); dr.addWidget(self._data, 1); dr.addWidget(btn_d)
-        dc = QWidget(); dc.setLayout(dr)
+        dr = QHBoxLayout()
+        dr.addWidget(self._data, 1)
+        dr.addWidget(btn_d)
+        dc = QWidget()
+        dc.setLayout(dr)
         form.addRow("Dataset (data.yaml):", dc)
 
         self._device = QComboBox()
@@ -77,11 +98,19 @@ class ValidationView(QWidget):
         self._device.setCurrentText("cuda:0")
         self._device.setToolTip("Устройство выполнения")
         form.addRow("Устройство:", self._device)
-        self._imgsz = QSpinBox(); self._imgsz.setRange(64, 4096); self._imgsz.setValue(640)
+        self._imgsz = QSpinBox()
+        self._imgsz.setRange(64, 4096)
+        self._imgsz.setValue(640)
         form.addRow("Image size:", self._imgsz)
-        self._conf = QDoubleSpinBox(); self._conf.setRange(0.0, 1.0); self._conf.setSingleStep(0.01); self._conf.setValue(0.25)
+        self._conf = QDoubleSpinBox()
+        self._conf.setRange(0.0, 1.0)
+        self._conf.setSingleStep(0.01)
+        self._conf.setValue(0.25)
         form.addRow("Confidence:", self._conf)
-        self._iou = QDoubleSpinBox(); self._iou.setRange(0.0, 1.0); self._iou.setSingleStep(0.01); self._iou.setValue(0.45)
+        self._iou = QDoubleSpinBox()
+        self._iou.setRange(0.0, 1.0)
+        self._iou.setSingleStep(0.01)
+        self._iou.setValue(0.45)
         form.addRow("IOU:", self._iou)
 
         root.addWidget(cfg_group)
@@ -111,10 +140,13 @@ class ValidationView(QWidget):
         self._open_pr.clicked.connect(lambda: self._open_artifact("PR_curve.png"))
         self._open_dir = QPushButton("Открыть папку результатов")
         self._open_dir.clicked.connect(self._open_dir_path)
-        rbtn.addWidget(self._open_cm); rbtn.addWidget(self._open_pr); rbtn.addWidget(self._open_dir)
+        rbtn.addWidget(self._open_cm)
+        rbtn.addWidget(self._open_pr)
+        rbtn.addWidget(self._open_dir)
         root.addLayout(rbtn)
 
-        self._log = QTextEdit(); self._log.setReadOnly(True)
+        self._log = QTextEdit()
+        self._log.setReadOnly(True)
         root.addWidget(self._log, 1)
 
     def _pick_weights(self) -> None:
@@ -155,13 +187,15 @@ class ValidationView(QWidget):
             ap = list(getattr(res.box, "ap", [])) if hasattr(res, "box") else []
             rows = []
             for i in range(max(len(ap50), len(names))):
-                rows.append({
-                    "class": names.get(i, str(i)),
-                    "precision": p[i] if i < len(p) else 0,
-                    "recall": r[i] if i < len(r) else 0,
-                    "map50": ap50[i] if i < len(ap50) else 0,
-                    "map": ap[i] if i < len(ap) else 0,
-                })
+                rows.append(
+                    {
+                        "class": names.get(i, str(i)),
+                        "precision": p[i] if i < len(p) else 0,
+                        "recall": r[i] if i < len(r) else 0,
+                        "map50": ap50[i] if i < len(ap50) else 0,
+                        "map": ap[i] if i < len(ap) else 0,
+                    }
+                )
             save_dir = Path(getattr(res, "save_dir", ""))
             return {"rows": rows, "save_dir": str(save_dir)}
 
@@ -218,7 +252,16 @@ class ValidationView(QWidget):
         with open(p, "w", encoding="utf-8") as f:
             json.dump(self._last_result, f, ensure_ascii=False, indent=2)
 
+    def shutdown(self) -> None:
+        if getattr(self, "_is_shutdown", False):
+            return
+        self._is_shutdown = True
+        subscriptions = getattr(self, "_subscriptions", None)
+        if subscriptions is not None:
+            subscriptions.dispose_all(bus=self._bus)
+        if hasattr(self, "_subs"):
+            self._subs.clear()
+
     def closeEvent(self, event) -> None:  # noqa: N802
-        for s in self._subs:
-            self._bus.unsubscribe(s)
+        self.shutdown()
         super().closeEvent(event)
