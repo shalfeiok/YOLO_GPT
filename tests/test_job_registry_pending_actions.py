@@ -100,7 +100,7 @@ def test_close_unsubscribes_registry_handlers() -> None:
     assert registry.get("closed") is None
 
 
-def test_repeated_log_lines_are_collapsed() -> None:
+def test_repeated_log_lines_are_preserved() -> None:
     bus = EventBus()
     registry = JobRegistry(bus)
 
@@ -111,4 +111,4 @@ def test_repeated_log_lines_are_collapsed() -> None:
 
     rec = registry.get("j-log")
     assert rec is not None
-    assert rec.logs == ["same", "other"]
+    assert rec.logs == ["same", "same", "other"]
