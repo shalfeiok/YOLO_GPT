@@ -40,6 +40,10 @@ from app.ui.training.constants import MAX_DATASETS
 from app.ui.training.device_utils import is_cuda_available
 from app.ui.training.helpers import scan_trained_weights
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
+from app.ui.views.training.model_selection import (
+    CUSTOM_MODEL_CHOICE,
+    resolve_model_choice_label,
+)
 from app.ui.views.training.sections import build_training_ui
 from app.ui.views.training.train_args import build_training_launch_args
 from app.ui.views.training.view_model import TrainingViewModel
@@ -233,6 +237,25 @@ class TrainingView(QWidget):
             self._optimizer_edit.setText(training.optimizer)
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
+<<<<<<< codex/fix-training-settings-application-bug-and-improve-safety
+            base_choices = [
+                (
+                    self._model_combo.itemText(i),
+                    self._get_model_id_for_choice(self._model_combo.itemText(i)) or "",
+                )
+                for i in range(self._model_combo.count())
+            ]
+            selected_label = resolve_model_choice_label(
+                model_name=training.model_name,
+                weights_path=training.weights_path,
+                trained_choices=self._trained_choices,
+                base_choices=base_choices,
+            )
+            if selected_label is not None:
+                model_idx = self._model_combo.findText(selected_label)
+                if model_idx >= 0:
+                    self._model_combo.setCurrentIndex(model_idx)
+=======
             for i in range(self._model_combo.count()):
                 if (
                     self._get_model_id_for_choice(self._model_combo.itemText(i))
@@ -240,6 +263,7 @@ class TrainingView(QWidget):
                 ):
                     self._model_combo.setCurrentIndex(i)
                     break
+>>>>>>> main
 
     def _guarded_update_training(self, **changes) -> None:
         if self._guarded_store_update.should_ignore_user_change():
@@ -265,7 +289,7 @@ class TrainingView(QWidget):
         if self._trained_choices:
             labels.append("—— Дообучение ——")
             labels.extend(t[0] for t in self._trained_choices)
-        labels.append("Наша модель (файл…)…")
+        labels.append(CUSTOM_MODEL_CHOICE)
         return labels
 
     def _refresh_model_list(self) -> None:
@@ -285,7 +309,7 @@ class TrainingView(QWidget):
         return (100, 300)
 
     def _on_model_changed(self, choice: str) -> None:
-        if choice == "Наша модель (файл…)…":
+        if choice == CUSTOM_MODEL_CHOICE:
             self._weights_frame.show()
             self._model_hint_label.setText("Укажите путь к своим весам (.pt) для дообучения.")
             self._epochs_recommended.setText("")
@@ -307,7 +331,7 @@ class TrainingView(QWidget):
 
     def _get_model_id_and_weights(self) -> tuple[str, Path | None]:
         choice = self._model_combo.currentText()
-        if choice == "Наша модель (файл…)…":
+        if choice == CUSTOM_MODEL_CHOICE:
             p = self._weights_edit.text().strip()
             if p and Path(p).exists():
                 return ("", Path(p))
