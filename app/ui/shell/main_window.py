@@ -68,9 +68,11 @@ class MainWindow(QMainWindow):
             from app.ui.views.integrations.view import IntegrationsView
             from app.ui.views.jobs.view import JobsView
             from app.ui.views.training.view import TrainingView
+            from app.ui.views.training_advisor.view import TrainingAdvisorView
 
             factories = {
                 "training": lambda: TrainingView(container, signals),
+                "training_advisor": lambda: TrainingAdvisorView(container),
                 "detection": lambda: DetectionView(container),
                 "datasets": lambda: DatasetsView(container=container),
                 "validation": lambda: ValidationView(container),

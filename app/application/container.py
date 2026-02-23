@@ -14,6 +14,11 @@ from app.application.ports.capture import CapturePort, FrameSource, FrameSourceS
 from app.application.ports.detection import DetectionPort, DetectorSpec
 from app.application.ports.integrations import IntegrationsPort
 from app.application.ports.metrics import MetricsPort
+from app.application.advisor_state import AdvisorStore
+from app.application.use_cases.training_advisor import (
+    AnalyzeTrainingAndRecommendUseCase,
+    ApplyAdvisorRecommendationsUseCase,
+)
 from app.application.use_cases.export_model import DefaultModelExporter, ExportModelUseCase
 from app.application.use_cases.integrations_config import (
     DefaultIntegrationsConfigRepository,
@@ -27,6 +32,10 @@ from app.application.use_cases.validate_model import DefaultModelValidator, Vali
 from app.config import PROJECT_ROOT
 from app.core.events import EventBus
 from app.core.jobs import JobRegistry, JobRunner, JsonlJobEventStore, ProcessJobRunner
+from app.core.training_advisor.dataset_inspector import DatasetInspector
+from app.core.training_advisor.model_evaluator import ModelEvaluator
+from app.core.training_advisor.recommendation_engine import RecommendationEngine
+from app.core.training_advisor.run_artifacts_reader import RunArtifactsReader
 from app.core.paths import get_app_state_dir
 from app.interfaces import IDatasetConfigBuilder, IDetector, ITrainer, IWindowCapture
 from app.services import (
@@ -67,6 +76,10 @@ class Container:
         self._detection: DetectionPort | None = None
         self._metrics: MetricsPort | None = None
         self._integrations: IntegrationsPort | None = None
+        self.last_training_state: dict = {}
+        self._advisor_store: AdvisorStore | None = None
+        self._analyze_training_advisor_uc: AnalyzeTrainingAndRecommendUseCase | None = None
+        self._apply_advisor_recommendations_uc: ApplyAdvisorRecommendationsUseCase | None = None
 
     @property
     def trainer(self) -> ITrainer:
@@ -231,6 +244,29 @@ class Container:
         if self._integrations is None:
             self._integrations = IntegrationsAdapter()
         return self._integrations
+
+    @property
+    def advisor_store(self) -> AdvisorStore:
+        if self._advisor_store is None:
+            self._advisor_store = AdvisorStore()
+        return self._advisor_store
+
+    @property
+    def analyze_training_advisor_use_case(self) -> AnalyzeTrainingAndRecommendUseCase:
+        if self._analyze_training_advisor_uc is None:
+            self._analyze_training_advisor_uc = AnalyzeTrainingAndRecommendUseCase(
+                dataset_inspector=DatasetInspector(),
+                run_reader=RunArtifactsReader(),
+                model_evaluator=ModelEvaluator(),
+                recommendation_engine=RecommendationEngine(),
+            )
+        return self._analyze_training_advisor_uc
+
+    @property
+    def apply_advisor_recommendations_use_case(self) -> ApplyAdvisorRecommendationsUseCase:
+        if self._apply_advisor_recommendations_uc is None:
+            self._apply_advisor_recommendations_uc = ApplyAdvisorRecommendationsUseCase()
+        return self._apply_advisor_recommendations_uc
 
     def create_frame_source(self, source: str | FrameSourceSpec) -> FrameSource:
         """Backwards-compatible helper.
