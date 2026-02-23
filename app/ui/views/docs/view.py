@@ -4,13 +4,12 @@ import logging
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QKeySequence, QTextDocument
+from PySide6.QtGui import QKeySequence, QShortcut, QTextDocument
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QShortcut,
     QTextBrowser,
     QTreeWidget,
     QTreeWidgetItem,
