@@ -237,6 +237,7 @@ class TrainingView(QWidget):
             self._optimizer_edit.setText(training.optimizer)
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
+<<<<<<< codex/fix-training-settings-application-bug-and-improve-safety
             base_choices = [
                 (
                     self._model_combo.itemText(i),
@@ -254,6 +255,15 @@ class TrainingView(QWidget):
                 model_idx = self._model_combo.findText(selected_label)
                 if model_idx >= 0:
                     self._model_combo.setCurrentIndex(model_idx)
+=======
+            for i in range(self._model_combo.count()):
+                if (
+                    self._get_model_id_for_choice(self._model_combo.itemText(i))
+                    == training.model_name
+                ):
+                    self._model_combo.setCurrentIndex(i)
+                    break
+>>>>>>> main
 
     def _guarded_update_training(self, **changes) -> None:
         if self._guarded_store_update.should_ignore_user_change():
