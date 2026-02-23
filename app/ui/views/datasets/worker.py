@@ -14,6 +14,7 @@ from app.application.facades.datasets import (
     convert_voc_to_yolo,
     create_augmented_dataset,
     export_dataset_filter_classes,
+    generate_data_yaml,
     is_voc_dataset,
     merge_classes_in_dataset,
     prepare_for_yolo,
@@ -49,6 +50,8 @@ class DatasetWorker(QObject):
                 self._run_merge_classes()
             elif self._task_id == "rename_class":
                 self._run_rename_class()
+            elif self._task_id == "create_data_yaml":
+                self._run_create_data_yaml()
             else:
                 self.finished.emit(False, f"Неизвестная задача: {self._task_id}")
                 return
@@ -134,6 +137,37 @@ class DatasetWorker(QObject):
         merge_classes_in_dataset(src, out, to_merge, new_name, class_names)
         self.progress.emit(0.9)
         self._params["result_message"] = f"Классы объединены. Новый датасет: {out}"
+
+
+    def _run_create_data_yaml(self) -> None:
+        self.progress.emit(0.1)
+        src_raw = str(self._params.get("src", "")).strip()
+        src = Path(src_raw)
+        if not src_raw or not src.is_dir():
+            raise FileNotFoundError("Укажите существующую папку датасета.")
+
+        self.progress.emit(0.4)
+        result = generate_data_yaml(src)
+        self.progress.emit(0.9)
+
+        lines = [
+            f"Создан файл: {result.data_yaml_path}",
+            f"Detected dataset type: {result.detected_type} (confidence: {result.confidence})",
+            "",
+            "Splits:",
+            f"- train: {result.train}",
+            f"- val: {result.val}",
+            f"- test: {result.test}",
+            f"Source of class names: {result.names_source}",
+        ]
+        if result.evidence:
+            lines.append("Evidence:")
+            lines.extend(f"- {item}" for item in result.evidence[:12])
+        if result.warnings:
+            lines.append("Warnings:")
+            lines.extend(f"- {warn}" for warn in result.warnings)
+
+        self._params["result_message"] = "\n".join(lines)
 
     def _run_rename_class(self) -> None:
         self.progress.emit(0.1)
