@@ -52,3 +52,23 @@ def test_fast_local_profile_enables_speed_focused_defaults() -> None:
     assert spec.deterministic is False
     assert spec.workers >= 4
     assert spec.cache is True
+
+
+
+def test_run_spec_normalizes_device() -> None:
+    req = TrainModelRequest(
+        data_yaml=Path("/tmp/data.yaml"),
+        model_name="yolo11n.pt",
+        epochs=10,
+        batch=8,
+        imgsz=640,
+        device="cuda:0",
+        patience=5,
+        project=Path("/tmp/runs"),
+        weights_path=None,
+        workers=6,
+        optimizer="auto",
+        advanced_options={"cache": False, "seed": 0},
+    )
+    spec = build_training_run_spec(req)
+    assert spec.device == "0"

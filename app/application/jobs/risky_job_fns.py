@@ -7,10 +7,14 @@ separate process (spawn start method).
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
+import sys
 from pathlib import Path
 from typing import Any
 
 from app.core.errors import CancelledError
+
+log = logging.getLogger(__name__)
 
 
 def _progress(progress: Callable[[float, str | None], None], p: float, msg: str | None) -> None:
@@ -80,7 +84,39 @@ def train_model_job(
     if cancel_evt.is_set():
         raise CancelledError("cancelled")
 
+    from app.application.use_cases.train_model import normalize_training_device
     from app.services.training_service import TrainingService
+
+    try:
+        import torch
+
+        cuda_available = bool(torch.cuda.is_available())
+        cuda_count = int(torch.cuda.device_count()) if cuda_available else 0
+        torch_version = str(getattr(torch, "__version__", "unknown"))
+        torch_cuda_version = str(getattr(getattr(torch, "version", None), "cuda", None))
+        gpu_name = str(torch.cuda.get_device_name(0)) if cuda_available and cuda_count > 0 else "n/a"
+    except Exception as exc:
+        cuda_available = False
+        cuda_count = 0
+        torch_version = f"unavailable ({exc})"
+        torch_cuda_version = "unavailable"
+        gpu_name = "n/a"
+
+    requested_device = str(cfg.get("device", ""))
+    normalized_device = normalize_training_device(requested_device)
+    cfg["device"] = normalized_device
+
+    diag = (
+        f"DEVICE_REQUEST={normalized_device} CUDA_AVAILABLE={cuda_available} "
+        f"CUDA_COUNT={cuda_count} EXE={sys.executable}"
+    )
+    log.info(diag)
+    log.info(
+        "Training process environment: torch=%s torch.version.cuda=%s gpu0=%s",
+        torch_version,
+        torch_cuda_version,
+        gpu_name,
+    )
 
     trainer = TrainingService()
 

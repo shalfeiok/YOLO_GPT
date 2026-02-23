@@ -28,6 +28,7 @@ from app.application.advisor_state import AdvisorState
 from app.application.ports.metrics import MetricsPort
 from app.application.settings import settings_diff
 from app.application.settings.models import TrainingSettings
+from app.application.use_cases.train_model import normalize_training_device
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
@@ -35,6 +36,7 @@ from app.ui.infrastructure.lifecycle import SubscriptionManager
 from app.ui.infrastructure.settings_controller import SettingsController
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import MAX_DATASETS
+from app.ui.training.device_utils import is_cuda_available
 from app.ui.training.helpers import scan_trained_weights
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
 from app.ui.views.training.sections import build_training_ui
@@ -122,6 +124,7 @@ class TrainingView(QWidget):
         self._imgsz_spin.setStyleSheet(self._spin_style())
         self._patience_spin.setStyleSheet(self._spin_style())
         self._workers_spin.setStyleSheet(self._spin_style())
+        self._device_combo.setStyleSheet(self._combo_style())
         self._optimizer_edit.setStyleSheet(self._line_edit_style())
         self._delete_cache_cb.setStyleSheet(f"color: {t.text_primary};")
         self._project_edit.setStyleSheet(self._line_edit_style())
@@ -223,6 +226,12 @@ class TrainingView(QWidget):
             self._imgsz_spin.setValue(training.imgsz)
             self._patience_spin.setValue(training.patience)
             self._workers_spin.setValue(training.workers)
+            normalized_setting_device = normalize_training_device(training.device)
+            idx = self._device_combo.findData(training.device)
+            if idx < 0:
+                idx = self._device_combo.findData(normalized_setting_device)
+            if idx >= 0:
+                self._device_combo.setCurrentIndex(idx)
             self._optimizer_edit.setText(training.optimizer)
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
@@ -443,6 +452,21 @@ class TrainingView(QWidget):
             return
         self._settings.update_training(**changes)
 
+    def _on_device_combo_changed(self, _index: int) -> None:
+        value = str(self._device_combo.currentData() or "auto")
+        normalized = normalize_training_device(value)
+        if value not in {"auto", "cpu"} and not is_cuda_available():
+            warn = "GPU недоступна в текущем окружении. Переключаю на CPU."
+            if self._container.notifications:
+                self._container.notifications.warning(warn)
+            else:
+                QMessageBox.warning(self, "Device", warn)
+            cpu_idx = self._device_combo.findData("cpu")
+            if cpu_idx >= 0:
+                self._device_combo.setCurrentIndex(cpu_idx)
+            normalized = "cpu"
+        self._update_training_field(device=normalized)
+
     def _connect_signals(self) -> None:
         self._signals.progress_updated.connect(self._on_progress)
         self._signals.console_lines_batch.connect(self._on_console_lines_batch)
@@ -456,6 +480,7 @@ class TrainingView(QWidget):
         self._workers_spin.valueChanged.connect(
             lambda v: self._update_training_field(workers=int(v))
         )
+        self._device_combo.currentIndexChanged.connect(self._on_device_combo_changed)
         self._optimizer_edit.textChanged.connect(
             lambda text: self._update_training_field(optimizer=text.strip() or "auto")
         )
@@ -621,6 +646,13 @@ class TrainingView(QWidget):
         self._metrics_start = {}
         self._training_start_time = time.time()
         launch_args = build_training_launch_args(training, data_yaml=out_yaml, log_path=log_path)
+        launch_device = normalize_training_device(launch_args.device)
+        if launch_device != launch_args.device:
+            self._update_training_field(device=launch_device)
+            launch_args = build_training_launch_args(self._settings.training(), data_yaml=out_yaml, log_path=log_path)
+        self._status_label.setText(
+            f"Запуск: device={launch_args.device} workers={launch_args.workers} batch={launch_args.batch} imgsz={launch_args.imgsz}"
+        )
         self._total_epochs = launch_args.epochs
         self._epoch_start_time = None
         self._last_epoch = None
