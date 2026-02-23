@@ -152,13 +152,17 @@ class DatasetWorker(QObject):
 
         lines = [
             f"Создан файл: {result.data_yaml_path}",
+            f"Detected dataset type: {result.detected_type} (confidence: {result.confidence})",
             "",
-            "Определённые split-ы:",
+            "Splits:",
+            f"- train: {result.train}",
+            f"- val: {result.val}",
+            f"- test: {result.test}",
+            f"Source of class names: {result.names_source}",
         ]
-        for key in ("train", "val", "test"):
-            if key in result.splits:
-                lines.append(f"- {key}: {result.splits[key]}")
-        lines.append(f"Источник names: {result.names_source}")
+        if result.evidence:
+            lines.append("Evidence:")
+            lines.extend(f"- {item}" for item in result.evidence[:12])
         if result.warnings:
             lines.append("Warnings:")
             lines.extend(f"- {warn}" for warn in result.warnings)
