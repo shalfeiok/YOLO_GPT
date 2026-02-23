@@ -1,4 +1,4 @@
-#commit и версия
+# commit и версия
 """Обучение YOLO в фоновом потоке с прогрессом и выводом в консоль (SOLID: единственная ответственность).
 
 Учитывает конфиг интеграций: Albumentations (augmentations), Comet ML (env).
@@ -48,6 +48,19 @@ ALLOWED_ADVANCED_TRAINING_KEYS = {
     "warmup_bias_lr",
     "weight_decay",
 }
+
+
+def _split_advanced_options(
+    advanced_options: dict[str, Any] | None,
+) -> tuple[dict[str, Any], list[str]]:
+    applied: dict[str, Any] = {}
+    dropped: list[str] = []
+    for key, value in (advanced_options or {}).items():
+        if key in ALLOWED_ADVANCED_TRAINING_KEYS:
+            applied[key] = value
+        else:
+            dropped.append(str(key))
+    return applied, sorted(dropped)
 
 
 class TrainingService(ITrainer):
@@ -155,36 +168,21 @@ class TrainingService(ITrainer):
             if augmentations_list:
                 train_kw["augmentations"] = augmentations_list
             # Расширенные настройки из диалога (cache, lr0, lrf, mosaic, mixup, seed, box, cls, dfl и др.)
-            if advanced_options:
-                ignored_advanced_options: list[str] = []
-                for k, v in advanced_options.items():
-                    if k in ALLOWED_ADVANCED_TRAINING_KEYS:
-                        train_kw[k] = v
-                    else:
-                        ignored_advanced_options.append(str(k))
-                if ignored_advanced_options:
-                    log.warning(
-                        "Unknown advanced training options were ignored: %s",
-                        ", ".join(sorted(ignored_advanced_options)),
-                    )
+            applied_advanced_options, dropped_advanced_options = _split_advanced_options(
+                advanced_options
+            )
+            train_kw.update(applied_advanced_options)
             # При cache=True на Windows spawn воркеров приводит к сериализации кэша в память → MemoryError.
             # Загрузка из кэша в одном процессе (workers=0) стабильна и быстра.
             if train_kw.get("cache"):
                 train_kw["workers"] = 0
 
             log.info(
-                "Starting YOLO training with args: imgsz=%s batch=%s epochs=%s patience=%s workers=%s device=%s mosaic=%s mixup=%s close_mosaic=%s",
-                train_kw.get("imgsz"),
-                train_kw.get("batch"),
-                train_kw.get("epochs"),
-                train_kw.get("patience"),
-                train_kw.get("workers"),
-                train_kw.get("device"),
-                train_kw.get("mosaic"),
-                train_kw.get("mixup"),
-                train_kw.get("close_mosaic"),
+                "Starting YOLO training with args=%s advanced_applied=%s advanced_dropped=%s",
+                {k: train_kw.get(k) for k in sorted(train_kw.keys())},
+                applied_advanced_options,
+                dropped_advanced_options,
             )
-            log.info("ULTRALYTICS_TRAIN device=%s", train_kw.get("device"))
 
             try:
                 results = model.train(**train_kw)
