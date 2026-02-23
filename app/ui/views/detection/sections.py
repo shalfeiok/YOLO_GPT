@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from app.config import DEFAULT_CONFIDENCE, DEFAULT_IOU_THRESH
 from app.features.detection_visualization import list_backends
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
+from app.ui.components.model_utils import make_best_model_checkbox
 from app.ui.theme.tokens import Tokens
 
 RowLabelFn = Callable[[str], QLabel]
@@ -43,6 +44,10 @@ def build_model_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: Row
     view._browse_weights_btn.clicked.connect(view._browse_weights)
     model_layout.addWidget(view._browse_weights_btn)
     layout.addLayout(model_layout)
+    best_row = QHBoxLayout()
+    best_row.addStretch()
+    best_row.addWidget(make_best_model_checkbox(view, view._weights_edit))
+    layout.addLayout(best_row)
 
 
 def build_source_row(view: object, t: Tokens, layout: QVBoxLayout, row_label: RowLabelFn) -> None:

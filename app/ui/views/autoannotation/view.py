@@ -26,6 +26,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.components.model_utils import make_best_model_checkbox
+
 
 class AutoAnnotationView(QWidget):
     def __init__(self, container) -> None:
@@ -72,6 +74,8 @@ class AutoAnnotationView(QWidget):
         ww = QWidget()
         ww.setLayout(wr)
         f.addRow("Weights:", ww)
+        self._use_best = make_best_model_checkbox(self, self._w)
+        f.addRow("", self._use_best)
 
         self._conf = QDoubleSpinBox()
         self._conf.setRange(0, 1)

@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.components.model_utils import make_best_model_checkbox
+
 
 class ClassificationView(QWidget):
     def __init__(self, container) -> None:
@@ -64,6 +66,8 @@ class ClassificationView(QWidget):
         ww = QWidget()
         ww.setLayout(wr)
         f.addRow("Веса:", ww)
+        self._use_best_one = make_best_model_checkbox(self, self._weights)
+        f.addRow("", self._use_best_one)
 
         ol.addWidget(g)
         self._preview = QLabel()
@@ -106,6 +110,8 @@ class ClassificationView(QWidget):
         bww = QWidget()
         bww.setLayout(bwr)
         fb.addRow("Веса:", bww)
+        self._use_best_batch = make_best_model_checkbox(self, self._bweights)
+        fb.addRow("", self._use_best_batch)
         bl.addWidget(gb)
 
         self._run_batch = QPushButton("Запустить batch")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import time
+import uuid
 from collections import defaultdict, deque
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import PREVIEW_MAX_SIZE
+from app.core.events.job_events import JobFailed, JobFinished, JobStarted
+from app.ui.components.model_utils import make_best_model_checkbox
 
 
 class TrackWorker(QThread):
@@ -121,9 +124,12 @@ class TrackWorker(QThread):
 
 
 class TrackingView(QWidget):
-    def __init__(self, _container) -> None:
+    def __init__(self, container) -> None:
         super().__init__()
+        self._bus = container.event_bus
         self._w: TrackWorker | None = None
+        self._job_id: str | None = None
+        self._job_failed = False
         self._ui()
 
     def _ui(self) -> None:
@@ -142,6 +148,8 @@ class TrackingView(QWidget):
         ww = QWidget()
         ww.setLayout(wr)
         f.addRow("Веса:", ww)
+        self._use_best = make_best_model_checkbox(self, self._weights)
+        f.addRow("", self._use_best)
 
         self._src = QComboBox()
         self._src.addItems(["Camera", "Video File"])
@@ -167,7 +175,8 @@ class TrackingView(QWidget):
         f.addRow("Трекер:", self._tracker)
 
         self._device = QComboBox()
-        self._device.addItems(["cpu", "cuda:0"])
+        self._device.addItems(["cuda:0", "cpu"])
+        self._device.setCurrentText("cuda:0")
         self._device.setToolTip("Устройство инференса")
         f.addRow("Устройство:", self._device)
 
@@ -245,7 +254,8 @@ class TrackingView(QWidget):
     def _toggle(self) -> None:
         if self._w and self._w.isRunning():
             self._w.stop()
-            self._w.wait()
+            self._btn.setEnabled(False)
+            self._w.finished.connect(self._on_stopped)
             return
 
         if not Path(self._weights.text()).exists():
@@ -272,8 +282,24 @@ class TrackingView(QWidget):
         }
         self._w = TrackWorker(cfg)
         self._w.frame_ready.connect(self._on_frame)
-        self._w.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка", e))
+        self._w.failed.connect(self._on_failed)
+        self._w.finished.connect(self._on_stopped)
+        self._job_failed = False
+        self._job_id = uuid.uuid4().hex
+        self._bus.publish(JobStarted(job_id=self._job_id, name="tracking"))
         self._w.start()
+
+    def _on_failed(self, error: str) -> None:
+        QMessageBox.critical(self, "Ошибка", error)
+        if self._job_id:
+            self._job_failed = True
+            self._bus.publish(JobFailed(job_id=self._job_id, name="tracking", error=error))
+
+    def _on_stopped(self) -> None:
+        self._btn.setEnabled(True)
+        if self._job_id and not self._job_failed:
+            self._bus.publish(JobFinished(job_id=self._job_id, name="tracking", result=None))
+        self._job_id = None
 
     def _on_frame(self, frame, fps, active, uniq) -> None:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

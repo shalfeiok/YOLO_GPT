@@ -7,6 +7,7 @@ from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.components.buttons import PrimaryButton, SecondaryButton
+from app.ui.components.model_utils import make_best_model_checkbox
 
 
 class ValidationView(QWidget):
@@ -59,6 +61,8 @@ class ValidationView(QWidget):
         wr = QHBoxLayout(); wr.addWidget(self._weights, 1); wr.addWidget(btn_w)
         wc = QWidget(); wc.setLayout(wr)
         form.addRow("Веса (.pt):", wc)
+        self._use_best = make_best_model_checkbox(self, self._weights)
+        form.addRow("", self._use_best)
 
         self._data = QLineEdit("dataset/data.yaml")
         self._data.setToolTip("Путь к data.yaml для валидации")
@@ -68,8 +72,10 @@ class ValidationView(QWidget):
         dc = QWidget(); dc.setLayout(dr)
         form.addRow("Dataset (data.yaml):", dc)
 
-        self._device = QLineEdit("cpu")
-        self._device.setToolTip("Устройство, например cpu или cuda:0")
+        self._device = QComboBox()
+        self._device.addItems(["cuda:0", "cpu"])
+        self._device.setCurrentText("cuda:0")
+        self._device.setToolTip("Устройство выполнения")
         form.addRow("Устройство:", self._device)
         self._imgsz = QSpinBox(); self._imgsz.setRange(64, 4096); self._imgsz.setValue(640)
         form.addRow("Image size:", self._imgsz)
@@ -136,7 +142,7 @@ class ValidationView(QWidget):
             progress(0.2, "running val")
             res = model.val(
                 data=str(data),
-                device=self._device.text().strip() or "cpu",
+                device=self._device.currentText().strip() or "cuda:0",
                 imgsz=int(self._imgsz.value()),
                 conf=float(self._conf.value()),
                 iou=float(self._iou.value()),

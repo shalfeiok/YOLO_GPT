@@ -26,6 +26,9 @@ from PySide6.QtWidgets import (
 )
 
 
+from app.ui.components.model_utils import make_best_model_checkbox
+
+
 class BenchmarkView(QWidget):
     def __init__(self, _container) -> None:
         super().__init__()
@@ -48,9 +51,12 @@ class BenchmarkView(QWidget):
         ww = QWidget()
         ww.setLayout(wr)
         f.addRow("Веса:", ww)
+        self._use_best = make_best_model_checkbox(self, self._w)
+        f.addRow("", self._use_best)
 
         self._device = QComboBox()
-        self._device.addItems(["cpu", "cuda:0"])
+        self._device.addItems(["cuda:0", "cpu"])
+        self._device.setCurrentText("cuda:0")
         self._device.setToolTip("Устройство выполнения")
         f.addRow("Устройство:", self._device)
 

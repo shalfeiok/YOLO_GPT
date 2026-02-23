@@ -27,7 +27,7 @@ DEFAULT_BATCH = -1  # -1 = авто по документации Ultralytics (�
 DEFAULT_IMGSZ = 640
 DEFAULT_PATIENCE = 20
 DEFAULT_WORKERS = 6  # ≈ число ядер CPU; больше — рост нагрузки на CPU/RAM и просадка GPU
-DEFAULT_DEVICE = ""  # auto
+DEFAULT_DEVICE = "cuda:0"
 
 # Integrations tab config (JSON)
 INTEGRATIONS_CONFIG_PATH = PROJECT_ROOT / "integrations_config.json"
