@@ -16,6 +16,7 @@ from app.core.events import (
     JobStarted,
     JobTimedOut,
 )
+from app.ui.infrastructure.lifecycle import SubscriptionManager
 from app.ui.views.integrations.view_model import IntegrationsViewModel
 from app.ui.views.integrations.view_parts import (
     IntegrationsConfigActionsMixin,
@@ -44,6 +45,8 @@ class IntegrationsView(
         self._state = self._vm.load_state()
         self._current_job_id: str | None = None
         self._subs = []
+        self._subscriptions = SubscriptionManager()
+        self._is_shutdown = False
         self._root_layout = QVBoxLayout(self)
         try:
             self._vm.state_changed.connect(self._on_state_changed)  # type: ignore[attr-defined]
@@ -63,13 +66,22 @@ class IntegrationsView(
                 JobTimedOut,
                 JobLogLine,
             ):
-                self._subs.append(bus.subscribe_weak(et, self._on_job_event))
+                self._subs.append(
+                    self._subscriptions.add_subscription(bus.subscribe_weak(et, self._on_job_event))
+                )
         self._build_ui()
 
+    def shutdown(self) -> None:
+        if getattr(self, "_is_shutdown", False):
+            return
+        self._is_shutdown = True
+        bus = self._container.event_bus if self._container is not None else None
+        subscriptions = getattr(self, "_subscriptions", None)
+        if subscriptions is not None:
+            subscriptions.dispose_all(bus=bus)
+        if hasattr(self, "_subs"):
+            self._subs.clear()
+
     def closeEvent(self, event) -> None:  # noqa: N802
-        if self._container:
-            bus = self._container.event_bus
-            for s in self._subs:
-                bus.unsubscribe(s)
-        self._subs.clear()
+        self.shutdown()
         super().closeEvent(event)

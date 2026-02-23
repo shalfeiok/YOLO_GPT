@@ -1,10 +1,11 @@
-#commit и версия
+# commit и версия
 """
 Training View: parameters, progress, metrics, console. Binds to TrainingViewModel and signals.
 """
 
 from __future__ import annotations
 
+import logging
 import shutil
 import time
 from pathlib import Path
@@ -23,21 +24,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.application.advisor_state import AdvisorState
 from app.application.ports.metrics import MetricsPort
 from app.application.settings import settings_diff
 from app.application.settings.models import TrainingSettings
-from app.application.advisor_state import AdvisorState
 from app.models import MODEL_HINTS, RECOMMENDED_EPOCHS, YOLO_MODEL_CHOICES
 from app.ui.components.buttons import SecondaryButton
 from app.ui.components.dialogs import confirm_stop_training
+from app.ui.infrastructure.lifecycle import SubscriptionManager
+from app.ui.infrastructure.settings_controller import SettingsController
 from app.ui.theme.tokens import Tokens
 from app.ui.training.constants import MAX_DATASETS
 from app.ui.training.helpers import scan_trained_weights
-from app.ui.views.training.train_args import build_training_launch_args
 from app.ui.views.training.advanced_settings_dialog import AdvancedTrainingSettingsDialog
 from app.ui.views.training.sections import build_training_ui
+from app.ui.views.training.train_args import build_training_launch_args
 from app.ui.views.training.view_model import TrainingViewModel
-from app.ui.infrastructure.settings_controller import SettingsController
 
 if TYPE_CHECKING:
     from app.ui.infrastructure.di import Container
@@ -59,6 +61,14 @@ class TrainingView(QWidget):
         self._is_applying_store_state = False
         self._store_unsubscribe = None
         self._advisor_unsubscribe = None
+        self._subscriptions = SubscriptionManager()
+        self._bus_subs: list[object] = []
+        self._timers: list[QTimer] = []
+        self._threads: list[object] = []
+        self._capture = None
+        self._task = None
+        self._running = False
+        self._is_shutdown = False
         self._current_metrics: dict = {}
         self._metrics_start: dict = {}
         self._training_start_time: float | None = None
@@ -192,7 +202,9 @@ class TrainingView(QWidget):
     def _on_dataset_paths_changed(self) -> None:
         if self._is_applying_store_state:
             return
-        self._settings.update_training(dataset_paths=tuple(str(p) for p in self._get_dataset_paths()))
+        self._settings.update_training(
+            dataset_paths=tuple(str(p) for p in self._get_dataset_paths())
+        )
 
     def _apply_training_settings_to_ui(self) -> None:
         training = self._settings.training()
@@ -215,7 +227,10 @@ class TrainingView(QWidget):
             self._project_edit.setText(training.project)
             self._weights_edit.setText(training.weights_path or "")
             for i in range(self._model_combo.count()):
-                if self._get_model_id_for_choice(self._model_combo.itemText(i)) == training.model_name:
+                if (
+                    self._get_model_id_for_choice(self._model_combo.itemText(i))
+                    == training.model_name
+                ):
                     self._model_combo.setCurrentIndex(i)
                     break
         finally:
@@ -351,6 +366,7 @@ class TrainingView(QWidget):
 
     def _start_metrics_timer(self) -> None:
         self._metrics_timer = QTimer(self)
+        self._timers = [self._metrics_timer]
         self._metrics_timer.timeout.connect(self._tick_system_metrics)
         self._metrics_timer.start(METRICS_UPDATE_MS)
 
@@ -434,8 +450,12 @@ class TrainingView(QWidget):
         self._epochs_spin.valueChanged.connect(lambda v: self._update_training_field(epochs=int(v)))
         self._batch_spin.valueChanged.connect(lambda v: self._update_training_field(batch=int(v)))
         self._imgsz_spin.valueChanged.connect(lambda v: self._update_training_field(imgsz=int(v)))
-        self._patience_spin.valueChanged.connect(lambda v: self._update_training_field(patience=int(v)))
-        self._workers_spin.valueChanged.connect(lambda v: self._update_training_field(workers=int(v)))
+        self._patience_spin.valueChanged.connect(
+            lambda v: self._update_training_field(patience=int(v))
+        )
+        self._workers_spin.valueChanged.connect(
+            lambda v: self._update_training_field(workers=int(v))
+        )
         self._optimizer_edit.textChanged.connect(
             lambda text: self._update_training_field(optimizer=text.strip() or "auto")
         )
@@ -445,9 +465,11 @@ class TrainingView(QWidget):
         self._weights_edit.textChanged.connect(
             lambda text: self._update_training_field(weights_path=text.strip() or None)
         )
-        self._store_unsubscribe = self._settings.subscribe_training(self._on_training_settings_changed)
-        self._advisor_unsubscribe = self._container.advisor_store.subscribe(
-            self._on_advisor_state_changed
+        self._store_unsubscribe = self._subscriptions.add_disposer(
+            self._settings.subscribe_training(self._on_training_settings_changed)
+        )
+        self._advisor_unsubscribe = self._subscriptions.add_disposer(
+            self._container.advisor_store.subscribe(self._on_advisor_state_changed)
         )
         self._apply_training_settings_to_ui()
         self._on_advisor_state_changed(self._container.advisor_store.state)
@@ -630,23 +652,49 @@ class TrainingView(QWidget):
     def _undo_advisor_apply(self) -> None:
         diff = self._container.apply_advisor_recommendations_use_case.undo()
         if diff:
-            preview = "\n".join(f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff)
+            preview = "\n".join(
+                f"- {d['param']}: {d['current']} -> {d['recommended']}" for d in diff
+            )
             self._apply_training_settings_to_ui()
             QMessageBox.information(self, "Отмена применения", "Откат выполнен:\n" + preview)
             self._undo_advisor_btn.setEnabled(False)
 
     def shutdown(self) -> None:
-        self._vm.stop_training()
-        if self._store_unsubscribe is not None:
-            self._store_unsubscribe()
-            self._store_unsubscribe = None
-        if self._advisor_unsubscribe is not None:
-            self._advisor_unsubscribe()
-            self._advisor_unsubscribe = None
-        bus = self._container.event_bus
-        for sub in self._bus_subs:
-            bus.unsubscribe(sub)
-        self._bus_subs.clear()
+        if getattr(self, "_is_shutdown", False):
+            return
+        self._is_shutdown = True
+        vm = getattr(self, "_vm", None)
+        if vm is not None:
+            try:
+                vm.stop_training()
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "TrainingView stop_training failed during shutdown"
+                )
+
+        container = getattr(self, "_container", None)
+        bus = container.event_bus if container is not None else None
+        for sub in list(getattr(self, "_bus_subs", [])):
+            try:
+                if bus is not None:
+                    bus.unsubscribe(sub)
+            except Exception:
+                logging.getLogger(__name__).exception("TrainingView bus unsubscribe failed")
+        if hasattr(self, "_bus_subs"):
+            self._bus_subs.clear()
+
+        subscriptions = getattr(self, "_subscriptions", None)
+        if subscriptions is not None:
+            subscriptions.dispose_all(logger=logging.getLogger(__name__))
+        self._store_unsubscribe = None
+        self._advisor_unsubscribe = None
+
+        if getattr(self, "_metrics_timer", None) is not None:
+            try:
+                self._metrics_timer.stop()
+            except Exception:
+                logging.getLogger(__name__).exception("TrainingView metrics timer stop failed")
+            self._metrics_timer = None
 
     def closeEvent(self, event) -> None:  # noqa: N802
         self.shutdown()

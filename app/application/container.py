@@ -1,4 +1,4 @@
-#commit и версия
+# commit и версия
 """Composition root / DI container.
 
 UI should not import infrastructure services directly. This container lives in
@@ -7,19 +7,16 @@ the application layer and wires up concrete implementations.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from pathlib import Path
 
+from app.application.advisor_state import AdvisorStore
 from app.application.ports.capture import CapturePort, FrameSource, FrameSourceSpec
 from app.application.ports.detection import DetectionPort, DetectorSpec
 from app.application.ports.integrations import IntegrationsPort
 from app.application.ports.metrics import MetricsPort
-from app.application.advisor_state import AdvisorStore
 from app.application.settings.store import AppSettingsStore
-from app.application.use_cases.training_advisor import (
-    AnalyzeTrainingAndRecommendUseCase,
-    ApplyAdvisorRecommendationsUseCase,
-)
 from app.application.use_cases.export_model import DefaultModelExporter, ExportModelUseCase
 from app.application.use_cases.integrations_config import (
     DefaultIntegrationsConfigRepository,
@@ -29,15 +26,19 @@ from app.application.use_cases.integrations_config import (
 from app.application.use_cases.start_detection import StartDetectionUseCase
 from app.application.use_cases.stop_detection import StopDetectionUseCase
 from app.application.use_cases.train_model import TrainModelUseCase
+from app.application.use_cases.training_advisor import (
+    AnalyzeTrainingAndRecommendUseCase,
+    ApplyAdvisorRecommendationsUseCase,
+)
 from app.application.use_cases.validate_model import DefaultModelValidator, ValidateModelUseCase
 from app.config import PROJECT_ROOT
 from app.core.events import EventBus
 from app.core.jobs import JobRegistry, JobRunner, JsonlJobEventStore, ProcessJobRunner
+from app.core.paths import get_app_state_dir
 from app.core.training_advisor.dataset_inspector import DatasetInspector
 from app.core.training_advisor.model_evaluator import ModelEvaluator
 from app.core.training_advisor.recommendation_engine import RecommendationEngine
 from app.core.training_advisor.run_artifacts_reader import RunArtifactsReader
-from app.core.paths import get_app_state_dir
 from app.interfaces import IDatasetConfigBuilder, IDetector, ITrainer, IWindowCapture
 from app.services import (
     DatasetConfigBuilder,
@@ -81,6 +82,7 @@ class Container:
         self._advisor_store: AdvisorStore | None = None
         self._analyze_training_advisor_uc: AnalyzeTrainingAndRecommendUseCase | None = None
         self._apply_advisor_recommendations_uc: ApplyAdvisorRecommendationsUseCase | None = None
+        self._is_shutdown = False
 
     @property
     def trainer(self) -> ITrainer:
@@ -287,16 +289,32 @@ class Container:
         return self.capture.create_frame_source(spec)
 
     def shutdown(self) -> None:
+        if getattr(self, "_is_shutdown", False):
+            return
+        self._is_shutdown = True
+        logger = logging.getLogger(__name__)
         if self._trainer is not None:
             try:
                 self._trainer.stop()
             except Exception:
-                pass
+                logger.exception("Failed to stop trainer during container shutdown")
         if self._job_runner is not None:
-            self._job_runner.shutdown()
+            try:
+                self._job_runner.shutdown()
+            except Exception:
+                logger.exception("Failed to shutdown job runner")
         if self._process_job_runner is not None:
-            self._process_job_runner.shutdown()
+            try:
+                self._process_job_runner.shutdown()
+            except Exception:
+                logger.exception("Failed to shutdown process job runner")
         if self._job_registry is not None:
-            self._job_registry.close()
+            try:
+                self._job_registry.close()
+            except Exception:
+                logger.exception("Failed to close job registry")
         if self._event_bus is not None:
-            self._event_bus.clear()
+            try:
+                self._event_bus.clear()
+            except Exception:
+                logger.exception("Failed to clear event bus")
